@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#########################################
+# Verificar si existe un conjunto
+#########################################
 
 existsSet(){
 
@@ -9,7 +12,13 @@ existsSet(){
 
 }
 
+#########################################
+# Inicializar Backend
+#########################################
+
 init_ipsets(){
+
+    INFO "Inicializando conjuntos ARE..."
 
     createSet "$FILTER_SET4" inet
     createSet "$BAN_SET4" inet

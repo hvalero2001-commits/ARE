@@ -64,3 +64,32 @@ apply_decision() {
         ;;
     esac
 }
+
+############################################################
+# Apply UNBAN
+############################################################
+
+apply_unban() {
+
+    local IP="$1"
+
+    local FAMILY
+    local SET_FILTER
+    local SET_BAN
+
+    # Detectar familia IP
+    if [[ "$IP" == *:* ]]; then
+        FAMILY="6"
+    else
+        FAMILY="4"
+    fi
+
+    SET_FILTER=$([ "$FAMILY" = 6 ] && echo "$FILTER_SET6" || echo "$FILTER_SET4")
+    SET_BAN=$([ "$FAMILY" = 6 ] && echo "$BAN_SET6" || echo "$BAN_SET4")
+
+    INFO "[UNBAN] IP=$IP"
+
+    unbanIP "$SET_FILTER" "$IP"
+    unbanIP "$SET_BAN" "$IP"
+
+}
