@@ -99,5 +99,19 @@ Se reorganizaron las reglas de política desde `policy_rules/` hacia `policy/rul
 
 ---
 
+### BUG-005
+**Título:** Inicialización duplicada del backend
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.0.1
+
+**Descripción:**
+Se corrigió la doble inicialización de `init_ipsets()` eliminando la llamada directa desde `bootstrap.sh` y dejando la inicialización centralizada en `backend/init.sh`.
+
+**Validación:**
+`score` ejecutado correctamente mostrando una sola inicialización de IPSet y Firewall.
+
+---
 
 

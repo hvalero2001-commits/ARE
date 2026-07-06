@@ -20,6 +20,7 @@ Primera versión de mantenimiento de ARE, enfocada en estabilización y correcci
 * Validación completa del ciclo **BAN → UNBAN** sobre servidor en producción.
 * Se mantiene intacta la reputación, el historial y el estado de las IP durante el proceso de UNBAN.
 * Reorganización de reglas del Policy Engine hacia `policy/rules/`.
+* Corregida la inicialización duplicada del backend.
 
 ---
 

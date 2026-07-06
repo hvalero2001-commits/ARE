@@ -82,14 +82,3 @@ existsSet() {
 
 }
 
-init_ipsets() {
-
-    INFO "Inicializando conjuntos ARE..."
-
-    createSet "$FILTER_SET4" inet
-    createSet "$BAN_SET4" inet
-
-    createSet "$FILTER_SET6" inet6
-    createSet "$BAN_SET6" inet6
-
-}

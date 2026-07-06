@@ -39,4 +39,3 @@ source "$BASE/backend/init.sh"
 source "$BASE/backend/firewall.sh"
 
 init_backend
-init_ipsets
