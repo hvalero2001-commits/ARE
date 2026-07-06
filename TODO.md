@@ -70,3 +70,22 @@ Las nuevas funcionalidades no se incorporarán en esta rama.
 
 La versión 1.0.1 estará destinada exclusivamente a estabilización y corrección de errores detectados en producción.
 
+---
+
+### TASK-001
+**Título:** Mover reglas del Policy Engine a `policy/rules/`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.0.1
+
+**Descripción:**
+Se reorganizaron las reglas de política desde `policy_rules/` hacia `policy/rules/` para mantenerlas dentro del módulo Policy Engine.
+
+**Validación:**
+- `score` probado correctamente.
+- `ban recidive` probado correctamente.
+
+---
+
+
