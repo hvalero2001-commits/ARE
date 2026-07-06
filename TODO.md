@@ -88,4 +88,16 @@ Se reorganizaron las reglas de política desde `policy_rules/` hacia `policy/rul
 
 ---
 
+## RFC
+
+### RFC-001
+**Título:** Renombrar CLI oficial a `are`
+
+**Estado:** Draft
+
+**Versión objetivo:** v1.1
+
+---
+
+
 
