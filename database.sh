@@ -190,6 +190,10 @@ db_init() {
     	credential_score INTEGER DEFAULT 0,
     	protocol_score INTEGER DEFAULT 0,
     	bot_score INTEGER DEFAULT 0,
+	anomaly_score INTEGER DEFAULT 0,
+	malware_score INTEGER DEFAULT 0,
+	dos_score INTEGER DEFAULT 0,
+	social_score INTEGER DEFAULT 0,
     	total_score INTEGER DEFAULT 0,
 	status TEXT NOT NULL DEFAULT 'NEW',
     	updated INTEGER
@@ -485,6 +489,15 @@ db_add_score() {
         ANOMALY)
             db_exec "UPDATE reputation SET anomaly_score = anomaly_score + $SCORE, updated=$NOW WHERE ip='$IP';"
         ;;
+	MALWARE)
+            db_exec "UPDATE reputation SET malware_score = malware_score + $SCORE, updated=$NOW WHERE ip='$IP';"
+        ;;
+	DOS)
+            db_exec "UPDATE reputation SET dos_score = dos_score + $SCORE, updated=$NOW WHERE ip='$IP';"
+        ;;
+	SOCIAL)
+            db_exec "UPDATE reputation SET social_score = social_score + $SCORE, updated=$NOW WHERE ip='$IP';"
+        ;;
 
     esac
 }
@@ -502,7 +515,10 @@ db_recalculate_total() {
         credential_score +
         protocol_score +
         bot_score +
-	anomaly_score
+	anomaly_score +
+	malware_score +
+	dos_score +
+	social_score
     WHERE ip='$IP';
 "
 
@@ -536,6 +552,9 @@ db_get_reputation() {
             protocol_score || '|' ||
             bot_score || '|' ||
 	    anomaly_score || '|' ||
+	    malware_score || '|' ||
+    	    dos_score || '|' ||
+	    social_score || '|' ||
             total_score || '|' ||
             updated
         FROM reputation
@@ -649,7 +668,10 @@ db_sum_categories() {
             COALESCE(SUM(credential_score),0) || '|' ||
             COALESCE(SUM(protocol_score),0) || '|' ||
             COALESCE(SUM(bot_score),0) || '|' ||
-            COALESCE(SUM(anomaly_score),0)
+	    COALESCE(SUM(anomaly_score),0) || '|' ||
+	    COALESCE(SUM(malware_score),0) || '|' ||
+	    COALESCE(SUM(dos_score),0) || '|' ||
+            COALESCE(SUM(social_score),0)
         FROM reputation;
     "
 }
@@ -664,11 +686,13 @@ db_top_attackers() {
             exploit_score,
             credential_score,
             protocol_score,
-            bot_score
+	    bot_score,
+	    anomaly_score,
+	    malware_score,
+	    dos_score,
+            social_score
         FROM reputation
         ORDER BY total_score DESC
         LIMIT 10;
     "
 }
-
-

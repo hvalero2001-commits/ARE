@@ -31,7 +31,7 @@ dashboard_score() {
         return 0
     fi
    
-    local recon exploit credential protocol bot anomaly total updated
+    local recon exploit credential protocol bot anomaly malware dos social total updated
 
     recon=$(echo "$REP" | cut -d'|' -f1)
     exploit=$(echo "$REP" | cut -d'|' -f2)
@@ -39,8 +39,11 @@ dashboard_score() {
     protocol=$(echo "$REP" | cut -d'|' -f4)
     bot=$(echo "$REP" | cut -d'|' -f5)
     anomaly=$(echo "$REP" | cut -d'|' -f6)
-    total=$(echo "$REP" | cut -d'|' -f7)
-    updated=$(echo "$REP" | cut -d'|' -f8)
+    malware=$(echo "$REP" | cut -d'|' -f7)
+    dos=$(echo "$REP" | cut -d'|' -f8)
+    social=$(echo "$REP" | cut -d'|' -f9)
+    total=$(echo "$REP" | cut -d'|' -f10)
+    updated=$(echo "$REP" | cut -d'|' -f11)
 
     local THREAT
     THREAT=$(calc_threat_level "$total")
@@ -60,6 +63,9 @@ dashboard_score() {
     echo "Protocol.............. $protocol"
     echo "Bot................... $bot"
     echo "Anomaly............... $anomaly"
+    echo "Malware............... $malware"
+    echo "Dos................... $dos"
+    echo "Social................ $social"
     echo ""
     echo "TOTAL................. $total"
     echo "Threat Level.......... $THREAT"

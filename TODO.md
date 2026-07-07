@@ -155,7 +155,7 @@ Esto debe calcularse desde la tabla `events`, no desde `reputation`
 
 **Título:** Ampliar categorías del Reputation Engine
 
-**Estado:** OPEN
+**Estado:** ✔ Resuelto
 
 **Versión:** v1.1-dev
 
@@ -180,6 +180,14 @@ Implementar primero `ANOMALY` de punta a punta:
 - `database.sh`.
 - `dashboard/stats.sh`.
 - `dashboard/score.sh`.
+
+**Validación**
+
+- Nuevas columnas agregadas a `reputation`.
+- `ANOMALY`, `MALWARE`, `DOS` y `SOCIAL` integradas al modelo.
+- `stats` muestra todas las categorías.
+- `score <ip>` muestra todas las categorías.
+- `total_score` incluye todas las categorías.
 
 **Nota**
 
