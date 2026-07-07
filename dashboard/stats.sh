@@ -15,6 +15,13 @@ dashboard_stats() {
 
     echo "========== ARE STATS =========="
 
+    echo ""
+    echo "TOP JAILS:"
+        db_top_jails | while IFS='|' read -r JAIL COUNT
+    do
+        printf "  %-22s %s\n" "$JAIL" "$COUNT"
+    done
+
     local IPS TOTAL ACTIVE BANNED EVENTS TODAY AVG CAT
 
     IPS=$(db_count_ips)

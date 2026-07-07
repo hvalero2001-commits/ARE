@@ -696,3 +696,16 @@ db_top_attackers() {
         LIMIT 10;
     "
 }
+
+db_top_jails() {
+    db_exec "
+        SELECT jail || '|' || COUNT(*)
+        FROM events
+        WHERE jail IS NOT NULL
+          AND jail != ''
+          AND jail NOT IN ('fail2ban', 'policy_apply')
+        GROUP BY jail
+        ORDER BY COUNT(*) DESC
+        LIMIT 5;
+    "
+}

@@ -220,6 +220,45 @@ Los jails seguirán mapeándose mediante `jail_profile` hacia una categoría de 
 
 ---
 
+## FEAT-003
+
+## FEAT-003
+
+**Título:** Mostrar TOP JAILS en `stats`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Validación**
+
+- `stats` muestra TOP JAILS.
+- Se excluyen eventos internos como `fail2ban` y `policy_apply`.
+- La información se obtiene desde la tabla `events`.
+
+**Prioridad:** Media
+
+**Objetivo**
+
+Mostrar en el dashboard estadístico cuáles jails generan mayor actividad.
+
+**Fuente de datos**
+
+Tabla `events`.
+
+**Salida esperada**
+
+```text
+TOP JAILS:
+modsec-protocol ........ 132
+modsec-bruteforce ...... 78
+modsec-rce ............. 34
+sshd ................... 15
+recidive ............... 6
+```
+
+---
+
 # RFC
 
 ## RFC-001
