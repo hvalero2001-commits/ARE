@@ -1,101 +1,66 @@
 # Changelog
 
-## v1.0.1
+Todos los cambios relevantes de ARE (Abuse Reputation Engine) serán documentados en este archivo.
 
-Fecha: 2026-07-05
-
-### Resumen
-
-Primera versión de mantenimiento de ARE, enfocada en estabilización y corrección de errores detectados tras la puesta en producción de la versión 1.0.0.
+El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
-### Correcciones
+# v1.0.1
 
-* Implementación completa del flujo **UNBAN**.
-* Incorporación de `handle_unban()`.
-* Incorporación de `apply_unban()`.
-* Integración del backend IPSet para eliminación de direcciones IP.
-* Corrección de funciones duplicadas en `infrastructure/ipset.sh`.
-* Validación completa del ciclo **BAN → UNBAN** sobre servidor en producción.
-* Se mantiene intacta la reputación, el historial y el estado de las IP durante el proceso de UNBAN.
-* Reorganización de reglas del Policy Engine hacia `policy/rules/`.
-* Corregida la inicialización duplicada del backend.
+**Fecha:** 2026-07-05
 
----
+## Resumen
 
-### Estado del sistema
+Primera actualización de mantenimiento de ARE centrada en estabilizar el núcleo del sistema y completar el ciclo de vida de las direcciones IP.
 
-Versión estable de mantenimiento.
+## Nuevas funcionalidades
 
-Se completa el ciclo de vida operativo de una dirección IP dentro de ARE:
+- Implementación completa del flujo `UNBAN`.
+- Integración del backend con IPSet para eliminación de direcciones IP.
+- Reorganización del Policy Engine.
+- Centralización de la inicialización del backend.
+- Reorganización de la documentación del proyecto.
 
-* BAN
-* UNBAN
-* Persistencia del historial
-* Persistencia de reputación
-* Separación completa entre el motor de decisión y el backend de firewall.
+## Correcciones
 
----
+- Corregida la ausencia de `handle_unban()`.
+- Eliminada la doble inicialización de IPSet y Firewall.
+- Limpieza y modularización del backend.
 
-## v1.0.0
+## Arquitectura
 
-Fecha: 2026-07-05
-
-### Resumen
-
-Primera versión estable de ARE (Abuse / Reputation Engine), desplegada en entorno de producción.
+- Reorganización del módulo `policy/rules/`.
+- Separación del proceso de inicialización del backend.
 
 ---
 
-### Funcionalidades principales
+# v1.0.0
 
-* Motor de políticas (Policy Engine) basado en reputación y estado
-* Sistema de reputación de IP con acumulación por categorías
-* State Engine (NEW / WATCH / FILTER / BANNED)
-* Integración con backend de firewall mediante IPSet
-* Soporte IPv4 e IPv6
-* Persistencia de datos en SQLite
-* Sistema de eventos históricos por IP
-* Clasificación de tráfico en categorías:
+**Fecha:** 2026-07-05
 
-  * EXPLOIT
-  * RECON
-  * PROTOCOL
-  * CREDENTIAL
-  * ANOMALY
-* Integración con Fail2Ban como fuente de telemetría
-* Backend de inicialización y bootstrap del sistema
-* Sistema de logging estructurado
-* Dashboard de estado y reputación
+## Resumen
 
----
+Primera versión estable de ARE.
 
-### Integraciones
+## Funcionalidades principales
 
-* Fail2Ban (sensor de eventos)
-* ModSecurity (OWASP CRS)
-* IPSet (enforcement firewall layer)
-* iptables / ip6tables
+- Reputation Engine.
+- State Engine.
+- Policy Engine.
+- Firewall Backend basado en IPSet.
+- Persistencia mediante SQLite.
+- Dashboard.
+- Integración con Fail2Ban.
+- Integración con ModSecurity.
+- Soporte IPv4 e IPv6.
+
+## Estado
+
+Versión inicial estable utilizada en producción.
 
 ---
 
-### Estado del sistema
+## Licencia
 
-Versión inicial estable en producción.
-
-ARE v1.0.0 representa el núcleo funcional del sistema de reputación, capaz de:
-
-* Recibir eventos de seguridad
-* Calcular score por categoría
-* Evaluar riesgo
-* Tomar decisiones automáticas
-* Aplicar acciones en firewall
-* Mantener historial persistente
-
----
-
-### Licencia
-
-GPLv3
-
+GPL v3

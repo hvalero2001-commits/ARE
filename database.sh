@@ -482,6 +482,9 @@ db_add_score() {
         BOT)
             db_exec "UPDATE reputation SET bot_score = bot_score + $SCORE, updated=$NOW WHERE ip='$IP';"
         ;;
+        ANOMALY)
+            db_exec "UPDATE reputation SET anomaly_score = anomaly_score + $SCORE, updated=$NOW WHERE ip='$IP';"
+        ;;
 
     esac
 }
@@ -498,7 +501,8 @@ db_recalculate_total() {
         exploit_score +
         credential_score +
         protocol_score +
-        bot_score
+        bot_score +
+	anomaly_score
     WHERE ip='$IP';
 "
 
@@ -531,6 +535,7 @@ db_get_reputation() {
             credential_score || '|' ||
             protocol_score || '|' ||
             bot_score || '|' ||
+	    anomaly_score || '|' ||
             total_score || '|' ||
             updated
         FROM reputation
@@ -639,11 +644,12 @@ db_avg_score() {
 db_sum_categories() {
     db_exec "
         SELECT
-            SUM(recon_score) || '|' ||
-            SUM(exploit_score) || '|' ||
-            SUM(credential_score) || '|' ||
-            SUM(protocol_score) || '|' ||
-            SUM(bot_score)
+            COALESCE(SUM(recon_score),0) || '|' ||
+            COALESCE(SUM(exploit_score),0) || '|' ||
+            COALESCE(SUM(credential_score),0) || '|' ||
+            COALESCE(SUM(protocol_score),0) || '|' ||
+            COALESCE(SUM(bot_score),0) || '|' ||
+            COALESCE(SUM(anomaly_score),0)
         FROM reputation;
     "
 }

@@ -49,6 +49,58 @@ JAIL="$3"
 PORT="$4"
 PROTO="$5"
 
+handle_found() {
+
+    local ip="$IP"
+    local jail="$JAIL"
+
+    INFO "FOUND recibido: $ip desde $jail"
+
+    db_init_reputation "$ip"
+
+    local profile
+    profile=$(db_get_jail_profile "$jail")
+
+    if [ -z "$profile" ]; then
+        WARN "Jail desconocido: $jail"
+        return
+    fi
+
+    local weight confidence category
+
+    weight=$(echo "$profile" | cut -d'|' -f1)
+    confidence=$(echo "$profile" | cut -d'|' -f2)
+    category=$(echo "$profile" | cut -d'|' -f3)
+
+    local score
+    score=$(printf "%.0f" "$(echo "$weight * $confidence * 0.25" | bc -l)")
+
+    if [ "$score" -lt 1 ]; then
+        score=1
+    fi
+
+    db_add_score "$ip" "$category" "$score"
+    db_recalculate_total "$ip"
+
+    INFO "Score FOUND aplicado: $score a $ip"
+
+    state_update "$ip"
+
+    TOTAL=$(db_get_score "$ip")
+    STATUS=$(db_get_status "$ip")
+
+    DECISION=$(policy_decide "$TOTAL" "$STATUS")
+
+    ACTION=$(echo "$DECISION" | cut -d'|' -f1)
+    REASON=$(echo "$DECISION" | cut -d'|' -f3)
+
+    INFO "Policy decision: $ACTION ($REASON)"
+
+    apply_decision "$ip" "$DECISION"
+
+    db_add_event "$ip" "FOUND" "$jail" "0"
+}
+
 ##############################################
 # Acción
 ##############################################
@@ -158,6 +210,9 @@ ban)
 ;;
 unban)
     handle_unban
+;;
+found)
+    handle_found
 ;;
 score)
     dashboard_score "$IP"

@@ -20,30 +20,64 @@ La filosofía principal de ARE es separar la detección de amenazas de la toma d
                             v
                  +----------------------+
                  |      Fail2Ban        |
-                 |  Sensor de eventos   |
                  +----------+-----------+
                             |
-                            v
-                  +--------------------+
-                  |        ARE         |
-                  +--------------------+
-                  | Reputation Engine  |
-                  | State Engine       |
-                  | Policy Engine      |
-                  +----------+---------+
-                             |
-                             v
-                  +--------------------+
-                  | Firewall Backend   |
-                  +----------+---------+
-                             |
-                             v
-                   IPSet / Firewall
+             +--------------+--------------+
+             |                             |
+             v                             v
+     +------------------+         +------------------+
+     | Action Backend   |         |     Sensors      |
+     | BAN / UNBAN      |         | Fail2Ban FOUND   |
+     +--------+---------+         +--------+---------+
+              \                         /
+               \                       /
+                +---------------------+
+                |         ARE         |
+                +---------------------+
+                | Reputation Engine   |
+                | State Engine        |
+                | Policy Engine       |
+                +----------+----------+
+                           |
+                           v
+                +---------------------+
+                | Firewall Backend    |
+                +----------+----------+
+                           |
+                           v
+                    IPSet / Firewall
 ```
 
 ---
 
 # Componentes
+
+## Sensors
+
+Los sensores constituyen la capa de observación de ARE.
+
+Su única responsabilidad es transformar eventos generados por sistemas externos en eventos internos comprensibles para el motor de reputación.
+
+Los sensores nunca toman decisiones de seguridad.
+
+La arquitectura incorpora una capa de sensores para desacoplar las fuentes de eventos del núcleo de ARE.
+
+Actualmente el primer sensor implementado es:
+
+- Fail2Ban Sensor (FOUND)
+
+La arquitectura permite incorporar nuevos sensores sin modificar el núcleo del sistema.
+
+Ejemplos futuros:
+
+- ModSecurity
+- Suricata
+- Zeek
+- CrowdSec
+- Apache
+- Syslog
+
+---
 
 ## Reputation Engine
 
@@ -51,46 +85,46 @@ Responsable de mantener la reputación histórica de cada dirección IP.
 
 Cada evento recibido incrementa la puntuación correspondiente a una categoría determinada.
 
-Las categorías actuales son:
+Categorías actuales:
 
-* EXPLOIT
-* RECON
-* PROTOCOL
-* CREDENTIAL
-* ANOMALY
+- EXPLOIT
+- RECON
+- PROTOCOL
+- CREDENTIAL
+- ANOMALY
 
-La reputación permanece almacenada en SQLite.
+Toda la reputación permanece almacenada de forma persistente en SQLite.
 
 ---
 
 ## State Engine
 
-Determina el estado operativo de una IP.
+Determina el estado operativo actual de una dirección IP.
 
-Estados implementados en la versión 1:
+Estados implementados:
 
-* NEW
-* WATCH
-* FILTER
-* BANNED
+- NEW
+- WATCH
+- FILTER
+- BANNED
 
-El estado representa la evolución del comportamiento observado y no únicamente el último evento recibido.
+El estado representa la evolución histórica del comportamiento observado y no únicamente el último evento recibido.
 
 ---
 
 ## Policy Engine
 
-Evalúa la reputación y el estado actual para decidir la acción que debe ejecutarse.
+Evalúa la reputación y el estado actual para determinar la acción más adecuada.
 
-Las decisiones disponibles son:
+Decisiones disponibles:
 
-* ALLOW
-* WATCH
-* FILTER
-* TEMP_BAN
-* BAN
+- ALLOW
+- WATCH
+- FILTER
+- TEMP_BAN
+- BAN
 
-El motor de políticas permanece completamente independiente del backend utilizado para aplicar dichas acciones.
+El Policy Engine permanece completamente desacoplado del backend encargado de ejecutar dichas acciones.
 
 ---
 
@@ -98,56 +132,58 @@ El motor de políticas permanece completamente independiente del backend utiliza
 
 Es la única capa responsable de interactuar con el sistema operativo.
 
-En la versión 1 se implementa un backend basado en IPSet.
+Actualmente se implementa un backend basado en IPSet.
 
-El diseño permite incorporar nuevos backends sin modificar el núcleo de ARE.
+La arquitectura permite incorporar nuevos backends sin modificar el núcleo de ARE.
 
-Ejemplos futuros:
+Backends previstos:
 
-* nftables
-* firewalld
-* pf
-* APIs externas
-* Cloud Firewall
+- IPSet
+- nftables
+- firewalld
+- pf
+- Cloud Firewall
+- APIs externas
 
 ---
 
 ## SQLite
 
-Toda la información persistente se almacena en SQLite.
+Toda la información persistente del sistema se almacena en SQLite.
 
 Actualmente ARE mantiene:
 
-* reputación
-* estados
-* eventos
-* perfiles de jail
+- reputación
+- estados
+- eventos
+- perfiles de jail
+- configuración
 
 ---
 
 # Flujo de procesamiento
 
-1. Fail2Ban detecta un evento.
-2. El evento es enviado a ARE.
-3. Se identifica el perfil del jail.
+1. Un sistema externo detecta un evento.
+2. El sensor correspondiente transforma dicho evento al formato interno de ARE.
+3. Se identifica el perfil de reputación asociado al evento.
 4. Se calcula el score correspondiente.
 5. Se actualiza la reputación.
 6. Se recalcula el estado.
 7. El Policy Engine genera una decisión.
-8. El backend aplica dicha decisión.
-9. Se registra el evento en la base de datos.
+8. El Firewall Backend ejecuta la acción correspondiente.
+9. El evento queda registrado en la base de datos.
 
 ---
 
 # Filosofía del proyecto
 
-ARE no sustituye a Fail2Ban.
+ARE no sustituye los sistemas de detección existentes.
 
-Fail2Ban actúa como sensor de eventos.
+Los sistemas externos actúan como fuentes de eventos.
 
-ARE interpreta esos eventos, mantiene una reputación persistente y decide cuál debe ser la respuesta más adecuada según el comportamiento histórico de la dirección IP.
+ARE interpreta dichos eventos, mantiene una reputación persistente y decide cuál debe ser la respuesta más adecuada según el comportamiento histórico observado.
 
-La inteligencia reside en ARE.
+La inteligencia y la toma de decisiones residen exclusivamente en ARE.
 
 ---
 
@@ -157,13 +193,14 @@ La arquitectura busca mantener un bajo acoplamiento entre componentes.
 
 Cada módulo debe cumplir una única responsabilidad.
 
-Esto facilita:
+Este diseño facilita:
 
-* mantenimiento
-* pruebas
-* ampliaciones
-* incorporación de nuevos backends
-* evolución del motor de decisión
+- mantenimiento
+- pruebas
+- ampliaciones
+- incorporación de nuevos sensores
+- incorporación de nuevos backends
+- evolución del motor de decisión
 
 ---
 
@@ -171,13 +208,13 @@ Esto facilita:
 
 Versión 1
 
-* Linux
-* SQLite
-* Fail2Ban
-* ModSecurity
-* IPSet
-* iptables
-* ip6tables
+- Linux
+- SQLite
+- Fail2Ban
+- ModSecurity
+- IPSet
+- iptables
+- ip6tables
 
 ---
 
@@ -185,5 +222,12 @@ Versión 1
 
 La arquitectura ha sido diseñada para permitir la incorporación de nuevas capacidades sin modificar el núcleo del sistema.
 
-Las futuras versiones podrán añadir nuevos motores, backends y fuentes de eventos manteniendo la misma estructura general.
+Las futuras versiones podrán añadir:
 
+- nuevos sensores
+- nuevos motores
+- nuevos backends
+- nuevas fuentes de eventos
+- nuevos mecanismos de reputación
+
+manteniendo la misma arquitectura modular y desacoplada.

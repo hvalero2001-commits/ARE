@@ -1,189 +1,117 @@
-# ARE Architecture
+# ARE Roadmap
 
 ## Introducción
 
-ARE (Abuse Reputation Engine) ha sido diseñado bajo una arquitectura modular, desacoplada y orientada a motores de decisión.
+Este documento describe la evolución planificada de ARE (Abuse Reputation Engine).
 
-Cada componente posee una responsabilidad específica, permitiendo extender el sistema sin modificar el núcleo del proyecto.
+El objetivo del Roadmap es mostrar la dirección técnica del proyecto, permitiendo conocer las capacidades actuales y las funcionalidades previstas para futuras versiones.
 
-La filosofía principal de ARE es separar la detección de amenazas de la toma de decisiones.
-
----
-
-# Arquitectura general
-
-```text
-                 +----------------------+
-                 |     ModSecurity      |
-                 +----------+-----------+
-                            |
-                            v
-                 +----------------------+
-                 |      Fail2Ban        |
-                 |  Sensor de eventos   |
-                 +----------+-----------+
-                            |
-                            v
-                  +--------------------+
-                  |        ARE         |
-                  +--------------------+
-                  | Reputation Engine  |
-                  | State Engine       |
-                  | Policy Engine      |
-                  +----------+---------+
-                             |
-                             v
-                  +--------------------+
-                  | Firewall Backend   |
-                  +----------+---------+
-                             |
-                             v
-                   IPSet / Firewall
-```
+Las fechas podrán variar según las necesidades del proyecto y la estabilidad de cada versión.
 
 ---
 
-# Componentes
+# Version 1.0.x
 
-## Reputation Engine
+## Objetivo
 
-Responsable de mantener la reputación histórica de cada dirección IP.
+Consolidar el núcleo del motor de reputación.
 
-Cada evento recibido incrementa la puntuación correspondiente a una categoría determinada.
+### Estado
 
-Las categorías actuales son:
+✔ Completado
 
-* EXPLOIT
-* RECON
-* PROTOCOL
-* CREDENTIAL
-* ANOMALY
+### Funcionalidades
 
-La reputación permanece almacenada en SQLite.
-
----
-
-## State Engine
-
-Determina el estado operativo de una IP.
-
-Estados implementados en la versión 1:
-
-* NEW
-* WATCH
-* FILTER
-* BANNED
-
-El estado representa la evolución del comportamiento observado y no únicamente el último evento recibido.
+- Reputation Engine
+- State Engine
+- Policy Engine
+- Firewall Backend (IPSet)
+- Persistencia SQLite
+- Dashboard
+- Integración con Fail2Ban
+- Integración con ModSecurity
+- Soporte IPv4 / IPv6
 
 ---
 
-## Policy Engine
+# Version 1.1
 
-Evalúa la reputación y el estado actual para decidir la acción que debe ejecutarse.
+## Objetivo
 
-Las decisiones disponibles son:
+Ampliar la capacidad de observación y mejorar la arquitectura interna.
 
-* ALLOW
-* WATCH
-* FILTER
-* TEMP_BAN
-* BAN
+### Estado
 
-El motor de políticas permanece completamente independiente del backend utilizado para aplicar dichas acciones.
+🚧 En desarrollo
 
----
+### Funcionalidades
 
-## Firewall Backend
-
-Es la única capa responsable de interactuar con el sistema operativo.
-
-En la versión 1 se implementa un backend basado en IPSet.
-
-El diseño permite incorporar nuevos backends sin modificar el núcleo de ARE.
-
-Ejemplos futuros:
-
-* nftables
-* firewalld
-* pf
-* APIs externas
-* Cloud Firewall
+- Sensor Framework
+- Fail2Ban Sensor (FOUND)
+- Cursor persistente para sensores
+- Renombrar CLI oficial a `are`
+- Reorganización del código por módulos
+- Mejoras de documentación
+- Corrección de bugs detectados en producción
 
 ---
 
-## SQLite
+# Version 1.2
 
-Toda la información persistente se almacena en SQLite.
+## Objetivo
 
-Actualmente ARE mantiene:
+Incrementar la inteligencia del motor de decisión.
 
-* reputación
-* estados
-* eventos
-* perfiles de jail
+### Funcionalidades previstas
 
----
-
-# Flujo de procesamiento
-
-1. Fail2Ban detecta un evento.
-2. El evento es enviado a ARE.
-3. Se identifica el perfil del jail.
-4. Se calcula el score correspondiente.
-5. Se actualiza la reputación.
-6. Se recalcula el estado.
-7. El Policy Engine genera una decisión.
-8. El backend aplica dicha decisión.
-9. Se registra el evento en la base de datos.
+- Reputation Decay Engine
+- Correlación entre sensores
+- Mejor clasificación de amenazas
+- Optimización del Policy Engine
+- Dashboard ampliado
 
 ---
 
-# Filosofía del proyecto
+# Version 2.0
 
-ARE no sustituye a Fail2Ban.
+## Objetivo
 
-Fail2Ban actúa como sensor de eventos.
+Convertir ARE en un motor independiente de reputación y decisión.
 
-ARE interpreta esos eventos, mantiene una reputación persistente y decide cuál debe ser la respuesta más adecuada según el comportamiento histórico de la dirección IP.
+### Funcionalidades previstas
 
-La inteligencia reside en ARE.
+### Sensores
 
----
+- ModSecurity Sensor
+- Apache Sensor
+- Syslog Sensor
+- Suricata Sensor
+- Zeek Sensor
+- CrowdSec Sensor
 
-# Diseño modular
+### Backends
 
-La arquitectura busca mantener un bajo acoplamiento entre componentes.
+- nftables
+- firewalld
+- pf
+- Cloud Firewall
 
-Cada módulo debe cumplir una única responsabilidad.
+### Plataforma
 
-Esto facilita:
-
-* mantenimiento
-* pruebas
-* ampliaciones
-* incorporación de nuevos backends
-* evolución del motor de decisión
-
----
-
-# Compatibilidad
-
-Versión 1
-
-* Linux
-* SQLite
-* Fail2Ban
-* ModSecurity
-* IPSet
-* iptables
-* ip6tables
+- API REST
+- Exportación de métricas
+- Integración con SIEM
+- Backend Manager
+- Alta disponibilidad
 
 ---
 
-# Evolución
+# Filosofía de evolución
 
-La arquitectura ha sido diseñada para permitir la incorporación de nuevas capacidades sin modificar el núcleo del sistema.
+ARE evoluciona mediante pequeñas iteraciones.
 
-Las futuras versiones podrán añadir nuevos motores, backends y fuentes de eventos manteniendo la misma estructura general.
+Cada versión debe mantener la estabilidad del núcleo antes de incorporar nuevas capacidades.
 
+Las nuevas funcionalidades deberán respetar los principios definidos en `DESIGN.md` y la arquitectura descrita en `ARCHITECTURE.md`.
+
+El crecimiento del proyecto estará orientado a mantener una arquitectura modular, desacoplada y fácilmente extensible.

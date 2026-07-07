@@ -1,110 +1,113 @@
 # ARE Governance
 
-## Objetivo
+## Introducción
 
-Este documento define las reglas básicas de gobierno, mantenimiento y evolución del proyecto **ARE (Abuse Reputation Engine)**.
+Este documento define el modelo de gobierno del proyecto ARE (Abuse Reputation Engine).
 
-ARE es un proyecto de ciberseguridad orientado a reputación, análisis de eventos y aplicación automática de decisiones defensivas.
-
----
-
-## Principios del Proyecto
-
-* La estabilidad tiene prioridad sobre la complejidad.
-* Todo cambio debe ser pequeño, claro y verificable.
-* La arquitectura debe mantenerse modular.
-* Cada módulo debe tener una responsabilidad única.
-* No se deben incorporar funcionalidades sin análisis previo.
-* Toda decisión importante debe documentarse.
-* El proyecto evoluciona un paso a la vez.
+Su objetivo es establecer un proceso claro para la evolución del proyecto, garantizando estabilidad, coherencia técnica y calidad del código.
 
 ---
 
-## Flujo de Desarrollo
+# Principios
 
-Todo cambio debe seguir este ciclo:
+ARE se desarrolla siguiendo los siguientes principios:
 
-1. Analizar el problema.
-2. Diseñar la solución.
-3. Documentar en `TODO.md` o RFC.
-4. Implementar el cambio.
-5. Probar el comportamiento.
-6. Actualizar documentación si corresponde.
-7. Registrar en `CHANGELOG.md`.
-8. Sincronizar con Git.
+- Simplicidad
+- Modularidad
+- Responsabilidad única
+- Compatibilidad hacia atrás siempre que sea posible
+- Estabilidad antes que nuevas funcionalidades
 
----
-
-## Versionado
-
-ARE utiliza versionado semántico:
-
-* `v1.0.x` — correcciones y estabilización.
-* `v1.1.x` — mejoras compatibles.
-* `v2.x` — cambios mayores de arquitectura.
-
-Las versiones publicadas deben mantenerse estables.
-Los cambios experimentales deben realizarse en ramas de desarrollo.
+Toda decisión deberá respetar los principios definidos en `DESIGN.md`.
 
 ---
 
-## RFC
+# Evolución del proyecto
 
-Las propuestas importantes deben registrarse como RFC antes de implementarse.
+Toda nueva capacidad deberá seguir un proceso de evolución controlado.
 
-Un RFC puede estar en uno de estos estados:
+```
+Idea
+    ↓
 
-* Draft
-* Accepted
-* Rejected
-* Implemented
+RFC
+    ↓
 
-Ejemplos:
+Diseño
 
-* RFC-001: Renombrar CLI oficial a `are`
-* RFC-002: Backend Manager
-* RFC-003: Reputation Decay Engine
-* RFC-004: Captura de eventos `Found` desde Fail2Ban
+    ↓
 
----
+Implementación
 
-## Bugs y Tareas
+    ↓
 
-Los bugs deben registrarse con identificadores únicos:
+Pruebas
 
-* BUG-001
-* BUG-002
-* BUG-003
+    ↓
 
-Las tareas técnicas deben registrarse como:
+Documentación
 
-* TASK-001
-* TASK-002
+    ↓
 
-Las nuevas funcionalidades deben registrarse como:
+Versión estable
+```
 
-* FEAT-001
-* FEAT-002
+No deberán incorporarse funcionalidades directamente al código sin haber sido previamente analizadas cuando impliquen cambios de arquitectura.
 
 ---
 
-## Criterios de Aceptación
+# RFC
 
-Un cambio no se considera terminado hasta que:
+Los RFC (Request For Comments) representan propuestas técnicas que modifican o amplían la arquitectura del proyecto.
 
-* cumple el objetivo definido;
-* no rompe funcionalidades existentes;
-* fue probado;
-* fue documentado;
-* fue registrado en Git.
+Un RFC deberá incluir como mínimo:
+
+- Objetivo
+- Justificación
+- Impacto esperado
+- Compatibilidad
+- Estado
+
+Estados posibles:
+
+- Draft
+- Accepted
+- Rejected
+- Implemented
 
 ---
 
-## Filosofía
+# Versiones
 
-ARE debe mantenerse simple, modular y operativo.
+Las versiones estables deberán contener únicamente funcionalidades completamente validadas.
 
-El objetivo no es agregar complejidad, sino mejorar la capacidad del sistema para observar, analizar, decidir y aplicar respuestas de seguridad.
+Las ramas de desarrollo podrán contener funcionalidades experimentales mientras permanezcan documentadas.
 
-**Primero estable. Después potente.**
+---
 
+# Calidad
+
+Antes de cerrar una versión deberán verificarse:
+
+- Código funcional
+- Pruebas satisfactorias
+- Documentación actualizada
+- Bugs críticos resueltos
+
+---
+
+# Documentación
+
+La documentación forma parte del proyecto.
+
+Todo cambio importante deberá reflejarse en los documentos correspondientes antes de considerarse finalizado.
+
+---
+
+# Filosofía
+
+ARE evoluciona mediante pequeñas mejoras continuas.
+
+Se prioriza la estabilidad del núcleo antes de incorporar nuevas capacidades.
+
+Cada versión deberá dejar una base sólida para la siguiente.

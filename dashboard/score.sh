@@ -31,15 +31,16 @@ dashboard_score() {
         return 0
     fi
    
-    local recon exploit credential protocol bot total updated
+    local recon exploit credential protocol bot anomaly total updated
 
     recon=$(echo "$REP" | cut -d'|' -f1)
     exploit=$(echo "$REP" | cut -d'|' -f2)
     credential=$(echo "$REP" | cut -d'|' -f3)
     protocol=$(echo "$REP" | cut -d'|' -f4)
     bot=$(echo "$REP" | cut -d'|' -f5)
-    total=$(echo "$REP" | cut -d'|' -f6)
-    updated=$(echo "$REP" | cut -d'|' -f7)
+    anomaly=$(echo "$REP" | cut -d'|' -f6)
+    total=$(echo "$REP" | cut -d'|' -f7)
+    updated=$(echo "$REP" | cut -d'|' -f8)
 
     local THREAT
     THREAT=$(calc_threat_level "$total")
@@ -58,6 +59,7 @@ dashboard_score() {
     echo "Credential............ $credential"
     echo "Protocol.............. $protocol"
     echo "Bot................... $bot"
+    echo "Anomaly............... $anomaly"
     echo ""
     echo "TOTAL................. $total"
     echo "Threat Level.......... $THREAT"

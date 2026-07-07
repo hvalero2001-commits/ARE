@@ -25,12 +25,16 @@ dashboard_stats() {
     AVG=$(db_avg_score)
     CAT=$(db_sum_categories)
 
-    local R E C P B
+    local R E C P B A M D S
     R=$(echo "$CAT" | cut -d'|' -f1)
     E=$(echo "$CAT" | cut -d'|' -f2)
     C=$(echo "$CAT" | cut -d'|' -f3)
     P=$(echo "$CAT" | cut -d'|' -f4)
     B=$(echo "$CAT" | cut -d'|' -f5)
+    A=$(echo "$CAT" | cut -d'|' -f6)
+    M=$(echo "$CAT" | cut -d'|' -f7)
+    D=$(echo "$CAT" | cut -d'|' -f8)
+    S=$(echo "$CAT" | cut -d'|' -f9)
 
     echo ""
     echo "IPs totales............. $IPS"
@@ -48,6 +52,10 @@ dashboard_stats() {
     echo "  Credential............ $C"
     echo "  Protocol.............. $P"
     echo "  Bot................... $B"
+    echo "  Anomaly............... $A"
+    echo "  Malware............... $M"
+    echo "  Dos................... $D"
+    echo "  Social................ $S" 
     echo ""
     echo "================================"
 }
