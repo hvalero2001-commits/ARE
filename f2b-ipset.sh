@@ -130,6 +130,36 @@ handle_unban() {
 
 }
 
+handle_external_unban() {
+
+    local ip="$IP"
+    local jail="$JAIL"
+
+    [ -z "$jail" ] && jail="fail2ban"
+
+    INFO "UNBAN externo recibido para $ip desde $jail"
+
+    db_init_reputation "$ip"
+
+    db_add_event "$ip" "EXTERNAL_UNBAN" "$jail" "0"
+
+    state_update "$ip"
+
+    local total status decision action reason
+
+    total=$(db_get_score "$ip")
+    status=$(db_get_status "$ip")
+
+    decision=$(policy_decide "$total" "$status")
+
+    action=$(echo "$decision" | cut -d'|' -f1)
+    reason=$(echo "$decision" | cut -d'|' -f3)
+
+    INFO "Policy decision after external unban: $action ($reason)"
+
+    apply_decision "$ip" "$decision"
+}
+
 handle_ban() {
 
     local ip="$IP"
@@ -201,6 +231,9 @@ test)
 ;;
 top)
     dashboard_top
+;;
+external-unban)
+    handle_external_unban
 ;;
 autoban)
     auto_enforce_ban

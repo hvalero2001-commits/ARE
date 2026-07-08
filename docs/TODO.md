@@ -81,6 +81,55 @@ Como consecuencia, el Dashboard no puede mostrar estadísticas correctas de dich
 - `FOUND modsec-anomaly` suma correctamente al total.
 
 ---
+
+## BUG-007
+
+## BUG-007
+
+**Título:** ARE no procesa correctamente eventos BAN/UNBAN provenientes de Fail2Ban
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+Se detectó que ARE procesa correctamente eventos `FOUND` mediante el sensor Fail2Ban, pero algunos eventos `BAN` y `UNBAN` generados por Fail2Ban no quedan registrados en el historial de ARE.
+
+**Evidencia**
+
+Fail2Ban registra eventos `Unban`, pero al consultar `events <IP>` no aparece información asociada en ARE.
+
+**Impacto**
+
+- El ciclo completo `FOUND → BAN → UNBAN` puede quedar incompleto.
+- El historial de reputación puede no reflejar correctamente la actividad real.
+- ARE depende parcialmente de que la acción directa de Fail2Ban ejecute correctamente `ban/unban`.
+
+**Hipótesis inicial**
+
+Actualmente existe un sensor para eventos `FOUND`, pero no existe un sensor equivalente para eventos `BAN` y `UNBAN` leídos desde el log de Fail2Ban.
+
+**Archivos relacionados**
+
+- `sensors/fail2ban_found.sh`
+- `/etc/fail2ban/action.d/ipset-smart.conf`
+- `f2b-ipset.sh`
+- `database.sh`
+
+**Validación**
+
+- El sensor Fail2Ban unificado procesa eventos `FOUND`.
+- El sensor Fail2Ban unificado procesa eventos `UNBAN`.
+- Los eventos `UNBAN` externos se registran como `EXTERNAL_UNBAN`.
+- `EXTERNAL_UNBAN` no libera directamente la IP.
+- ARE reevalúa la IP mediante el Policy Engine.
+- Validado en producción con IP `103.59.161.151`
+
+---
+
 # TASKS
 
 ## TASK-001
@@ -316,8 +365,6 @@ Alinear nombres de comandos, rutas, servicios, configuración y documentación c
 
 Esta migración debe realizarse de forma gradual para no romper instalaciones existentes.
 
----
-
 **Estado:** ✔ Validado en producción
 
 **Implementado**
@@ -336,6 +383,48 @@ Esta migración debe realizarse de forma gradual para no romper instalaciones ex
 - Ejecución continua.
 - Limpieza final del sensor.
 - Definir política de ejecución automática.
+
+---
+
+## RFC-004
+
+**Título:** ARE como autoridad principal de decisión
+
+**Estado:** Draft
+
+**Versión objetivo:** v1.1
+
+**Descripción**
+
+Evaluar la transición del modelo actual, donde Fail2Ban ejecuta decisiones de `BAN` y `UNBAN`, hacia un modelo donde Fail2Ban actúa únicamente como fuente de eventos y ARE asume la autoridad principal sobre las decisiones de bloqueo, filtrado, liberación y escalado.
+
+**Objetivo**
+
+Permitir que ARE decida la respuesta final según reputación, score, historial, reincidencia y estado de la IP, evitando que un `UNBAN` externo contradiga una decisión tomada por el Policy Engine.
+
+**Impacto esperado**
+
+- Mayor autonomía de ARE.
+- Mejor coherencia entre reputación y firewall.
+- Control centralizado del ciclo de vida de una IP.
+- Fail2Ban pasa a actuar como sensor, no como autoridad de decisión.
+
+**Puntos a definir**
+
+- Cómo tratar eventos `BAN` de Fail2Ban.
+- Cómo tratar eventos `UNBAN` de Fail2Ban.
+- Cuándo ARE debe liberar una IP.
+- Cómo calcular escalado por reincidencia.
+- Tiempo máximo de bloqueo temporal.
+- Condiciones para bloqueo permanente.
+
+**Validación inicial**
+
+Se implementó y validó manualmente el comando:
+
+```bash
+./f2b-ipset.sh external-unban <IP> <JAIL>
+```
 
 ---
 
