@@ -28,26 +28,40 @@ Toda nueva capacidad deberá seguir un proceso de evolución controlado.
 
 ```
 Idea
-    ↓
+   ↓
 
+Análisis técnico
+   ↓
+
+Clasificación
+
+BUG
+TASK
+FEAT
 RFC
-    ↓
+IDEA
 
-Diseño
+   ↓
 
-    ↓
+Documentación inicial (TODO)
+
+   ↓
+
+Diseño (si aplica)
+
+   ↓
 
 Implementación
 
-    ↓
+   ↓
 
-Pruebas
+Validación
 
-    ↓
+   ↓
 
-Documentación
+Actualización documental
 
-    ↓
+   ↓
 
 Versión estable
 ```
@@ -79,20 +93,31 @@ Estados posibles:
 
 # Versiones
 
-Las versiones estables deberán contener únicamente funcionalidades completamente validadas.
+## Estrategia de Versionado
 
-Las ramas de desarrollo podrán contener funcionalidades experimentales mientras permanezcan documentadas.
+ARE mantiene una evolución incremental.
+
+Las ramas principales siguen la siguiente política:
+
+- v1.0.x → Corrección de errores y estabilización.
+- v1.1.x → Nuevas funcionalidades compatibles con la arquitectura existente.
+- v2.x → Cambios arquitectónicos o incompatibles con versiones anteriores.
+
+Las nuevas funcionalidades deberán ubicarse en la versión correspondiente antes de comenzar su implementación.
 
 ---
 
 # Calidad
 
-Antes de cerrar una versión deberán verificarse:
+dddAntes de cerrar una versión deberán verificarse:
 
 - Código funcional
 - Pruebas satisfactorias
 - Documentación actualizada
 - Bugs críticos resueltos
+- coherencia con la arquitectura
+- actualización del CHANGELOG
+- actualización del TODO
 
 ---
 
@@ -111,3 +136,8 @@ ARE evoluciona mediante pequeñas mejoras continuas.
 Se prioriza la estabilidad del núcleo antes de incorporar nuevas capacidades.
 
 Cada versión deberá dejar una base sólida para la siguiente.
+
+Las buenas ideas no implican su implementación inmediata.
+
+Toda propuesta deberá analizarse y clasificarse dentro de la versión correspondiente antes de incorporarse al proyecto.
+

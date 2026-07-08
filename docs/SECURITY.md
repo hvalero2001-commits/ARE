@@ -1,6 +1,14 @@
 # Política de Seguridad
 
-## Versiones Soportadas
+## Objetivo
+
+La seguridad constituye uno de los principios fundamentales de ARE (Abuse Reputation Engine).
+
+Esta política describe el procedimiento oficial para reportar vulnerabilidades y gestionar incidentes relacionados con la seguridad del proyecto.
+
+---
+
+# Versiones Soportadas
 
 | Versión | Soporte |
 | ------- | :-----: |
@@ -9,7 +17,7 @@
 
 ---
 
-## Reporte de Vulnerabilidades
+# Reporte de Vulnerabilidades
 
 Si descubres una vulnerabilidad de seguridad en **ARE**, te solicitamos que **no la publiques inmediatamente**.
 
@@ -17,36 +25,94 @@ En su lugar, repórtala de forma privada al responsable del proyecto para permit
 
 El reporte debería incluir, en la medida de lo posible:
 
-* Descripción de la vulnerabilidad.
-* Pasos para reproducir el problema.
-* Impacto estimado.
-* Componentes afectados.
-* Evidencia disponible (registros, capturas o ejemplos).
-* Posible mitigación, si aplica.
+- Descripción de la vulnerabilidad.
+- Pasos para reproducir el problema.
+- Impacto estimado.
+- Componentes afectados.
+- Evidencia disponible (registros, capturas o ejemplos).
+- Posible mitigación, si aplica.
 
 ---
 
-## Proceso de Gestión
+# Clasificación
 
-Cada reporte será:
+Los reportes serán evaluados considerando, entre otros aspectos:
 
-1. Analizado.
-2. Reproducido.
-3. Clasificado según su impacto.
-4. Corregido en una nueva versión cuando corresponda.
-5. Documentado en el historial de cambios del proyecto.
+- Impacto sobre la disponibilidad.
+- Impacto sobre la integridad.
+- Impacto sobre la confidencialidad.
+- Facilidad de explotación.
+- Alcance del problema.
+
+Esta clasificación permitirá establecer la prioridad de corrección.
 
 ---
 
-## Divulgación Responsable
+# Proceso de Gestión
+
+Cada reporte seguirá el siguiente proceso:
+
+```
+Reporte
+    ↓
+
+Análisis
+
+    ↓
+
+Validación
+
+    ↓
+
+Clasificación
+
+    ↓
+
+Corrección
+
+    ↓
+
+Pruebas
+
+    ↓
+
+Nueva versión
+
+    ↓
+
+Actualización del CHANGELOG
+```
+
+---
+
+# Divulgación Responsable
 
 El proyecto promueve la divulgación responsable de vulnerabilidades.
 
-Se agradece la colaboración de investigadores y administradores de sistemas que contribuyan a mejorar la seguridad y estabilidad de ARE.
+Se agradece la colaboración de investigadores, administradores de sistemas y miembros de la comunidad que contribuyan a mejorar la seguridad y estabilidad de ARE.
 
 ---
 
-## Objetivo
+# Alcance
 
-El propósito de esta política es fortalecer continuamente la seguridad del proyecto y proteger a los administradores que utilizan ARE en entornos de producción.
+Esta política aplica a todos los componentes oficiales del proyecto, incluyendo:
+
+- Reputation Engine
+- State Engine
+- Policy Engine
+- Sensores
+- Firewall Backends
+- Dashboard
+- Base de datos
+- Scripts oficiales
+
+---
+
+# Filosofía
+
+La seguridad no consiste únicamente en corregir vulnerabilidades.
+
+El objetivo de ARE es evolucionar mediante pequeñas mejoras continuas, manteniendo un núcleo estable, documentado y verificable antes de incorporar nuevas capacidades.
+
+Toda corrección de seguridad deberá validarse antes de formar parte de una versión estable.
 

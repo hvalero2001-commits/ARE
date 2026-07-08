@@ -12,9 +12,11 @@ El objetivo es mantener un proceso consistente, modular y fácilmente mantenible
 
 Antes de escribir código se debe comprender el problema.
 
-Las nuevas funcionalidades deberán diseñarse antes de implementarse.
+Toda modificación deberá responder a una necesidad técnica claramente identificada.
 
-La documentación forma parte del desarrollo y deberá mantenerse sincronizada con el código.
+La documentación forma parte del desarrollo y deberá mantenerse sincronizada con el código durante todo el ciclo de vida de una funcionalidad.
+
+ARE prioriza la estabilidad, la trazabilidad y la evolución controlada sobre la incorporación rápida de nuevas funcionalidades.
 
 ---
 
@@ -26,20 +28,25 @@ Todo cambio importante seguirá el siguiente proceso:
 Idea
    ↓
 
-RFC (si modifica arquitectura)
+Análisis técnico
+   ↓
+
+Clasificación
+(BUG / TASK / FEAT / RFC)
+   ↓
+
+Documentación inicial
+(TODO.md)
    ↓
 
 Diseño
-(DESIGN.md)
+(si aplica)
    ↓
 
 Implementación
    ↓
 
 Pruebas
-   ↓
-
-Corrección de bugs
    ↓
 
 Actualización de documentación
@@ -65,7 +72,9 @@ Se prioriza:
 - simplicidad
 - modularidad
 
-Antes de comenzar una nueva funcionalidad deberá verificarse que la anterior se encuentre correctamente validada.
+Antes de iniciar una nueva funcionalidad deberá verificarse que la funcionalidad anterior se encuentre completamente finalizada, documentada y validada.
+
+No se desarrollarán funcionalidades en paralelo salvo que exista una dependencia técnica claramente identificada.
 
 ---
 
@@ -97,6 +106,12 @@ Toda modificación importante deberá reflejarse en la documentación correspond
 
 La documentación deberá actualizarse antes de cerrar una funcionalidad.
 
+Cada documento posee una responsabilidad única.
+
+La información no deberá duplicarse entre documentos.
+
+Cuando una modificación afecte varias áreas del proyecto deberán actualizarse todos los documentos correspondientes antes de cerrar la tarea.
+
 ---
 
 # Gestión de cambios
@@ -109,7 +124,22 @@ Las nuevas funcionalidades podrán originarse mediante:
 - Tasks
 - Features
 
-Cada elemento deberá mantenerse actualizado durante su ciclo de vida.
+Clasificación:
+
+BUG
+Corrección de un comportamiento incorrecto.
+
+TASK
+Trabajo técnico o refactorización sin incorporar nuevas capacidades.
+
+FEATURE
+Nueva funcionalidad visible para el usuario.
+
+RFC
+Propuesta que modifica o puede modificar la arquitectura del proyecto.
+
+IDEA
+Propuesta aún no planificada para una versión específica.
 
 ---
 
@@ -128,6 +158,10 @@ FEAT-001 - Implement Fail2Ban Sensor
 
 DOC-001 - Normalize project documentation
 ```
+
+Cada commit deberá representar una única responsabilidad.
+
+No deberán mezclarse correcciones, nuevas funcionalidades y cambios de documentación no relacionados dentro del mismo commit.
 
 ---
 
@@ -159,5 +193,8 @@ Antes de realizar un commit deberán verificarse:
 - pruebas
 - documentación
 - consistencia del código
+- actualización del CHANGELOG
+- actualización del TODO (si corresponde)
+- impacto sobre la arquitectura
 
-El objetivo principal es mantener un núcleo estable sobre el cual continuar evolucionando.
+Ninguna funcionalidad se considerará finalizada hasta que el código, las pruebas y la documentación reflejen el mismo estado del proyecto.

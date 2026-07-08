@@ -1,98 +1,136 @@
-# ARE Governance
+# Contributing to ARE
 
 ## Introducción
 
-Este documento define el modelo de gobierno del proyecto ARE (Abuse Reputation Engine).
+Gracias por tu interés en contribuir a ARE (Abuse Reputation Engine).
 
-Su objetivo es establecer un proceso claro para la evolución del proyecto, garantizando estabilidad, coherencia técnica y calidad del código.
+ARE es un proyecto desarrollado bajo principios de simplicidad, modularidad y evolución controlada.
+
+Toda contribución deberá respetar la arquitectura, la filosofía de diseño y la metodología oficial de desarrollo del proyecto.
+
+Para comprender el funcionamiento interno de ARE se recomienda leer previamente:
+
+- README.md
+- ARCHITECTURE.md
+- DESIGN.md
+- DEVELOPMENT.md
 
 ---
 
 # Principios
 
-ARE se desarrolla siguiendo los siguientes principios:
+Toda contribución deberá seguir los siguientes principios:
 
-- Simplicidad
-- Modularidad
-- Responsabilidad única
-- Compatibilidad hacia atrás siempre que sea posible
-- Estabilidad antes que nuevas funcionalidades
-
-Toda decisión deberá respetar los principios definidos en `DESIGN.md`.
+- Simplicidad.
+- Responsabilidad única.
+- Modularidad.
+- Compatibilidad hacia atrás siempre que sea posible.
+- Documentación sincronizada con el código.
+- Estabilidad antes que nuevas funcionalidades.
 
 ---
 
-# Evolución del proyecto
+# Antes de comenzar
 
-Toda nueva capacidad deberá seguir un proceso de evolución controlado.
+Antes de escribir código deberá verificarse:
+
+- Que la funcionalidad no exista.
+- Que la idea no haya sido documentada previamente.
+- Que corresponda a la versión objetivo del proyecto.
+- Que exista una justificación técnica.
+
+Si la propuesta modifica la arquitectura deberá abrirse previamente un RFC.
+
+---
+
+# Clasificación de cambios
+
+Toda contribución deberá clasificarse antes de comenzar su implementación.
+
+## BUG
+
+Corrección de un comportamiento incorrecto.
+
+## TASK
+
+Trabajo técnico, reorganización o refactorización sin incorporar nuevas funcionalidades.
+
+## FEATURE
+
+Nueva funcionalidad para el proyecto.
+
+## RFC
+
+Propuesta que modifica o amplía la arquitectura de ARE.
+
+## IDEA
+
+Propuesta aún no planificada para una versión específica.
+
+---
+
+# Flujo de contribución
+
+Toda contribución seguirá el siguiente proceso:
 
 ```
 Idea
-    ↓
+   ↓
 
+Análisis técnico
+   ↓
+
+Clasificación
+
+BUG
+TASK
+FEATURE
 RFC
-    ↓
+IDEA
 
-Diseño
+   ↓
 
-    ↓
+Actualización del TODO
+
+   ↓
+
+Diseño (si aplica)
+
+   ↓
 
 Implementación
 
-    ↓
+   ↓
 
 Pruebas
 
-    ↓
+   ↓
 
-Documentación
+Actualización de documentación
 
-    ↓
+   ↓
 
-Versión estable
+Commit
+
+   ↓
+
+Pull Request
 ```
 
-No deberán incorporarse funcionalidades directamente al código sin haber sido previamente analizadas cuando impliquen cambios de arquitectura.
-
 ---
 
-# RFC
+# Un cambio, una responsabilidad
 
-Los RFC (Request For Comments) representan propuestas técnicas que modifican o amplían la arquitectura del proyecto.
+Cada contribución deberá resolver una única responsabilidad.
 
-Un RFC deberá incluir como mínimo:
+Ejemplos válidos:
 
-- Objetivo
-- Justificación
-- Impacto esperado
-- Compatibilidad
-- Estado
+- Corregir un bug.
+- Incorporar una nueva funcionalidad.
+- Mejorar la documentación.
+- Refactorizar un módulo.
 
-Estados posibles:
-
-- Draft
-- Accepted
-- Rejected
-- Implemented
-
----
-
-# Versiones
-
-Las versiones estables deberán contener únicamente funcionalidades completamente validadas.
-
-Las ramas de desarrollo podrán contener funcionalidades experimentales mientras permanezcan documentadas.
-
----
-
-# Calidad
-
-Antes de cerrar una versión deberán verificarse:
-
-- Código funcional
-- Pruebas satisfactorias
-- Documentación actualizada
-- Bugs críticos resueltos
+Se evitará mezclar múltiples cambios no relacionados dentro de una misma contribución.
 
 ---
 
@@ -100,7 +138,61 @@ Antes de cerrar una versión deberán verificarse:
 
 La documentación forma parte del proyecto.
 
-Todo cambio importante deberá reflejarse en los documentos correspondientes antes de considerarse finalizado.
+Toda modificación importante deberá reflejarse en los documentos correspondientes antes de considerarse finalizada.
+
+Dependiendo del cambio podrá ser necesario actualizar:
+
+- CHANGELOG.md
+- TODO.md
+- ARCHITECTURE.md
+- DESIGN.md
+- DEVELOPMENT.md
+- ROADMAP.md
+- SECURITY.md
+
+---
+
+# Pruebas
+
+Toda nueva funcionalidad deberá validarse antes de enviarse.
+
+Las pruebas deberán demostrar que:
+
+- El cambio funciona correctamente.
+- No introduce regresiones.
+- Mantiene la compatibilidad con el resto del sistema.
+
+---
+
+# Commits
+
+Los commits deberán ser pequeños, claros y representar una única responsabilidad.
+
+Ejemplos:
+
+```
+BUG-006 - Fix anomaly category
+
+TASK-005 - Extend reputation categories
+
+FEAT-003 - Add top jails dashboard
+
+DOC-002 - Rewrite contributing guide
+```
+
+---
+
+# Pull Requests
+
+Antes de enviar un Pull Request deberá verificarse:
+
+- Código funcional.
+- Pruebas realizadas.
+- Documentación actualizada.
+- Consistencia con la arquitectura.
+- Cumplimiento de la metodología de desarrollo.
+
+Las revisiones podrán solicitar modificaciones antes de aceptar una contribución.
 
 ---
 
@@ -108,6 +200,8 @@ Todo cambio importante deberá reflejarse en los documentos correspondientes ant
 
 ARE evoluciona mediante pequeñas mejoras continuas.
 
-Se prioriza la estabilidad del núcleo antes de incorporar nuevas capacidades.
+Las buenas ideas no implican su implementación inmediata.
 
-Cada versión deberá dejar una base sólida para la siguiente.
+Toda propuesta deberá analizarse, documentarse y clasificarse antes de incorporarse al proyecto.
+
+El objetivo principal es preservar un núcleo estable sobre el cual continuar evolucionando de forma ordenada.
