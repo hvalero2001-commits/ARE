@@ -244,6 +244,51 @@ Los jails seguirán mapeándose mediante `jail_profile` hacia una categoría de 
 
 ---
 
+## TASK-006
+
+**Título:** Incorporar perfiles de reputación para sshd, telnet y recidive
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+Agregar perfiles de reputación para jails críticos que actualmente pueden ser observados por ARE pero no poseen una valoración específica dentro del modelo de riesgo.
+
+**Jails objetivo**
+
+- sshd
+- telnet
+- recidive
+
+**Objetivo**
+
+Permitir que ARE asigne score a eventos relacionados con accesos reiterados, intentos contra servicios remotos y reincidencia.
+
+**Categorías propuestas**
+
+- sshd → CREDENTIAL
+- telnet → CREDENTIAL
+- recidive → EXPLOIT
+
+**Nota**
+
+Esta tarea no implementa todavía decisiones autónomas de ban temporal, ban permanente ni descenso de score. Esos puntos permanecen separados como RFC.
+
+**Validación**
+
+- `sshd` agregado como perfil `CREDENTIAL`.
+- `telnet` agregado como perfil `CREDENTIAL`.
+- `recidive` validado como perfil existente `EXPLOIT`.
+- Sensor Fail2Ban permite `sshd` y `telnet`.
+- `FOUND sshd` suma score correctamente.
+- `FOUND telnet` suma score correctamente.
+
+---
+
 # FEATURES
 
 ## FEAT-001

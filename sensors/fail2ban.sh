@@ -45,7 +45,7 @@ do
     [ -z "$IP" ] && continue
 
     case "$JAIL" in
-        modsec-*|recidive|sshd)
+        modsec-*|recidive|sshd|telnet)
             ;;
         *)
             continue
