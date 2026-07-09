@@ -104,6 +104,11 @@ reputation_decay_apply() {
 
         INFO "[DECAY] IP=$IP SCORE=$OLD_SCORE->$NEW_SCORE STATUS=$STATUS POLICY=$ACTION REASON=$REASON"
 
+	if [ "$ACTION" = "ALLOW" ]; then
+            INFO "[DECAY] Recovery decision: unblocking $IP"
+            apply_decision "$IP" "ALLOW|0|DECAY_RECOVERY"
+        fi
+
 	COUNT=$((COUNT + 1))
 
     done

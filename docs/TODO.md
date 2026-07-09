@@ -451,7 +451,7 @@ recidive ............... 6
 
 **Título:** Reputation Decay Engine
 
-**Estado:** ✔ Resuelto - Observación segura
+**Estado:** ✔ Resuelto - Recuperación controlada inicial
 
 **Versión:** v1.1-dev
 
@@ -474,16 +474,6 @@ Implementar un mecanismo de reducción gradual del score de reputación para IPs
 - `DECAY_MIN_AGE=86400`
 - `DECAY_FACTOR=0.95`
 
-**Validación inicial**
-
-- `decay-dry-run` muestra IPs candidatas.
-- `decay-dry-run` calcula score estimado.
-- `decay-apply` reduce score real.
-- Validado con IP `40.40.40.40`: `175 → 166`.
-- `updated` se conserva como última actividad maliciosa.
-
-**Modo actual**
-
 - `decay-dry-run`: muestra IPs candidatas y score estimado.
 - `decay-apply`: aplica reducción real de score y simula la decisión del Policy Engine.
 - El Decay Engine todavía no ejecuta cambios sobre firewall.
@@ -495,9 +485,6 @@ Implementar un mecanismo de reducción gradual del score de reputación para IPs
 - Policy Engine evaluado.
 - No se ejecuta `apply_decision()` desde decay.
 - `stats` muestra cantidad de IPs candidatas a decay.
-
-**Validación**
-
 - `decay-dry-run` muestra IPs candidatas.
 - `decay-dry-run` calcula score estimado.
 - `decay-apply` reduce score real.
@@ -507,6 +494,27 @@ Implementar un mecanismo de reducción gradual del score de reputación para IPs
 - No ejecuta cambios sobre firewall.
 - Se evita aplicar decay múltiples veces dentro de la misma ventana.
 - Validado en producción con 487 IPs procesadas.
+- La recuperación por decay solo ejecuta liberación cuando el Policy Engine devuelve `ALLOW`.
+- `WATCH`, `FILTER`, `TEMP_BAN` y `BAN` no generan liberación automática.
+
+**Siguiente etapa**
+
+Activar aplicación controlada de decisiones generadas por el Decay Engine.
+
+Cuando una IP reduzca su score y el Policy Engine determine `ALLOW`, `WATCH` o `FILTER`, ARE podrá removerla de `are-blacklist` si ya no corresponde mantener bloqueo activo.
+
+Esta etapa completa el ciclo inicial de recuperación de reputación y permite que ARE controle tanto el bloqueo como la liberación de una IP.
+
+**Validación final**
+
+- `decay-dry-run` muestra candidatas sin modificar datos.
+- `decay-apply` reduce score real.
+- `last_decay` evita múltiples reducciones dentro de la misma ventana.
+- Se reevalúa State Engine después del decay.
+- Se reevalúa Policy Engine después del decay.
+- Solo `ALLOW` ejecuta recuperación/liberación.
+- `WATCH`, `FILTER`, `TEMP_BAN` y `BAN` no liberan IP automáticamente.
+- Validado en producción.
 
 ---
 
