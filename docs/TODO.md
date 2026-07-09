@@ -417,6 +417,17 @@ Cada fase debe validar que ARE continúa funcionando antes de continuar con el s
 - Validado con `top`.
 - Validado con `found modsec-protocol`.
 
+**Fase 2:** ✔ Resuelta
+
+**Validación**
+
+- `policy_context.sh` movido a `policy/context.sh`.
+- `policy_context_api.sh` movido a `policy/context_api.sh`.
+- `bootstrap.sh` actualizado.
+- Referencia antigua corregida en `policy/rules/anomaly.sh`.
+- Validado con `top`.
+- Validado con `found modsec-protocol`.
+
 ---
 
 # FEATURES

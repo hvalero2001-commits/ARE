@@ -11,8 +11,8 @@ source "$BASE/decay.sh"
 source "$BASE/dashboard.sh"  >/dev/null 2>&1
 
 # CONTEXT
-source "$BASE/policy_context.sh"
-source "$BASE/policy_context_api.sh"
+source "$BASE/policy/context.sh"
+source "$BASE/policy/context_api.sh"
 
 #TOOL
 source "$BASE/net_utils.sh"

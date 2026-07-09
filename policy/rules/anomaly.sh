@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "$BASE/policy_context.sh"
+source "$BASE/policy/context.sh"
 
 policy_anomaly() {
 
