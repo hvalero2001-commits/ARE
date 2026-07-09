@@ -51,6 +51,8 @@ reputation_decay_apply() {
 
     INFO "Decay apply iniciado MIN_AGE=$MIN_AGE FACTOR=$FACTOR"
 
+    local COUNT=0
+
     local IPS
     IPS=$(sqlite3 "$DB_FILE" "
         SELECT ip
@@ -93,7 +95,9 @@ reputation_decay_apply() {
 
         INFO "[DECAY] IP=$IP SCORE=$OLD_SCORE->$NEW_SCORE STATUS=$STATUS POLICY=$ACTION REASON=$REASON"
 
+	COUNT=$((COUNT + 1))
+
     done
 
-    INFO "Decay apply finalizado"
+    INFO "Decay apply finalizado. IPs procesadas=$COUNT"
 }

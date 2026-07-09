@@ -315,6 +315,37 @@ Esta tarea no implementa todavía decisiones autónomas de ban temporal, ban per
 
 ---
 
+## TASK-007
+
+**Título:** Mejorar Dashboard de Reputación con información temporal
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Media
+
+**Objetivo**
+
+Mejorar la salida del comando `score` para mostrar información temporal legible sobre la reputación de una IP.
+
+**Situación actual**
+
+El dashboard muestra `updated` como timestamp Unix:
+
+```text
+Última actualización.. 1783530687
+
+```
+
+**Validación**
+
+- `score` muestra fecha legible de última actividad.
+- `score` muestra antigüedad relativa.
+- Se reemplazó el timestamp Unix por información útil para administración.
+
+---
+
 # FEATURES
 
 ## FEAT-001
@@ -411,6 +442,19 @@ Implementar un mecanismo de reducción gradual del score de reputación para IPs
 - `decay-apply` reduce score real.
 - Validado con IP `40.40.40.40`: `175 → 166`.
 - `updated` se conserva como última actividad maliciosa.
+
+**Modo actual**
+
+- `decay-dry-run`: muestra IPs candidatas y score estimado.
+- `decay-apply`: aplica reducción real de score y simula la decisión del Policy Engine.
+- El Decay Engine todavía no ejecuta cambios sobre firewall.
+
+**Validación actual**
+
+- Score reducido correctamente.
+- State Engine actualizado.
+- Policy Engine evaluado.
+- No se ejecuta `apply_decision()` desde decay.
 
 ---
 

@@ -72,7 +72,8 @@ dashboard_score() {
     echo ""
     echo "Último evento......... $LAST_EVENT"
     echo ""
-    echo "Última actualización.. $updated"
+    echo "Última actividad...... $(date -d "@$updated" '+%Y-%m-%d %H:%M:%S')"
+    echo "Antigüedad............ $(time_elapsed "$updated")"
     echo ""
     echo "=================================================="
 } 
