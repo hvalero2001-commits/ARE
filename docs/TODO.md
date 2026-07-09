@@ -451,7 +451,7 @@ recidive ............... 6
 
 **Título:** Reputation Decay Engine
 
-**Estado:** OPEN
+**Estado:** ✔ Resuelto - Observación segura
 
 **Versión:** v1.1-dev
 
@@ -495,6 +495,18 @@ Implementar un mecanismo de reducción gradual del score de reputación para IPs
 - Policy Engine evaluado.
 - No se ejecuta `apply_decision()` desde decay.
 - `stats` muestra cantidad de IPs candidatas a decay.
+
+**Validación**
+
+- `decay-dry-run` muestra IPs candidatas.
+- `decay-dry-run` calcula score estimado.
+- `decay-apply` reduce score real.
+- `decay-apply` actualiza `last_decay`.
+- `decay-apply` reevalúa State Engine.
+- `decay-apply` simula Policy Engine.
+- No ejecuta cambios sobre firewall.
+- Se evita aplicar decay múltiples veces dentro de la misma ventana.
+- Validado en producción con 487 IPs procesadas.
 
 ---
 
