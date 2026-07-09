@@ -20,7 +20,7 @@ source "$BASE/net_utils.sh"
 # RISK + DECISION
 source "$BASE/policy_risk.sh"
 source "$BASE/policy/state_engine.sh"
-source "$BASE/policy_decision_engine.sh"
+source "$BASE/policy/decision_engine.sh"
 source "$BASE/stats/state_manager.sh"
 
 # RULES
