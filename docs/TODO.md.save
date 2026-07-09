@@ -84,6 +84,8 @@ Como consecuencia, el Dashboard no puede mostrar estadísticas correctas de dich
 
 ## BUG-007
 
+## BUG-007
+
 **Título:** ARE no procesa correctamente eventos BAN/UNBAN provenientes de Fail2Ban
 
 **Estado:** ✔ Resuelto
@@ -125,34 +127,6 @@ Actualmente existe un sensor para eventos `FOUND`, pero no existe un sensor equi
 - `EXTERNAL_UNBAN` no libera directamente la IP.
 - ARE reevalúa la IP mediante el Policy Engine.
 - Validado en producción con IP `103.59.161.151`
-
----
-
-## BUG-008
-
-**Título:** Incoherencia entre State Engine y Policy Engine para estado FILTER
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1-dev
-
-**Prioridad:** Alta
-
-**Descripción**
-
-Durante la ejecución del Decay Engine se detectó que algunas IP quedan con `STATUS=NEW`, pero el Policy Engine devuelve `FILTER` como decisión para `LOW_RISK`.
-
-**Evidencia**
-
-```text
-SCORE=23->21 STATUS=NEW POLICY=FILTER REASON=LOW_RISK
-```
-
-**Validación**
-
-- Se corrigió `state_update()` para reconocer `FILTER`.
-- El Decay Engine ya no muestra incoherencias `STATUS=NEW POLICY=FILTER`.
-- Validado con `decay-apply`.
 
 ---
 
@@ -377,46 +351,12 @@ recidive ............... 6
 
 ---
 
-## FEAT-004
-
-**Título:** Reputation Decay Engine
-
-**Estado:** OPEN
-
-**Versión:** v1.1-dev
-
-**Prioridad:** Alta
-
-**Objetivo**
-
-Implementar un mecanismo de reducción gradual del score de reputación para IPs sin actividad reciente.
-
-**Reglas iniciales**
-
-- Aplicar decay solo a IPs sin actividad durante al menos 24 horas.
-- Usar un factor inicial de reducción de `0.95`.
-- Recalcular `total_score` después de aplicar decay.
-- Reevaluar la IP mediante el Policy Engine.
-- No borrar reputación de golpe.
-
-**Parámetros iniciales**
-
-- `DECAY_MIN_AGE=86400`
-- `DECAY_FACTOR=0.95`
-
-**Validación inicial**
-
-- `decay-dry-run` muestra IPs candidatas.
-- `decay-dry-run` calcula score estimado.
-- `decay-apply` reduce score real.
-- Validado con IP `40.40.40.40`: `175 → 166`.
-- `updated` se conserva como última actividad maliciosa.
-
----
 
 # RFC
 
 ## RFC-001
+
+
 
 **Título:** Renombrar CLI oficial a `are`
 

@@ -5,6 +5,7 @@ BASE="/opt/f2b-ipset"
 # CORE
 source "$BASE/logger.sh"
 source "$BASE/database.sh"
+source "$BASE/decay.sh"
 
 #DASHBOARD
 source "$BASE/dashboard.sh"  >/dev/null 2>&1

@@ -253,6 +253,12 @@ score)
 events)
     dashboard_events "$IP"
 ;;
+decay-dry-run)
+    reputation_decay_dry_run
+;;
+decay-apply)
+    reputation_decay_apply
+;;
 *)
     ERROR "Acción desconocida: $ACTION"
     exit 1
