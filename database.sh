@@ -194,6 +194,7 @@ db_init() {
 	malware_score INTEGER DEFAULT 0,
 	dos_score INTEGER DEFAULT 0,
 	social_score INTEGER DEFAULT 0,
+	last_decay INTEGER DEFAULT 0,
     	total_score INTEGER DEFAULT 0,
 	status TEXT NOT NULL DEFAULT 'NEW',
     	updated INTEGER

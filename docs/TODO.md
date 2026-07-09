@@ -346,6 +346,45 @@ El dashboard muestra `updated` como timestamp Unix:
 
 ---
 
+## TASK-008
+
+**Título:** Controlar frecuencia de ejecución del Decay Engine
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+Actualmente `decay-apply` utiliza `updated` para identificar IPs sin actividad reciente. Sin embargo, `updated` representa la última actividad maliciosa y no la última ejecución de decay.
+
+Esto permite que, si `decay-apply` se ejecuta varias veces en el mismo período, una IP pueda recibir múltiples reducciones de score sin que haya transcurrido una nueva ventana de recuperación.
+
+**Objetivo**
+
+Evitar aplicar decay más de una vez dentro del mismo intervalo definido.
+
+**Solución propuesta**
+
+Agregar un campo independiente para controlar la última ejecución de decay:
+
+```text
+last_decay
+```
+
+**Validación**
+
+- Se agregó `last_decay` a la tabla `reputation`.
+- `db_init()` crea `last_decay` en instalaciones nuevas.
+- `decay-dry-run` respeta `last_decay`.
+- `decay-apply` actualiza `last_decay`.
+- Se evita aplicar decay múltiples veces dentro de la misma ventana.
+- Validado con 487 IPs procesadas y segunda ejecución sin candidatas.
+
+---
+
 # FEATURES
 
 ## FEAT-001

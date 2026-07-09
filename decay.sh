@@ -32,10 +32,14 @@ reputation_decay_dry_run() {
             status || '|' ||
             ($NOW - updated)
         FROM reputation
-        WHERE total_score > 0
+	WHERE total_score > 0
           AND updated IS NOT NULL
           AND ($NOW - updated) >= $MIN_AGE
-        ORDER BY total_score DESC
+          AND (
+                last_decay = 0
+                OR ($NOW - last_decay) >= $MIN_AGE
+              )
+	ORDER BY total_score DESC
         LIMIT 10;
     "
 
@@ -59,7 +63,11 @@ reputation_decay_apply() {
         FROM reputation
         WHERE total_score > 0
           AND updated IS NOT NULL
-          AND ($NOW - updated) >= $MIN_AGE;
+          AND ($NOW - updated) >= $MIN_AGE
+          AND (
+                last_decay = 0
+                OR ($NOW - last_decay) >= $MIN_AGE
+              );
     ")
 
     for IP in $IPS; do
@@ -80,6 +88,7 @@ reputation_decay_apply() {
                 malware_score = CAST(malware_score * $FACTOR AS INTEGER),
                 dos_score = CAST(dos_score * $FACTOR AS INTEGER),
                 social_score = CAST(social_score * $FACTOR AS INTEGER),
+		last_decay = $NOW,
                 total_score = CAST(total_score * $FACTOR AS INTEGER)
             WHERE ip='$IP';
         "
