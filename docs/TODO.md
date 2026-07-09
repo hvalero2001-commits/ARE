@@ -439,6 +439,20 @@ Cada fase debe validar que ARE continúa funcionando antes de continuar con el s
 - Validado con `top`.
 - Validado con `found modsec-protocol`.
 
+**Estado:** ✔ Resuelto
+
+### Fase 4 ✔ Resuelta
+
+**Validación**
+
+- `policy_engine.sh` movido a `policy/engine.sh`.
+- `policy_risk.sh` movido a `policy/risk.sh`.
+- `policy_env.sh` movido a `policy/env.sh`.
+- `policy.sh` movido a `policy/policy.sh`.
+- `bootstrap.sh` actualizado.
+- Validado con `top`.
+- Validado con `found modsec-protocol`.
+
 ---
 
 # FEATURES
