@@ -4,7 +4,6 @@ BASE="/opt/f2b-ipset"
 
 source "$BASE/logger.sh"
 source "$BASE/validator.sh"
-source "$BASE/functions.sh"
 source "$BASE/database.sh"
 
 policy_apply() {
@@ -91,4 +90,18 @@ policy_apply() {
     INFO "[APPLY] ACTION COMPLETED SUCCESSFULLY"
 
     return 0
+}
+
+apply_decision() {
+
+    local IP="$1"
+    local DECISION="$2"
+
+    local ACTION TIMEOUT REASON
+
+    ACTION=$(echo "$DECISION" | cut -d'|' -f1)
+    TIMEOUT=$(echo "$DECISION" | cut -d'|' -f2)
+    REASON=$(echo "$DECISION" | cut -d'|' -f3)
+
+    policy_apply "$IP" "$ACTION" "$TIMEOUT" "$REASON"
 }

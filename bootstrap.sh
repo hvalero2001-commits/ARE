@@ -32,7 +32,7 @@ source "$BASE/policy/rules/protocol.sh"
 source "$BASE/policy/rules/anomaly.sh"
 
 # APPLY
-source "$BASE/policy_apply.sh"
+source "$BASE/policy/apply.sh"
 source "$BASE/infrastructure/ipset.sh"
 
 #BACKEND

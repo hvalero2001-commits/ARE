@@ -385,6 +385,40 @@ last_decay
 
 ---
 
+## TASK-009
+
+**Título:** Consolidar el módulo Policy
+
+**Estado:** IN PROGRESS
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Media
+
+**Objetivo**
+
+Mover progresivamente los archivos `policy*.sh` ubicados en la raíz hacia el directorio `policy/`, sin modificar lógica funcional.
+
+**Fase actual**
+
+Mover `policy_apply.sh` hacia `policy/apply.sh`.
+
+**Regla**
+
+Cada fase debe validar que ARE continúa funcionando antes de continuar con el siguiente archivo.
+
+**Fase 1:** ✔ Resuelta
+
+**Validación**
+
+- `policy_apply.sh` movido a `policy/apply.sh`.
+- `bootstrap.sh` actualizado.
+- Se agregó wrapper `apply_decision()` para mantener compatibilidad.
+- Validado con `top`.
+- Validado con `found modsec-protocol`.
+
+---
+
 # FEATURES
 
 ## FEAT-001
