@@ -31,6 +31,7 @@ dashboard_stats() {
     TODAY=$(db_count_events_today)
     AVG=$(db_avg_score)
     CAT=$(db_sum_categories)
+    DECAY=$(db_count_decay_candidates)
 
     local R E C P B A M D S
     R=$(echo "$CAT" | cut -d'|' -f1)
@@ -52,6 +53,7 @@ dashboard_stats() {
     echo "Eventos hoy............. $TODAY"
     echo ""
     echo "Score promedio.......... ${AVG%.*}"
+    echo "IPs para decay.......... $DECAY"
     echo ""
     echo "ATAQUES:"
     echo "  Recon................. $R"

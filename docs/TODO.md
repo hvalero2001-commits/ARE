@@ -455,6 +455,7 @@ Implementar un mecanismo de reducción gradual del score de reputación para IPs
 - State Engine actualizado.
 - Policy Engine evaluado.
 - No se ejecuta `apply_decision()` desde decay.
+- `stats` muestra cantidad de IPs candidatas a decay.
 
 ---
 

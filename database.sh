@@ -709,3 +709,19 @@ db_top_jails() {
         LIMIT 5;
     "
 }
+
+db_count_decay_candidates() {
+
+    local NOW
+    local MIN_AGE="${DECAY_MIN_AGE:-86400}"
+
+    NOW=$(date +%s)
+
+    db_exec "
+        SELECT COUNT(*)
+        FROM reputation
+        WHERE total_score > 0
+          AND updated IS NOT NULL
+          AND ($NOW - updated) >= $MIN_AGE;
+    "
+}
