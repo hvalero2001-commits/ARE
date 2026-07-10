@@ -226,6 +226,19 @@ db_init() {
     ('modsecurity-apache','ANOMALY',1,0.50,0.80,'Generic ModSecurity Apache rules triggered'),
     ('modsec-bruteforce','CREDENTIAL',10,0.90,0.97,'Brute force login');
     "
+
+    db_exec "
+    CREATE TABLE IF NOT EXISTS sanction_state(
+        ip TEXT PRIMARY KEY,
+        ban_level INTEGER DEFAULT 0,
+        ban_count INTEGER DEFAULT 0,
+        ban_until INTEGER DEFAULT 0,
+        permanent INTEGER DEFAULT 0,
+        last_ban INTEGER DEFAULT 0,
+        last_unban INTEGER DEFAULT 0,
+        updated INTEGER
+    );
+    "
 }
 
 #############################################################
@@ -724,5 +737,177 @@ db_count_decay_candidates() {
         WHERE total_score > 0
           AND updated IS NOT NULL
           AND ($NOW - updated) >= $MIN_AGE;
+    "
+}
+
+#############################################################
+# SANCTION STATE
+#############################################################
+
+db_init_sanction() {
+
+    local IP="$1"
+    local NOW
+    NOW=$(date +%s)
+
+    db_exec "
+        INSERT OR IGNORE INTO sanction_state(
+            ip,
+            ban_level,
+            ban_count,
+            ban_until,
+            permanent,
+            last_ban,
+            last_unban,
+            updated
+        )
+        VALUES(
+            '$IP',
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            $NOW
+        );
+    "
+}
+
+db_get_sanction() {
+
+    local IP="$1"
+
+    db_exec "
+        SELECT
+            ban_level || '|' ||
+            ban_count || '|' ||
+            ban_until || '|' ||
+            permanent || '|' ||
+            last_ban || '|' ||
+            last_unban || '|' ||
+            updated
+        FROM sanction_state
+        WHERE ip='$IP';
+    "
+}
+
+db_get_ban_level() {
+
+    local IP="$1"
+
+    db_exec "
+        SELECT COALESCE(ban_level,0)
+        FROM sanction_state
+        WHERE ip='$IP';
+    "
+}
+
+db_increment_ban_level() {
+
+    local IP="$1"
+    local NOW
+    NOW=$(date +%s)
+
+    db_init_sanction "$IP"
+
+    db_exec "
+        UPDATE sanction_state
+        SET
+            ban_level = ban_level + 1,
+            ban_count = ban_count + 1,
+            last_ban = $NOW,
+            updated = $NOW
+        WHERE ip='$IP';
+    "
+}
+
+db_set_ban_until() {
+
+    local IP="$1"
+    local BAN_UNTIL="$2"
+    local NOW
+    NOW=$(date +%s)
+
+    db_init_sanction "$IP"
+
+    db_exec "
+        UPDATE sanction_state
+        SET
+            ban_until = $BAN_UNTIL,
+            updated = $NOW
+        WHERE ip='$IP';
+    "
+}
+
+db_set_permanent() {
+
+    local IP="$1"
+    local VALUE="${2:-1}"
+    local NOW
+    NOW=$(date +%s)
+
+    db_init_sanction "$IP"
+
+    db_exec "
+        UPDATE sanction_state
+        SET
+            permanent = $VALUE,
+            updated = $NOW
+        WHERE ip='$IP';
+    "
+}
+
+db_is_permanent() {
+
+    local IP="$1"
+
+    db_exec "
+        SELECT COALESCE(permanent,0)
+        FROM sanction_state
+        WHERE ip='$IP';
+    "
+}
+
+db_register_sanction_unban() {
+
+    local IP="$1"
+    local NOW
+    NOW=$(date +%s)
+
+    db_init_sanction "$IP"
+
+    db_exec "
+        UPDATE sanction_state
+        SET
+            ban_until = 0,
+            last_unban = $NOW,
+            updated = $NOW
+        WHERE ip='$IP';
+    "
+}
+
+db_increment_ban_level() {
+
+    local IP="$1"
+    local MAX_LEVEL="${2:-7}"
+    local NOW
+
+    NOW=$(date +%s)
+
+    db_init_sanction "$IP"
+
+    db_exec "
+        UPDATE sanction_state
+        SET
+            ban_level = CASE
+                WHEN ban_level < $MAX_LEVEL
+                THEN ban_level + 1
+                ELSE $MAX_LEVEL
+            END,
+            ban_count = ban_count + 1,
+            last_ban = $NOW,
+            updated = $NOW
+        WHERE ip='$IP';
     "
 }

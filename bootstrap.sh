@@ -6,6 +6,7 @@ BASE="/opt/f2b-ipset"
 source "$BASE/logger.sh"
 source "$BASE/database.sh"
 source "$BASE/decay.sh"
+source "/etc/f2b-ipset/policy.conf"
 
 #DASHBOARD
 source "$BASE/dashboard.sh"  >/dev/null 2>&1
@@ -34,6 +35,7 @@ source "$BASE/policy/rules/anomaly.sh"
 # APPLY
 source "$BASE/policy/apply.sh"
 source "$BASE/infrastructure/ipset.sh"
+source "$BASE/policy/ban_lifecycle.sh"
 
 #BACKEND
 source "$BASE/backend/init.sh"

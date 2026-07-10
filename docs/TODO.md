@@ -13,7 +13,7 @@ Se divide en:
 ---
 
 # BUGS
-
+###### ########################################
 ## BUG-001
 
 **Título:** Implementar `handle_unban()`
@@ -156,8 +156,72 @@ SCORE=23->21 STATUS=NEW POLICY=FILTER REASON=LOW_RISK
 
 ---
 
-# TASKS
+## BUG-009
 
+**Título:** `policy/apply.sh` no implementa la acción FILTER
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+El Policy Engine devuelve correctamente `FILTER` para IPs con riesgo bajo, pero `policy/apply.sh` no posee un bloque para procesar dicha acción.
+
+**Evidencia**
+
+```text
+Policy decision: FILTER (LOW_RISK)
+[APPLY] UNKNOWN ACTION: FILTER
+```
+
+**Validación**
+
+- Se agregó soporte para la acción `FILTER` en `policy/apply.sh`.
+- IPv4 utiliza `FILTER_SET4`.
+- IPv6 utiliza `FILTER_SET6`.
+- `BAN` y `TEMP_BAN` utilizan sus respectivos conjuntos de bloqueo.
+- Validado con IP `87.87.87.87`.
+- La IP fue incorporada correctamente a `are-filter`.
+- El evento `FILTER` quedó registrado.
+
+---
+
+## BUG-010
+
+**Título:** Ban Lifecycle no reconoce escalado permanente por salida multilínea
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+El Ban Lifecycle Engine devuelve `BAN|0|BAN_LEVEL_MAX`, pero `policy/apply.sh` no entra en la rama de escalado permanente.
+
+**Evidencia**
+
+```text
+[APPLY] Ban Lifecycle:
+BAN|0|BAN_LEVEL_MAX
+
+[APPLY] EXECUTE: TEMP BAN (0 sec)
+```
+
+**Validación**
+
+- Se normalizó la salida de `ban_lifecycle_calculate()`.
+- `policy/apply.sh` reconoce correctamente `BAN|0|BAN_LEVEL_MAX`.
+- La escalada permanente se ejecuta correctamente.
+
+---
+
+# TASKS
+###### ########################################
 ## TASK-001
 
 **Título:** Reorganizar reglas del Policy Engine
@@ -455,8 +519,228 @@ Cada fase debe validar que ARE continúa funcionando antes de continuar con el s
 
 ---
 
-# FEATURES
+## TASK-010
 
+**Título:** Implementar Ban Lifecycle Engine
+
+**Estado:** OPEN
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Objetivo**
+
+Implementar un motor encargado de administrar el ciclo de vida de las sanciones aplicadas por ARE.
+
+**Alcance**
+
+El Ban Lifecycle Engine no decide si una IP es peligrosa. Esa decisión corresponde al Reputation Engine, State Engine y Policy Engine.
+
+Su responsabilidad será determinar cómo escalar una sanción cuando ARE decida aplicar `TEMP_BAN` o `BAN`.
+
+**Responsabilidades**
+
+- Mantener el estado actual de sanción de una IP.
+- Registrar nivel de ban alcanzado.
+- Registrar cantidad de sanciones aplicadas.
+- Definir duración de bans temporales según nivel.
+- Escalar una IP hacia ban permanente cuando corresponda.
+- Permitir que el SysAdmin configure límites y tiempos de escalado.
+
+**Acciones relacionadas**
+
+- `TEMP_BAN`
+- `BAN`
+- `ALLOW` como recuperación controlada cuando corresponda.
+
+**No incluye**
+
+- Nuevos estados de Policy Engine.
+- Nuevos mecanismos como CAPTCHA, RATE_LIMIT, TARPIT o GEO_BLOCK.
+- Cambios en sensores.
+- Cambios en Decay Engine.
+
+**Modelo propuesto**
+
+Crear una estructura persistente para almacenar el estado actual de sanción:
+
+```text
+sanction_state
+```
+
+**Validación**
+
+- Tabla `sanction_state` creada correctamente.
+- `db_init()` crea la tabla en instalaciones nuevas.
+- ARE continúa funcionando después de la incorporación.
+- Esquema validado en SQLite.
+- Funciones básicas de `sanction_state` implementadas.
+- `db_init_sanction()` crea el estado inicial.
+- `db_increment_ban_level()` incrementa nivel y contador.
+- `db_get_ban_level()` devuelve el nivel actual.
+- Persistencia validada con `sanction-test`.
+- Validado con IP `84.84.84.84`.
+
+### Fase 3
+
+**Título**
+
+Ban Lifecycle Engine (Simulation Mode)
+
+**Objetivo**
+
+Implementar un motor capaz de calcular la siguiente sanción que corresponde a una IP utilizando exclusivamente la información almacenada en `sanction_state`.
+
+Durante esta fase el motor no modifica firewall, ipset, reputation ni policy.
+
+Su única responsabilidad será calcular el resultado esperado.
+
+**Entradas**
+
+- IP
+- ban_level
+- ban_count
+- permanent
+
+**Salida**
+
+ACTION|TIME|REASON
+
+Ejemplos:
+
+TEMP_BAN|3600|LEVEL_1
+
+TEMP_BAN|21600|LEVEL_2
+
+TEMP_BAN|86400|LEVEL_3
+
+TEMP_BAN|604800|LEVEL_4
+
+TEMP_BAN|1296000|LEVEL_5
+
+TEMP_BAN|2592000|LEVEL_6
+
+BAN|0|PERMANENT
+
+**Política inicial de escalado**
+
+- Nivel 1: 1 hora.
+- Nivel 2: 6 horas.
+- Nivel 3: 24 horas.
+- Nivel 4: 7 días.
+- Nivel 5: 15 días.
+- Nivel 6: 30 días.
+- Nivel 7: permanente.
+
+El nivel máximo será configurable mediante `BAN_LEVEL_MAX`.
+
+`ban_level` quedará limitado al máximo configurado, mientras que `ban_count` continuará acumulando todas las sanciones históricas.
+
+### Fase 3 ✔ Resuelta
+
+**Validación**
+
+- `policy/ban_lifecycle.sh` creado.
+- `policy.conf` cargado desde `/etc/f2b-ipset/policy.conf`.
+- El motor calcula la siguiente sanción sin modificar DB ni firewall.
+- Una IP nueva devuelve:
+
+```text
+TEMP_BAN|3600|BAN_LEVEL_1
+```
+
+### Fase 4
+
+**Título:** Integrar Ban Lifecycle Engine con `TEMP_BAN`
+
+**Estado:** IN PROGRESS
+
+**Objetivo**
+
+Integrar el cálculo del Ban Lifecycle Engine con las decisiones `TEMP_BAN` generadas por el Policy Engine.
+
+**Flujo esperado**
+
+```text
+Policy Engine devuelve TEMP_BAN
+        ↓
+Ban Lifecycle Engine calcula siguiente nivel
+        ↓
+Se incrementan ban_level y ban_count
+        ↓
+Se calcula ban_until
+        ↓
+El backend aplica la sanción temporal
+```
+
+### Fase 4 ✔ Resuelta
+
+**Validación**
+
+- `TEMP_BAN` integrado con Ban Lifecycle Engine.
+- Primera sanción calculada como `BAN_LEVEL_1`.
+- Duración aplicada: `3600` segundos.
+- `ban_level`, `ban_count` y `ban_until` actualizados.
+- Backend ejecutó el bloqueo temporal.
+
+### Fase 5
+
+**Título:** Escalado a ban permanente
+
+**Estado:** IN PROGRESS
+
+**Objetivo**
+
+Completar el ciclo de sanciones permitiendo que ARE escale una IP desde bans temporales progresivos hasta un ban permanente.
+
+**Flujo esperado**
+
+```text
+TEMP_BAN solicitado por Policy Engine
+        ↓
+Ban Lifecycle Engine calcula siguiente nivel
+        ↓
+Si el nivel es menor que BAN_LEVEL_MAX
+        ↓
+TEMP_BAN progresivo
+        ↓
+Si alcanza BAN_LEVEL_MAX
+        ↓
+BAN permanente
+```
+
+#### Fase 5.1 ✔ Resuelta
+
+**Validación**
+
+- `ban_lifecycle_calculate()` reconoce el nivel previo al máximo.
+- Con `ban_level = 6`, devuelve:
+
+```text
+BAN|0|BAN_LEVEL_MAX
+```
+
+#### Fase 5.2 ✔ Resuelta
+
+**Validación**
+
+- `policy/apply.sh` ejecuta escalado permanente.
+- La IP se elimina del conjunto `FILTER`.
+- La IP se incorpora al conjunto permanente.
+- `sanction_state` persiste:
+
+```text
+ban_level = 7
+ban_count = 7
+ban_until = 0
+permanent = 1
+```
+
+---
+
+# FEATURES
+###### ########################################
 ## FEAT-001
 
 **Estado:** ✔ Operativo en producción
@@ -589,7 +873,7 @@ Esta etapa completa el ciclo inicial de recuperación de reputación y permite q
 ---
 
 # RFC
-
+###### ########################################
 ## RFC-001
 
 **Título:** Renombrar CLI oficial a `are`
@@ -768,7 +1052,7 @@ ip | total_score | status | updated
 ---
 
 # IDEAS
-
+###### ########################################
 ## IDEA-001
 
 Exportación de métricas.
@@ -800,7 +1084,7 @@ Dashboard avanzado.
 ---
 
 # OBSERVACIONES
-
+###### ########################################
 La rama **v1.1-dev** se utiliza para el desarrollo activo de nuevas funcionalidades.
 
 Las versiones **1.0.x** permanecen destinadas exclusivamente a mantenimiento y corrección de errores.

@@ -231,3 +231,39 @@ Las futuras versiones podrán añadir:
 - nuevos mecanismos de reputación
 
 manteniendo la misma arquitectura modular y desacoplada.
+
+---
+
+## Principios de diseño
+
+### Una única responsabilidad
+
+Cada motor de ARE debe cumplir una única responsabilidad claramente definida.
+
+### Separación entre decisión y ejecución
+
+ARE decide qué hacer.
+
+Los backends ejecutan la acción correspondiente.
+
+### Persistencia del conocimiento
+
+Toda decisión importante debe mantenerse de forma persistente.
+
+ARE distingue entre:
+
+- historial de eventos
+- reputación
+- estado de sanción
+
+### Configuración desacoplada
+
+Toda política debe residir en `/etc/f2b-ipset`.
+
+Los motores nunca contendrán parámetros de configuración embebidos.
+
+### Evolución basada en evidencia
+
+ARE ha sido diseñado y validado sobre tráfico real en un entorno de producción.
+
+Las decisiones de arquitectura se fundamentan en el comportamiento observado y no únicamente en modelos teóricos.

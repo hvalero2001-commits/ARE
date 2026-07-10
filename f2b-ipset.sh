@@ -222,6 +222,40 @@ handle_ban() {
 
 }
 
+handle_sanction_test() {
+
+    local ip="$IP"
+
+    INFO "Prueba controlada de sanction_state para $ip"
+
+    db_init_sanction "$ip"
+    db_increment_ban_level "$ip" "$BAN_LEVEL_MAX"
+
+    local level
+    level=$(db_get_ban_level "$ip")
+
+    INFO "Nivel de sanción actual: $level"
+}
+
+handle_ban_lifecycle_test() {
+
+    local ip="$IP"
+    local decision
+
+    decision=$(ban_lifecycle_calculate "$ip")
+
+    INFO "Ban Lifecycle decision: $decision"
+}
+
+handle_sanction_apply_test() {
+
+    local ip="$IP"
+
+    INFO "Prueba integrada de escalado permanente para $ip"
+
+    apply_decision "$ip" "TEMP_BAN|0|SANCTION_TEST"
+}
+
 case "$ACTION" in
 stats)
     dashboard_stats
@@ -258,6 +292,15 @@ decay-dry-run)
 ;;
 decay-apply)
     reputation_decay_apply
+;;
+sanction-test)
+    handle_sanction_test
+;;
+ban-lifecycle-test)
+    handle_ban_lifecycle_test
+;;
+sanction-apply-test)
+    handle_sanction_apply_test
 ;;
 *)
     ERROR "Acción desconocida: $ACTION"
