@@ -911,3 +911,21 @@ db_increment_ban_level() {
         WHERE ip='$IP';
     "
 }
+
+db_get_sanction() {
+
+    local IP="$1"
+
+    db_exec "
+        SELECT
+            ban_level || '|' ||
+            ban_count || '|' ||
+            ban_until || '|' ||
+            permanent || '|' ||
+            last_ban || '|' ||
+            last_unban || '|' ||
+            updated
+        FROM sanction_state
+        WHERE ip='$IP';
+    "
+}

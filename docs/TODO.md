@@ -739,6 +739,48 @@ permanent = 1
 
 ---
 
+## TASK-011
+
+**Título:** Mostrar estado de sanción en el dashboard de reputación
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Objetivo**
+
+Ampliar la salida del comando `score <IP>` para mostrar el estado actual de sanción almacenado en `sanction_state`.
+
+**Datos a mostrar**
+
+- Nivel actual de sanción.
+- Cantidad total de sanciones.
+- Tipo de sanción actual.
+- Fecha de finalización del ban temporal.
+- Estado permanente.
+- Último ban.
+- Último unban.
+
+**Archivos relacionados**
+
+- `dashboard/score.sh`
+- `database.sh`
+- `sanction_state`
+
+**Validación**
+
+- El dashboard consulta `sanction_state`.
+- Muestra nivel actual de sanción.
+- Muestra cantidad total de sanciones.
+- Distingue sanción temporal y permanente.
+- Muestra fecha de finalización cuando corresponde.
+- Muestra último ban y último unban.
+- Validado con IP `84.84.84.84`.
+
+---
+
 # FEATURES
 ###### ########################################
 ## FEAT-001

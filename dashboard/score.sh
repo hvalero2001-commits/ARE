@@ -26,6 +26,18 @@ dashboard_score() {
     local REP
     REP=$(db_get_reputation "$IP")
 
+    local SANCTION
+    SANCTION=$(db_get_sanction "$IP")
+
+    local ban_level ban_count ban_until permanent last_ban last_unban
+
+    ban_level=$(echo "$SANCTION" | cut -d'|' -f1)
+    ban_count=$(echo "$SANCTION" | cut -d'|' -f2)
+    ban_until=$(echo "$SANCTION" | cut -d'|' -f3)
+    permanent=$(echo "$SANCTION" | cut -d'|' -f4)
+    last_ban=$(echo "$SANCTION" | cut -d'|' -f5)
+    last_unban=$(echo "$SANCTION" | cut -d'|' -f6)
+
     if [ -z "$REP" ]; then
         WARN "IP sin datos: $IP"
         return 0
@@ -74,6 +86,34 @@ dashboard_score() {
     echo ""
     echo "Última actividad...... $(date -d "@$updated" '+%Y-%m-%d %H:%M:%S')"
     echo "Antigüedad............ $(time_elapsed "$updated")"
+    echo ""
+    echo "SANCIÓN:"
+    echo "  Nivel actual......... $ban_level"
+    echo "  Sanciones totales.... $ban_count"
+    if [ "$permanent" -eq 1 ]; then
+        echo "  Tipo................. Permanente"
+        echo "  Vigente hasta........ Permanente"
+    else
+        echo "  Tipo................. Temporal"
+
+    if [ "$ban_until" -gt 0 ]; then
+            echo "  Vigente hasta........ $(date -d "@$ban_until" '+%Y-%m-%d %H:%M:%S')"
+        else
+            echo "  Vigente hasta........ Sin sanción activa"
+        fi
+    fi
+
+    if [ "$last_ban" -gt 0 ]; then
+        echo "  Último ban........... $(date -d "@$last_ban" '+%Y-%m-%d %H:%M:%S')"
+    else
+        echo "  Último ban........... Nunca"
+    fi
+
+    if [ "$last_unban" -gt 0 ]; then
+        echo "  Último unban......... $(date -d "@$last_unban" '+%Y-%m-%d %H:%M:%S')"
+    else
+        echo "  Último unban......... Nunca"
+    fi
     echo ""
     echo "=================================================="
 } 
