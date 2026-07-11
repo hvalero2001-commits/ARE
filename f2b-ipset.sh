@@ -7,9 +7,17 @@
 #
 #########################################################################
 
-BASE="/opt/f2b-ipset"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG="$SCRIPT_DIR/config.conf"
 
-CONFIG="/opt/f2b-ipset/config.conf"
+if [ ! -f "$CONFIG" ]; then
+    echo "ERROR: Configuración no encontrada: $CONFIG"
+    exit 1
+fi
+
+source "$CONFIG"
+
+BASE="$ARE_HOME"
 
 ##############################################
 

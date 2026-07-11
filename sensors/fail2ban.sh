@@ -1,8 +1,18 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG="$BASE/config.conf"
+
+if [ ! -f "$CONFIG" ]; then
+    echo "ERROR: Configuración no encontrada: $CONFIG"
+    exit 1
+fi
+
+source "$CONFIG"
+
 LOG_FILE="/var/log/fail2ban.log"
-ARE_BIN="/opt/f2b-ipset/f2b-ipset.sh"
-OFFSET_FILE="/var/lib/f2b-ipset/fail2ban.offset"
+OFFSET_FILE="$ARE_DATA/fail2ban.offset"
 
 MODE="${1:---dry-run}"
 

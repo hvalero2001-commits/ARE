@@ -1,12 +1,12 @@
 #!/bin/bash
 
-BASE="/opt/f2b-ipset"
+BASE="$ARE_HOME"
+source "$ARE_POLICY_CONFIG"
 
 # CORE
 source "$BASE/logger.sh"
 source "$BASE/database.sh"
 source "$BASE/decay.sh"
-source "/etc/f2b-ipset/policy.conf"
 
 #DASHBOARD
 source "$BASE/dashboard.sh"  >/dev/null 2>&1

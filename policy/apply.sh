@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE="/opt/f2b-ipset"
+BASE="$ARE_HOME"
 
 source "$BASE/logger.sh"
 source "$BASE/validator.sh"

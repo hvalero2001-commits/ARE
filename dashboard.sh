@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE="/opt/f2b-ipset"
+BASE="$ARE_HOME"
 
 source "$BASE/dashboard/core.sh"
 source "$BASE/dashboard/score.sh"

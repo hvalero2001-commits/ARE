@@ -781,6 +781,102 @@ Ampliar la salida del comando `score <IP>` para mostrar el estado actual de sanc
 
 ---
 
+## TASK-012
+
+**Título:** Centralizar rutas y eliminar dependencias estáticas
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Objetivo**
+
+Eliminar rutas estáticas del código fuente y centralizar las ubicaciones operativas de ARE en `config.conf`, preparando el proyecto para instalaciones personalizadas y una futura migración de nombre y directorios.
+
+**Alcance**
+
+- Ruta del código.
+- Ruta de configuración.
+- Ruta de datos.
+- Ruta de base de datos.
+- Ruta de logs.
+- Ruta de sensores.
+- Ruta de archivos temporales.
+- Ejecutable principal de ARE.
+
+**Regla**
+
+La migración se realizará por fases. No se renombrarán directorios ni ejecutables hasta eliminar previamente todas las dependencias estáticas.
+
+### Fase 1 — Inventario
+
+Se encontraron rutas estáticas en:
+
+- `dashboard.sh`
+- `bootstrap.sh`
+- `f2b-ipset.sh`
+- `policy/apply.sh`
+- `policy/engine.sh`
+- `policy/env.sh`
+- `policy/policy.sh`
+- `sensors/fail2ban.sh`
+- `testing/run_tests.sh`
+- `tmp/sync-f2b-are.sh`
+- `config.conf`
+
+También se detectaron referencias antiguas en `policy/env.sh` y `policy/policy.sh` que no coinciden con la estructura actual.
+
+### Exclusiones
+
+No se modificarán inicialmente:
+
+- `docs/`
+- archivos `.save`
+- ejemplos históricos
+- archivos temporales no utilizados en producción
+
+### Fases siguientes
+
+1. Definir variables oficiales en `config.conf`.
+2. Normalizar el arranque de `f2b-ipset.sh` y `bootstrap.sh`.
+3. Migrar módulos de producción.
+4. Migrar sensores.
+5. Migrar pruebas y herramientas temporales.
+6. Verificar ausencia de rutas estáticas.
+7. Evaluar posteriormente el cambio de nombre interno a ARE.
+
+Se excluyen de esta tarea los directorios:
+
+- testing/
+- tmp/
+
+por tratarse de herramientas de desarrollo y migración que no forman parte del runtime de ARE.
+
+**Validación**
+
+- El sensor obtiene su ubicación mediante `BASH_SOURCE`.
+- Calcula dinámicamente el directorio base de ARE.
+- Carga `config.conf` desde el proyecto.
+- Usa `ARE_BIN` y `ARE_DATA` definidos en configuración.
+- No depende de rutas estáticas en `/opt` ni `/var/lib`.
+- Validado mediante `are-fail2ban-found.service`.
+- El flujo `FOUND → Reputation → Policy → Apply` continúa operativo.
+
+**Validación final**
+
+- Las rutas operativas están centralizadas en `config.conf`.
+- `f2b-ipset.sh` localiza dinámicamente su configuración mediante `BASH_SOURCE`.
+- `bootstrap.sh` utiliza `ARE_HOME` y `ARE_POLICY_CONFIG`.
+- Los módulos de producción consumen las variables oficiales de configuración.
+- El sensor Fail2Ban resuelve dinámicamente la ubicación del proyecto.
+- El runtime ya no depende de rutas estáticas fuera de `config.conf`.
+- `testing/` y `tmp/` quedan excluidos por no formar parte del runtime.
+- Validado mediante `stats` y el servicio del sensor Fail2Ban.
+
+---
+
 # FEATURES
 ###### ########################################
 ## FEAT-001

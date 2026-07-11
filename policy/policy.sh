@@ -7,16 +7,16 @@
 
 policy_load() {
 
-    source /opt/f2b-ipset/policy.conf
+    source "$ARE_POLICY_CONFIG"
 
 }
 
-source /opt/f2b-ipset/policy_rules/core.sh
-source /opt/f2b-ipset/policy_rules/exploit.sh
-source /opt/f2b-ipset/policy_rules/recon.sh
-source /opt/f2b-ipset/policy_rules/bruteforce.sh
-source /opt/f2b-ipset/policy_rules/bot.sh
-source /opt/f2b-ipset/policy_rules/protocol.sh
+source "$ARE_POLICY_DIR/core.sh"
+source "$ARE_POLICY_DIR/exploit.sh"
+source "$ARE_POLICY_DIR/recon.sh"
+source "$ARE_POLICY_DIR/bruteforce.sh"
+source "$ARE_POLICY_DIR/bot.sh"
+source "$ARE_POLICY_DIR/protocol.sh"
 
 
 #############################################################

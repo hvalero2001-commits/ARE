@@ -1,4 +1,4 @@
-BASE="/opt/f2b-ipset"
+BASE="$ARE_HOME"
 
 source "$BASE/policy_env.sh"
 source "$BASE/logger.sh"
