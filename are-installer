@@ -1,0 +1,1091 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+SOURCE_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SOURCE_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
+
+MANIFEST="$SOURCE_DIR/manifest/product.sh"
+
+if [ ! -f "$MANIFEST" ]; then
+    printf '[ERROR] Product Manifest no encontrado: %s\n' "$MANIFEST" >&2
+    exit 1
+fi
+
+source "$MANIFEST"
+
+INSTALL_HOME="$PRODUCT_HOME"
+INSTALL_ETC="$PRODUCT_ETC"
+INSTALL_DATA="$PRODUCT_DATA"
+SYSTEMD_DIR="$PRODUCT_SYSTEMD"
+INSTALL_BIN="$PRODUCT_BIN"
+INSTALL_LOG="$PRODUCT_LOG"
+INSTALL_LOGROTATE="$PRODUCT_LOGROTATE"
+
+install_log() {
+    printf '[INSTALL] %s\n' "$*"
+}
+
+install_error() {
+    printf '[ERROR] %s\n' "$*" >&2
+    exit 1
+}
+
+install_verify_root() {
+    [ "$(id -u)" -eq 0 ] || install_error "La instalación requiere privilegios de root."
+}
+
+install_verify_dependencies() {
+
+    local dependency
+    local missing=0
+
+    for dependency in bash sqlite3 ipset iptables ip6tables systemctl; do
+        if ! command -v "$dependency" >/dev/null 2>&1; then
+            printf '[ERROR] Dependencia no encontrada: %s\n' "$dependency" >&2
+            missing=1
+        fi
+    done
+
+    [ "$missing" -eq 0 ] || install_error "Faltan dependencias obligatorias."
+}
+
+install_detect_state() {
+
+    local home_exists=0
+    local config_exists=0
+    local data_exists=0
+    local binary_exists=0
+
+    [ -d "$INSTALL_HOME" ] && home_exists=1
+    [ -f "$INSTALL_ETC/config.conf" ] && config_exists=1
+    [ -d "$INSTALL_DATA" ] && data_exists=1
+    [ -x "$INSTALL_HOME/f2b-ipset.sh" ] && binary_exists=1
+
+    if [ "$home_exists" -eq 0 ] &&
+       [ "$config_exists" -eq 0 ] &&
+       [ "$data_exists" -eq 0 ]; then
+
+        echo "NEW"
+        return 0
+    fi
+
+    if [ "$home_exists" -eq 1 ] &&
+       [ "$config_exists" -eq 1 ] &&
+       [ "$data_exists" -eq 1 ] &&
+       [ "$binary_exists" -eq 1 ]; then
+
+        echo "INSTALLED"
+        return 0
+    fi
+
+    echo "INCOMPLETE"
+}
+
+install_create_directories() {
+
+    install_log "Creando estructura de directorios"
+
+    mkdir -p "$INSTALL_HOME"
+    mkdir -p "$INSTALL_ETC"
+    mkdir -p "$INSTALL_DATA"
+}
+
+install_logrotate() {
+
+    local file
+    local source
+    local target
+
+    install_log "Instalando configuración logrotate"
+
+    mkdir -p "$INSTALL_LOGROTATE"
+
+    for file in "${PRODUCT_LOGROTATE_FILES[@]}"; do
+
+        source="$INSTALL_HOME/templates/logrotate/$file"
+	target="$INSTALL_LOGROTATE/$file"
+
+        if [ ! -f "$source" ]; then
+            install_error "Plantilla logrotate no encontrada: $source"
+        fi
+
+        install -m 0644 "$source" "$target"
+
+        install_log "Logrotate instalado: $file"
+    done
+}
+
+install_copy_files() {
+
+    local dir
+    local file
+    
+    local SOURCE_REAL
+    local TARGET_REAL
+
+    SOURCE_REAL="$(readlink -f "$SOURCE_DIR")"
+    TARGET_REAL="$(readlink -f "$INSTALL_HOME")"
+
+    if [ "$SOURCE_REAL" = "$TARGET_REAL" ]; then
+        install_error "El paquete fuente y la instalación activa son el mismo directorio."
+    fi
+    
+    install_log "Copiando Core"
+
+    for dir in "${PRODUCT_DIRS[@]}"; do
+
+        mkdir -p "$INSTALL_HOME/$dir"
+
+        cp -a \
+            "$SOURCE_DIR/$dir/." \
+            "$INSTALL_HOME/$dir/"
+
+        install_log "Directorio: $dir"
+
+    done
+
+    for file in "${PRODUCT_FILES[@]}"; do
+
+        install -m 0755 \
+            "$SOURCE_DIR/$file" \
+            "$INSTALL_HOME/$file"
+
+        install_log "Archivo: $file"
+
+    done
+
+}
+
+install_install_configs() {
+
+    local file
+    local source
+    local target
+    local temporary
+
+    install_log "Instalando configuración"
+
+    mkdir -p "$INSTALL_ETC"
+
+    for file in "${PRODUCT_CONFIG_FILES[@]}"; do
+
+        source="$INSTALL_HOME/templates/config/$file"
+        target="$INSTALL_ETC/$file"
+
+        if [ ! -f "$source" ]; then
+            install_error "Plantilla de configuración no encontrada: $source"
+        fi
+
+        if [ ! -e "$target" ] && [ ! -L "$target" ]; then
+            install -m 0644 "$source" "$target"
+            install_log "Configuración instalada: $target"
+            continue
+        fi
+
+        if [ -L "$target" ]; then
+
+            if [ ! -e "$target" ]; then
+                install_error "Enlace de configuración roto: $target"
+            fi
+
+            temporary="$(mktemp)"
+
+            cp -L --preserve=mode,timestamps "$target" "$temporary"
+            rm -f "$target"
+            install -m 0644 "$temporary" "$target"
+            rm -f "$temporary"
+
+            install_log "Configuración migrada a archivo persistente: $target"
+            continue
+        fi
+
+        install_log "Configuración existente conservada: $target"
+    done
+}
+
+install_create_links() {
+
+    local item
+    local name
+    local target
+    local link
+    local config_link
+
+    install_log "Creando enlaces oficiales"
+
+    mkdir -p "$INSTALL_BIN"
+    mkdir -p "$INSTALL_HOME/config"
+
+    for item in "${PRODUCT_CONFIG_FILES[@]}"; do
+
+        target="$INSTALL_ETC/$item"
+        link="$INSTALL_HOME/$item"
+
+        if [ ! -e "$target" ]; then
+            install_error "Configuración de destino inexistente: $target"
+        fi
+
+        if [ -e "$link" ] && [ ! -L "$link" ]; then
+            install_error "Existe un archivo que no es enlace: $link"
+        fi
+
+        ln -sfn "$target" "$link"
+
+        install_log "Enlace de configuración creado: $link -> $target"
+
+        config_link="$INSTALL_HOME/config/$item"
+
+        if [ -e "$config_link" ] && [ ! -L "$config_link" ]; then
+            install_error "Existe un archivo que no es enlace: $config_link"
+        fi
+
+        ln -sfn "$target" "$config_link"
+
+        install_log "Enlace de configuración creado: $config_link -> $target"
+    done
+
+    for item in "${PRODUCT_EXECUTABLE_LINKS[@]}"; do
+
+        name="${item%%:*}"
+        target="${item#*:}"
+        link="$INSTALL_BIN/$name"
+
+        if [ ! -e "$target" ]; then
+            install_error "Destino de enlace inexistente: $target"
+        fi
+
+        if [ -e "$link" ] && [ ! -L "$link" ]; then
+            install_error "Existe un archivo que no es enlace: $link"
+        fi
+
+        ln -sfn "$target" "$link"
+
+        install_log "Enlace ejecutable creado: $link -> $target"
+    done
+}
+
+install_permissions() {
+
+    local file
+    local path
+
+    install_log "Asignando permisos"
+
+    chown -R root:root "$INSTALL_HOME"
+    chown -R root:root "$INSTALL_ETC"
+    chown -R root:root "$INSTALL_DATA"
+
+    find "$INSTALL_HOME" -type d -exec chmod 0755 {} \;
+    find "$INSTALL_HOME" -type f -exec chmod 0644 {} \;
+
+    for file in "${PRODUCT_EXECUTABLE_FILES[@]}"; do
+
+        path="$INSTALL_HOME/$file"
+
+        if [ ! -f "$path" ]; then
+            install_error "Ejecutable declarado no encontrado: $path"
+        fi
+
+        chmod 0755 "$path"
+    done
+
+    chmod 0644 \
+        "$INSTALL_ETC/config.conf" \
+        "$INSTALL_ETC/policy.conf" \
+        "$INSTALL_ETC/whitelist.conf"
+
+    if [ -e "$INSTALL_DATA/f2b.db" ]; then
+        chmod 0644 "$INSTALL_DATA/f2b.db"
+    fi
+
+    install_log "Permisos asignados correctamente"
+}
+
+install_database() {
+
+    local db_file="$INSTALL_DATA/f2b.db"
+    local database_module="$INSTALL_HOME/database.sh"
+
+    install_log "Inicializando base de datos"
+
+    mkdir -p "$INSTALL_DATA"
+
+    if [ ! -f "$database_module" ]; then
+        install_error "Módulo de base de datos no encontrado: $database_module"
+    fi
+
+    (
+        DB_FILE="$db_file"
+        DB_TIMEOUT=5000
+
+        INFO() {
+            install_log "$*"
+        }
+
+        ERROR() {
+            printf '[ERROR] %s\n' "$*" >&2
+        }
+
+        source "$database_module"
+
+        db_init
+    ) || install_error "No se pudo inicializar la base de datos."
+
+    if [ ! -f "$db_file" ]; then
+        install_error "La base de datos no fue creada: $db_file"
+    fi
+
+    chown root:root "$db_file"
+    chmod 0644 "$db_file"
+
+    install_log "Base de datos inicializada: $db_file"
+}
+
+install_systemd() {
+
+    local unit
+    local source
+    local target
+
+    install_log "Instalando unidades systemd"
+
+    mkdir -p "$SYSTEMD_DIR"
+
+    for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+
+        source="$INSTALL_HOME/systemd/$unit"
+        target="$SYSTEMD_DIR/$unit"
+
+        if [ ! -f "$source" ]; then
+            install_error "Plantilla systemd no encontrada: $source"
+        fi
+
+        install -m 0644 "$source" "$target"
+
+        install_log "Unidad instalada: $unit"
+    done
+
+    if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
+        systemctl daemon-reload
+        systemctl enable --now are-fail2ban-found.timer
+        install_log "Systemd configurado correctamente"
+    else
+        install_log "Systemd instalado en entorno aislado; activación omitida"
+    fi
+}
+
+install_validate() {
+
+    install_log "Ejecutando validación final"
+
+    if ! install_verify_integrity; then
+        install_error "La instalación presenta componentes faltantes."
+    fi
+
+    install_log "Integridad mínima: OK"
+
+    if ! install_verify_links; then
+        install_error "La instalación presenta enlaces faltantes o rotos."
+    fi
+
+    install_log "Enlaces: OK"
+
+    if ! install_verify_command_path; then
+        install_error "Uno o más comandos oficiales no son ejecutables."
+    fi
+
+    install_log "Comandos oficiales: OK"
+
+    if ! install_verify_permissions; then
+        install_error "La instalación presenta permisos incorrectos."
+    fi
+
+    install_log "Permisos: OK"
+
+    if ! install_verify_database; then
+        install_error "La base de datos presenta tablas faltantes."
+    fi
+
+    install_log "Base de datos: OK"
+
+    if ! install_verify_logrotate; then
+        install_error "La instalación presenta problemas de logrotate."
+    fi
+
+    install_log "Logrotate: OK"
+    install_log "Validación final completada"
+}
+
+install_finish() {
+    install_log "Instalación inicial completada"
+}
+
+installer_usage() {
+
+    cat <<'EOF'
+Uso:
+
+  are-installer install
+  are-installer upgrade
+  are-installer repair
+  are-installer verify
+  are-installer uninstall
+EOF
+}
+
+installer_install() {
+
+    local state
+
+    install_verify_root
+    install_verify_dependencies
+
+    state=$(install_detect_state)
+
+    case "$state" in
+
+        NEW)
+            install_log "Nueva instalación detectada"
+
+            install_create_directories
+            install_copy_files
+            install_install_configs
+            install_create_links
+            install_permissions
+            install_database
+            install_logging
+            install_systemd
+            install_logrotate
+            install_validate
+            install_finish
+        ;;
+
+        INSTALLED)
+            install_error "ARE ya está instalado. Utilice: are-installer upgrade"
+        ;;
+
+        INCOMPLETE)
+            install_error "Instalación incompleta detectada. Utilice: are-installer repair"
+        ;;
+
+    esac
+}
+
+install_verify_logrotate() {
+
+    local file
+    local failed=0
+
+    for file in "${PRODUCT_LOGROTATE_FILES[@]}"; do
+	if [ ! -f "$INSTALL_LOGROTATE/$file" ]; then
+            install_log "Configuración logrotate faltante: $file"
+            failed=1
+        fi
+    done
+
+    [ "$failed" -eq 0 ]
+}
+
+installer_upgrade() {
+
+    local state
+
+    install_verify_root
+    install_verify_dependencies
+
+    state=$(install_detect_state)
+
+    case "$state" in
+
+        INSTALLED)
+	    install_log "Instalación existente detectada"
+
+            install_copy_files
+            install_install_configs
+            install_create_links
+            install_permissions
+            install_database
+            install_logging
+            install_systemd
+            install_logrotate
+            install_validate
+
+            install_log "Actualización completada"
+        ;;
+
+        NEW)
+            install_error "ARE no está instalado. Utilice: are-installer install"
+        ;;
+
+        INCOMPLETE)
+            install_error "Instalación incompleta detectada. Utilice: are-installer repair"
+        ;;
+
+    esac
+}
+
+installer_repair() {
+
+    local state
+
+    install_verify_root
+    install_verify_dependencies
+
+    state=$(install_detect_state)
+
+    case "$state" in
+
+        INCOMPLETE)
+            install_log "Instalación incompleta detectada"
+
+            install_create_directories
+            install_copy_files
+            install_install_configs
+            install_create_links
+            install_permissions
+            install_database
+            install_logging
+            install_systemd
+            install_logrotate
+            install_validate
+
+            install_log "Reparación completada"
+        ;;
+
+        INSTALLED)
+            install_error "La instalación está completa. Utilice: are-installer verify"
+        ;;
+
+        NEW)
+            install_error "ARE no está instalado. Utilice: are-installer install"
+        ;;
+
+    esac
+}
+
+installer_uninstall() {
+
+    local state
+    local item
+    local name
+    local link
+    local unit
+    local file
+
+    install_verify_root
+    state=$(install_detect_state)
+
+    case "$state" in
+
+        INSTALLED|INCOMPLETE)
+            install_log "Desinstalando ARE"
+
+            if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
+                systemctl disable --now are-fail2ban-found.timer \
+                    >/dev/null 2>&1 || true
+            fi
+
+            for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+                rm -f "$SYSTEMD_DIR/$unit"
+                install_log "Unidad eliminada: $unit"
+            done
+
+            if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
+                systemctl daemon-reload
+            fi
+
+            for item in "${PRODUCT_EXECUTABLE_LINKS[@]}"; do
+
+                name="${item%%:*}"
+                link="$INSTALL_BIN/$name"
+
+                if [ -L "$link" ]; then
+                    rm -f "$link"
+                    install_log "Enlace eliminado: $link"
+                fi
+            done
+
+            for file in "${PRODUCT_LOGROTATE_FILES[@]}"; do
+                rm -f "$INSTALL_LOGROTATE/$file"
+                install_log "Logrotate eliminado: $file"
+            done
+
+            rm -rf "$INSTALL_HOME"
+
+            install_log "Core eliminado: $INSTALL_HOME"
+            install_log "Configuración conservada: $INSTALL_ETC"
+            install_log "Datos conservados: $INSTALL_DATA"
+            install_log "Logs conservados: $INSTALL_LOG"
+            install_log "Desinstalación completada"
+        ;;
+
+        NEW)
+            install_error "ARE no está instalado."
+        ;;
+
+    esac
+}
+
+install_verify_integrity() {
+
+    local failed=0
+    local path
+    local item
+
+    for item in "${PRODUCT_DIRS[@]}"; do
+        path="$INSTALL_HOME/$item"
+
+        if [ ! -d "$path" ]; then
+            install_log "Directorio faltante: $path"
+            failed=1
+        fi
+    done
+
+    for item in "${PRODUCT_FILES[@]}"; do
+        path="$INSTALL_HOME/$item"
+
+        if [ ! -e "$path" ]; then
+            install_log "Archivo faltante: $path"
+            failed=1
+        fi
+    done
+
+    for item in "${PRODUCT_CONFIG_FILES[@]}"; do
+        path="$INSTALL_ETC/$item"
+
+        if [ ! -e "$path" ]; then
+            install_log "Configuración faltante: $path"
+            failed=1
+        fi
+    done
+
+    for item in "${PRODUCT_DATA_FILES[@]}"; do
+        path="$INSTALL_DATA/$item"
+
+        if [ ! -e "$path" ]; then
+            install_log "Dato persistente faltante: $path"
+            failed=1
+        fi
+    done
+
+    [ "$failed" -eq 0 ]
+}
+
+install_load_runtime_config() {
+
+    local config_link="$INSTALL_HOME/config.conf"
+
+    if [ ! -f "$config_link" ]; then
+        install_log "Configuración runtime no encontrada: $config_link"
+        return 1
+    fi
+
+    # shellcheck disable=SC1090
+    source "$config_link"
+}
+
+install_verify_ipset() {
+
+    local set_name
+    local missing=0
+
+    install_load_runtime_config || return 1
+
+    for set_name in \
+        "$FILTER_SET4" \
+        "$FILTER_SET6" \
+        "$BAN_SET4" \
+        "$BAN_SET6"
+    do
+        if ! ipset list "$set_name" >/dev/null 2>&1; then
+            install_log "Conjunto IPSet faltante: $set_name"
+            missing=1
+        fi
+    done
+
+    [ "$missing" -eq 0 ]
+}
+
+install_verify_firewall() {
+
+    local failed=0
+
+    install_load_runtime_config || return 1
+
+    if ! iptables -C INPUT \
+        -m set --match-set "$BAN_SET4" src \
+        -j DROP >/dev/null 2>&1; then
+
+        install_log "Regla IPv4 faltante: $BAN_SET4"
+        failed=1
+    fi
+
+    if ! iptables -C INPUT \
+        -m set --match-set "$FILTER_SET4" src \
+        -j DROP >/dev/null 2>&1; then
+
+        install_log "Regla IPv4 faltante: $FILTER_SET4"
+        failed=1
+    fi
+
+    if ! ip6tables -C INPUT \
+        -m set --match-set "$BAN_SET6" src \
+        -j DROP >/dev/null 2>&1; then
+
+        install_log "Regla IPv6 faltante: $BAN_SET6"
+        failed=1
+    fi
+
+    if ! ip6tables -C INPUT \
+        -m set --match-set "$FILTER_SET6" src \
+        -j DROP >/dev/null 2>&1; then
+
+        install_log "Regla IPv6 faltante: $FILTER_SET6"
+        failed=1
+    fi
+
+    [ "$failed" -eq 0 ]
+}
+
+install_verify_command_path() {
+
+    local command_name
+    local command_path
+    local failed=0
+
+    for command_name in \
+        are \
+        are-installer \
+        are-fail2ban-sensor
+    do
+        command_path="$INSTALL_BIN/$command_name"
+
+        if [ ! -x "$command_path" ]; then
+            install_log "Comando no ejecutable: $command_path"
+            failed=1
+        fi
+    done
+
+    [ "$failed" -eq 0 ]
+}
+
+install_logging() {
+
+    local log_file="$INSTALL_LOG/are.log"
+
+    install_log "Preparando logging de ARE"
+
+    mkdir -p "$INSTALL_LOG"
+    touch "$log_file"
+
+    chmod 0750 "$INSTALL_LOG"
+    chmod 0640 "$log_file"
+
+    chown root:root "$INSTALL_LOG"
+    chown root:root "$log_file"
+
+    install_log "Logging preparado: $log_file"
+}
+
+installer_verify() {
+
+    local state
+
+    install_verify_root
+    state=$(install_detect_state)
+
+    install_log "Estado de instalación: $state"
+
+    case "$state" in
+
+        NEW)
+            install_error "ARE no está instalado."
+        ;;
+
+        INCOMPLETE)
+            install_error "ARE presenta una instalación incompleta o dañada."
+        ;;
+
+        INSTALLED)
+	    if ! install_verify_integrity; then
+                install_error "La instalación presenta componentes faltantes."
+            fi
+
+            install_log "Integridad mínima: OK"
+
+            if ! install_verify_links; then
+                install_error "La instalación presenta enlaces faltantes o rotos."
+            fi
+
+            install_log "Enlaces: OK"
+
+	    if ! install_verify_command_path; then
+		install_error "Uno o más comandos oficiales no son ejecutables."
+            fi
+
+	    install_log "Comandos oficiales: OK"
+
+            if ! install_verify_permissions; then
+                install_error "La instalación presenta permisos incorrectos."
+            fi
+
+            install_log "Permisos: OK"
+
+	    if ! install_verify_database; then
+                install_error "La base de datos presenta tablas faltantes."
+            fi
+
+            install_log "Base de datos: OK"
+            
+	    if ! install_verify_ipset; then
+                install_error "Faltan conjuntos IPSet requeridos."
+            fi
+
+            install_log "IPSet: OK"
+
+            if ! install_verify_firewall; then
+                install_error "Faltan reglas de firewall requeridas."
+            fi
+
+            install_log "Firewall: OK"
+
+            if ! install_verify_systemd; then
+                install_error "La instalación presenta problemas en systemd."
+            fi
+
+            install_log "Systemd: OK"
+
+	    if ! install_verify_logrotate; then
+                install_error "La instalación presenta problemas de logrotate."
+            fi
+
+            install_log "Logrotate: OK"
+
+	    if ! install_verify_runtime; then
+                install_error "El runtime de ARE no responde correctamente."
+            fi
+
+            install_log "Runtime: OK"
+            install_log "ARE está instalado correctamente."
+        ;;
+
+    esac
+}
+
+install_verify_links() {
+
+    local failed=0
+    local item
+    local name
+    local target
+    local link
+
+    for item in "${PRODUCT_CONFIG_FILES[@]}"; do
+
+        target="$INSTALL_ETC/$item"
+
+        for link in \
+            "$INSTALL_HOME/$item" \
+            "$INSTALL_HOME/config/$item"
+        do
+            if [ ! -L "$link" ]; then
+                install_log "Enlace de configuración faltante: $link"
+                failed=1
+                continue
+            fi
+
+            if [ ! -e "$link" ]; then
+                install_log "Enlace de configuración roto: $link"
+                failed=1
+                continue
+            fi
+
+            if [ "$(readlink -f "$link")" != "$(readlink -f "$target")" ]; then
+                install_log "Destino incorrecto: $link"
+                failed=1
+            fi
+        done
+    done
+
+    for item in "${PRODUCT_EXECUTABLE_LINKS[@]}"; do
+
+        name="${item%%:*}"
+        target="${item#*:}"
+        link="$INSTALL_BIN/$name"
+
+        if [ ! -L "$link" ]; then
+            install_log "Enlace ejecutable faltante: $link"
+            failed=1
+            continue
+        fi
+
+        if [ ! -e "$link" ]; then
+            install_log "Enlace ejecutable roto: $link"
+            failed=1
+            continue
+        fi
+
+        if [ "$(readlink -f "$link")" != "$(readlink -f "$target")" ]; then
+            install_log "Destino incorrecto: $link"
+            failed=1
+        fi
+    done
+
+    [ "$failed" -eq 0 ]
+}
+
+install_verify_permissions() {
+
+    local failed=0
+
+    if [ ! -x "$INSTALL_HOME/f2b-ipset.sh" ]; then
+        install_log "Ejecutable sin permiso: f2b-ipset.sh"
+        failed=1
+    fi
+
+    if [ ! -x "$INSTALL_HOME/are-installer" ]; then
+        install_log "Ejecutable sin permiso: are-installer"
+        failed=1
+    fi
+
+    if [ ! -x "$INSTALL_HOME/sensors/fail2ban.sh" ]; then
+        install_log "Ejecutable sin permiso: sensors/fail2ban.sh"
+        failed=1
+    fi
+
+    if [ ! -r "$INSTALL_ETC/config.conf" ] ||
+       [ ! -r "$INSTALL_ETC/policy.conf" ] ||
+       [ ! -r "$INSTALL_ETC/whitelist.conf" ]; then
+
+        install_log "Uno o más archivos de configuración no son legibles"
+        failed=1
+    fi
+
+    if [ ! -r "$INSTALL_DATA/f2b.db" ] ||
+       [ ! -w "$INSTALL_DATA/f2b.db" ]; then
+
+        install_log "La base de datos no posee permisos de lectura y escritura"
+        failed=1
+    fi
+
+    [ "$failed" -eq 0 ]
+}
+
+install_verify_database() {
+
+    local DB_FILE="$INSTALL_DATA/f2b.db"
+    local table
+    local missing=0
+
+    for table in \
+        config \
+        hosts \
+        jails \
+        events \
+        jail_profile \
+        reputation \
+        sanction_state
+    do
+        if ! sqlite3 "$DB_FILE" \
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='$table';" \
+            | grep -qx "1"; then
+
+            install_log "Tabla faltante: $table"
+            missing=1
+        fi
+    done
+
+    [ "$missing" -eq 0 ]
+}
+
+install_verify_runtime() {
+
+    local ARE_EXEC="$INSTALL_HOME/f2b-ipset.sh"
+
+    if ! "$ARE_EXEC" stats >/dev/null 2>&1; then
+        install_log "Falló la ejecución funcional de ARE"
+        return 1
+    fi
+
+    return 0
+}
+
+install_verify_systemd() {
+
+    local failed=0
+    local unit
+    local path
+
+    for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+
+        path="$SYSTEMD_DIR/$unit"
+
+        if [ ! -f "$path" ]; then
+            install_log "Unidad systemd faltante: $unit"
+            failed=1
+            continue
+        fi
+
+	if [ "$SYSTEMD_DIR" != "/etc/systemd/system" ]; then
+            continue
+        fi
+
+        case "$unit" in
+
+            *.timer)
+
+                if ! systemctl is-enabled "$unit" >/dev/null 2>&1; then
+                    install_log "Timer no habilitado: $unit"
+                    failed=1
+                fi
+
+                if ! systemctl is-active "$unit" >/dev/null 2>&1; then
+                    install_log "Timer no activo: $unit"
+                    failed=1
+                fi
+            ;;
+
+        esac
+
+    done
+
+    [ "$failed" -eq 0 ]
+}
+
+main() {
+
+    local ACTION="${1:-}"
+
+    case "$ACTION" in
+
+	install)
+            installer_install
+        ;;
+
+	upgrade)
+            installer_upgrade
+        ;;
+
+	repair)
+            installer_repair
+        ;;
+	verify)
+            installer_verify
+        ;;
+
+        uninstall)
+	    installer_uninstall
+        ;;
+
+        *)
+            installer_usage
+            exit 1
+        ;;
+
+    esac
+}
+
+main "$@"

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#########################################
+# Verificar si existe un conjunto
+#########################################
 
 existsSet(){
 
@@ -9,7 +12,13 @@ existsSet(){
 
 }
 
+#########################################
+# Inicializar Backend
+#########################################
+
 init_ipsets(){
+
+    INFO "Inicializando conjuntos ARE..."
 
     createSet "$FILTER_SET4" inet
     createSet "$BAN_SET4" inet
@@ -40,16 +49,15 @@ createSet() {
 #########################################
 # Ban
 #########################################
+banIP() {
 
-banIP(){
+    local SET="$1"
+    local IP="$2"
+    local TIME="$3"
 
-SET="$1"
-IP="$2"
-TIME="$3"
+    ipset add "$SET" "$IP" timeout "$TIME" -exist
 
-ipset add "$SET" "$IP" timeout "$TIME" -exist
-
-INFO "BAN $IP ($TIME)"
+    INFO "BAN $IP ($TIME)"
 
 }
 
@@ -59,12 +67,10 @@ INFO "BAN $IP ($TIME)"
 
 unbanIP(){
 
-SET="$1"
-IP="$2"
+	local SET="$1"
+	local IP="$2"
 
-ipset del "$SET" "$IP" -exist
-
-INFO "UNBAN $IP"
+	ipset del "$SET" "$IP" -exist
 
 }
 
@@ -76,14 +82,3 @@ existsSet() {
 
 }
 
-init_ipsets() {
-
-    INFO "Inicializando conjuntos ARE..."
-
-    createSet "$FILTER_SET4" inet
-    createSet "$BAN_SET4" inet
-
-    createSet "$FILTER_SET6" inet6
-    createSet "$BAN_SET6" inet6
-
-}
