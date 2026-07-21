@@ -1,131 +1,280 @@
 # ARE Design
 
-## 1. Filosofía del proyecto
+## Introducción
 
-...
+Este documento define los principios de diseño utilizados durante el desarrollo de ARE (Abuse Reputation Engine).
 
-## 2. Principios de diseño
+Su propósito es garantizar que todas las decisiones de implementación mantengan una arquitectura coherente, modular y preparada para evolucionar sin introducir deuda técnica.
 
-### Responsabilidad única
+Las decisiones de diseño complementan la arquitectura del proyecto y sirven como referencia para el desarrollo de nuevas funcionalidades.
 
-Cada módulo de ARE debe cumplir una única función.
+---
 
-### Modularidad
+# Filosofía del proyecto
 
-...
+ARE fue diseñado bajo un principio fundamental:
 
-### Simplicidad
+> **Comprender antes de responder.**
 
-...
+Las decisiones de seguridad no deben depender de un único evento sino del comportamiento histórico observado.
 
-### Sensores
+La arquitectura separa completamente:
 
-Los sensores constituyen la capa de observación de ARE.
+- observación;
+- evaluación;
+- decisión;
+- ejecución.
 
-Su única responsabilidad es transformar eventos generados por sistemas externos en eventos comprensibles para el motor de reputación.
+Esta separación permite que cada componente evolucione de forma independiente.
 
-Los sensores nunca toman decisiones de seguridad.
+---
 
-Toda decisión corresponde exclusivamente al Policy Engine.
+# Principios de diseño
 
-## 3. Decisiones arquitectónicas
+## Responsabilidad única
 
-...
-
-## 4. Convenciones
-
-...
-
-## 5. Evolución
-
-...
-
-
-
-## Ciclo de Vida de una Dirección IP
-
-Cada dirección IP observada por ARE evoluciona a través de un ciclo de vida basado en su comportamiento.
-
-## Modelo de Decisión Basado en Riesgo
-
-ARE adopta un modelo de decisión basado en el comportamiento observado de cada dirección IP.
-
-A diferencia de los mecanismos tradicionales, donde el tiempo de bloqueo es determinado previamente por una herramienta externa, ARE utiliza la reputación acumulada como criterio principal para decidir la respuesta.
-
-Como consecuencia:
-
-- El bloqueo deja de depender del tiempo y pasa a depender del riesgo.
-- La respuesta evoluciona progresivamente según el comportamiento observado.
-- La reputación se recupera de forma gradual cuando cesa la actividad maliciosa.
-- La reincidencia incrementa progresivamente las medidas de contención.
-- Una amenaza persistente puede finalizar en un bloqueo permanente cuando la reputación alcanza el nivel de riesgo definido por el administrador.
-
-Este modelo permite que el ciclo completo de observación, evaluación, respuesta y recuperación sea administrado por ARE, manteniendo una política coherente y proporcional al riesgo real de cada dirección IP.
-
-### 1. Observación
-
-ARE recibe eventos desde uno o más sensores.
+Cada componente implementa una única responsabilidad claramente definida.
 
 Ejemplos:
 
-- ModSecurity
-- Fail2Ban
-- SSH
-- Telnet
-- Apache
-- Otros sensores futuros
+- Sensor Framework observa.
+- Reputation Engine calcula reputación.
+- State Engine determina estados.
+- Policy Engine decide.
+- Firewall Backend ejecuta.
+- Installer Engine administra el ciclo de vida del producto.
 
-Los sensores únicamente reportan eventos. No toman decisiones sobre la respuesta final.
+---
 
-### 2. Reputación
+## Modularidad
 
-Cada evento incrementa la reputación negativa de la IP según el perfil configurado para la jail correspondiente.
+ARE está compuesto por módulos independientes.
+
+La incorporación de nuevos componentes no requiere modificar el resto del sistema.
+
+---
+
+## Bajo acoplamiento
+
+Los motores sólo dependen de interfaces claramente definidas.
+
+La implementación interna de un componente no afecta a los demás.
+
+---
+
+## Alta cohesión
+
+Cada módulo agrupa únicamente funciones relacionadas con una misma responsabilidad.
+
+---
+
+## Simplicidad
+
+Se priorizan soluciones simples antes que implementaciones complejas.
+
+Las funciones pequeñas y reutilizables tienen preferencia sobre bloques monolíticos.
+
+---
+
+## Configuración desacoplada
+
+Toda configuración reside fuera del Core.
+
+Ubicación oficial:
+
+```text
+/etc/f2b-ipset
+```
+
+El código distribuido nunca contiene parámetros específicos del entorno.
+
+---
+
+## Persistencia
+
+Toda la información necesaria para la toma de decisiones permanece almacenada de forma persistente.
+
+ARE diferencia claramente entre:
+
+- configuración;
+- reputación;
+- estados;
+- eventos.
+
+---
+
+# Sensor Framework
+
+Los sensores constituyen la capa de observación del sistema.
+
+Su única responsabilidad consiste en transformar eventos externos al formato interno utilizado por ARE.
+
+Los sensores nunca:
+
+- modifican reputación;
+- cambian estados;
+- aplican bloqueos;
+- ejecutan acciones.
+
+Actualmente se implementa:
+
+- Fail2Ban Sensor (`FOUND`).
+
+La arquitectura permite incorporar nuevos sensores sin modificar el núcleo.
+
+---
+
+# Modelo de decisión
+
+ARE adopta un modelo de decisión basado en riesgo.
+
+Las respuestas no dependen únicamente del tiempo de bloqueo ni del último evento recibido.
+
+Cada decisión considera:
+
+- reputación acumulada;
+- estado actual;
+- historial;
+- políticas configuradas.
+
+El resultado puede evolucionar progresivamente conforme cambia el comportamiento observado.
+
+---
+
+# Ciclo de vida de una dirección IP
+
+## 1. Observación
+
+Los sensores reciben eventos desde sistemas externos.
+
+Ejemplos:
+
+- Fail2Ban;
+- ModSecurity;
+- SSH;
+- Apache;
+- futuros sensores.
+
+---
+
+## 2. Reputación
+
+Cada evento incrementa la reputación según el perfil configurado.
 
 Cada perfil define:
 
-- categoría
-- peso
-- confianza
-- factor de decaimiento
+- categoría;
+- peso;
+- confianza;
+- decaimiento.
 
-### 3. Evaluación
+---
+
+## 3. Estado
+
+El State Engine determina el estado operativo de la dirección IP.
+
+Estados actuales:
+
+- NEW;
+- WATCH;
+- FILTER;
+- BANNED.
+
+---
+
+## 4. Evaluación
 
 El Policy Engine analiza:
 
-- score acumulado
-- estado actual
-- historial
-- categoría
-- reglas configuradas
+- reputación;
+- estado;
+- historial;
+- políticas.
 
-Como resultado determina la acción apropiada.
+Como resultado genera una decisión.
 
-### 4. Respuesta
+---
 
-Las acciones posibles incluyen:
+## 5. Respuesta
 
-- ALLOW
-- WATCH
-- FILTER
-- TEMP_BAN
-- BAN
+Las decisiones disponibles son:
 
-La decisión siempre pertenece a ARE.
+- ALLOW;
+- WATCH;
+- FILTER;
+- TEMP_BAN;
+- BAN.
 
-### 5. Recuperación
+La ejecución corresponde exclusivamente al Firewall Backend.
 
-Cuando una IP deja de generar actividad maliciosa, su reputación disminuye progresivamente mediante el mecanismo de decaimiento (Decay Engine).
+---
 
-La recuperación nunca es inmediata.
+## 6. Recuperación
 
-### 6. Reevaluación
+La reputación disminuye progresivamente mediante el mecanismo de decaimiento.
 
-Cada modificación del score provoca una nueva evaluación del riesgo.
+La recuperación nunca elimina automáticamente:
 
-Una IP podrá cambiar de estado únicamente como consecuencia de una nueva decisión del Policy Engine.
+- reputación;
+- historial;
+- eventos.
 
-### 7. Liberación
+---
 
-La liberación de una IP será consecuencia de una decisión de ARE.
+## 7. Reevaluación
 
-Los eventos externos de tipo `UNBAN` se consideran únicamente información adicional y no implican la eliminación automática del bloqueo.
+Cada modificación relevante provoca una nueva evaluación del riesgo.
+
+Una dirección IP puede cambiar de estado únicamente como consecuencia de una nueva decisión del Policy Engine.
+
+---
+
+# Installer Engine
+
+El Installer Engine constituye un componente independiente de la arquitectura.
+
+Responsabilidades:
+
+- instalación;
+- actualización;
+- reparación;
+- validación;
+- desinstalación.
+
+Todas las operaciones reutilizan un único Installer Core.
+
+El Installer protege automáticamente:
+
+- configuración;
+- datos persistentes;
+- historial.
+
+---
+
+# Evolución
+
+Toda nueva funcionalidad deberá respetar los principios definidos en este documento.
+
+La evolución del proyecto deberá favorecer:
+
+- extensión antes que modificación;
+- reutilización antes que duplicación;
+- estabilidad antes que complejidad.
+
+---
+
+# Principios finales
+
+Las decisiones de diseño de ARE se resumen en los siguientes principios:
+
+1. Una responsabilidad por componente.
+2. Arquitectura antes que implementación.
+3. Configuración desacoplada.
+4. Persistencia del conocimiento.
+5. Separación entre decisión y ejecución.
+6. Reutilización del código.
+7. Evolución incremental.
+8. Estabilidad como prioridad.
+9. Documentación sincronizada con el código.
+10. Ausencia de lógica duplicada.

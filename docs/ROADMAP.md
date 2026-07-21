@@ -2,116 +2,232 @@
 
 ## Introducción
 
-Este documento describe la evolución planificada de ARE (Abuse Reputation Engine).
+Este documento define la evolución prevista de ARE (Abuse Reputation Engine).
 
-El objetivo del Roadmap es mostrar la dirección técnica del proyecto, permitiendo conocer las capacidades actuales y las funcionalidades previstas para futuras versiones.
+El Roadmap describe la dirección técnica del proyecto y sirve como referencia para planificar nuevas capacidades sin comprometer la estabilidad del núcleo.
 
-Las fechas podrán variar según las necesidades del proyecto y la estabilidad de cada versión.
+Las versiones representan objetivos técnicos y no fechas de publicación.
+
+Toda nueva funcionalidad deberá respetar la arquitectura y la metodología oficial del proyecto.
 
 ---
 
-# Version 1.0.x
+# Estado del proyecto
+
+Versión estable actual:
+
+```text
+v1.1
+```
+
+Estado:
+
+```text
+Producción
+```
+
+La prioridad continúa siendo consolidar el núcleo antes de ampliar capacidades.
+
+---
+
+# v1.0.x
 
 ## Objetivo
 
-Consolidar el núcleo del motor de reputación.
+Construcción del núcleo de ARE.
 
-### Estado
+## Estado
 
 ✔ Completado
 
-### Funcionalidades
+## Capacidades incorporadas
 
 - Reputation Engine
 - State Engine
 - Policy Engine
-- Firewall Backend (IPSet)
-- Persistencia SQLite
+- Firewall Backend
+- SQLite
 - Dashboard
 - Integración con Fail2Ban
 - Integración con ModSecurity
-- Soporte IPv4 / IPv6
+- Soporte IPv4
+- Soporte IPv6
 
 ---
 
-# Version 1.1
+# v1.1
 
 ## Objetivo
 
-Ampliar la capacidad de observación y mejorar la arquitectura interna.
+Consolidar el producto y completar el ciclo de vida operativo.
 
-### Estado
+## Estado
 
-🚧 En desarrollo
+✔ Completado
 
-### Funcionalidades
+## Funcionalidades
 
-- Sensor Framework
-- Fail2Ban Sensor (FOUND)
-- Cursor persistente para sensores
-- Renombrar CLI oficial a `are`
-- Reorganización del código por módulos
-- Mejoras de documentación
-- Corrección de bugs detectados en producción
+### Installer Engine
+
+- install
+- upgrade
+- repair
+- verify
+- uninstall
+
+### Sensor Framework
+
+- arquitectura de sensores
+- primer Sensor oficial de Fail2Ban (`FOUND`)
+
+### Installer Manifest
+
+- definición oficial del paquete
+- estructura centralizada del producto
+
+### Dashboard
+
+- TOP JAILS
+- ampliación de estadísticas
+- separación entre eventos y reputación
+
+### Reputation Engine
+
+Nuevas categorías:
+
+- ANOMALY
+- MALWARE
+- DOS
+- SOCIAL
+
+### Documentación
+
+- reorganización completa
+- normalización documental
+- documentación sincronizada con el código
 
 ---
 
-# Version 1.2
+# v1.2
 
 ## Objetivo
 
 Incrementar la inteligencia del motor de decisión.
 
-### Funcionalidades previstas
+## Funcionalidades previstas
 
-- Reputation Decay Engine
-- Correlación entre sensores
-- Mejor clasificación de amenazas
-- Optimización del Policy Engine
-- Dashboard ampliado
+### Reputation
+
+- Decay Engine completo
+- optimización del cálculo de reputación
+- mejora de perfiles
+
+### Policy Engine
+
+- reglas dinámicas
+- correlación de categorías
+- optimización del modelo de decisión
+
+### Sensor Framework
+
+Nuevos sensores previstos:
+
+- ModSecurity
+- SSH
+- Apache
+- Syslog
+
+### Dashboard
+
+- gráficos históricos
+- métricas ampliadas
+- consultas avanzadas
 
 ---
 
-# Version 2.0
+# v1.3
 
 ## Objetivo
 
-Convertir ARE en un motor independiente de reputación y decisión.
+Ampliar la integración con sistemas externos.
 
-### Funcionalidades previstas
+## Funcionalidades previstas
 
-### Sensores
+- exportación de métricas
+- eventos externos
+- APIs
+- integración con plataformas SIEM
 
-- ModSecurity Sensor
-- Apache Sensor
-- Syslog Sensor
-- Suricata Sensor
-- Zeek Sensor
-- CrowdSec Sensor
+---
 
-### Backends
+# v2.0
 
+## Objetivo
+
+Convertir ARE en un motor de reputación completamente independiente del Firewall.
+
+## Sensores previstos
+
+- ModSecurity
+- Suricata
+- Zeek
+- CrowdSec
+- Apache
+- Syslog
+- DNS
+- APIs externas
+
+---
+
+## Backends previstos
+
+- IPSet
 - nftables
 - firewalld
 - pf
 - Cloud Firewall
 
-### Plataforma
+---
+
+## Plataforma
 
 - API REST
-- Exportación de métricas
-- Integración con SIEM
 - Backend Manager
-- Alta disponibilidad
+- métricas
+- alta disponibilidad
+- replicación
+- integración distribuida
 
 ---
 
-# Filosofía de evolución
+# Principios de evolución
 
-ARE evoluciona mediante pequeñas iteraciones.
+Toda evolución deberá respetar los siguientes principios.
 
-Cada versión debe mantener la estabilidad del núcleo antes de incorporar nuevas capacidades.
+- estabilidad antes que nuevas funcionalidades;
+- arquitectura antes que implementación;
+- reutilización antes que duplicación;
+- documentación sincronizada;
+- evolución incremental.
 
-Las nuevas funcionalidades deberán respetar los principios definidos en `DESIGN.md` y la arquitectura descrita en `ARCHITECTURE.md`.
+Las versiones mayores únicamente deberán introducir cambios arquitectónicos incompatibles con versiones anteriores.
 
-El crecimiento del proyecto estará orientado a mantener una arquitectura modular, desacoplada y fácilmente extensible.
+---
+
+# Criterios para incorporar funcionalidades
+
+Toda nueva capacidad deberá:
+
+- responder a una necesidad técnica;
+- mantener la arquitectura existente;
+- encontrarse documentada;
+- haber sido validada;
+- formar parte del Roadmap antes de comenzar su implementación.
+
+---
+
+# Visión
+
+ARE evoluciona hacia una plataforma de reputación y decisión capaz de integrar múltiples fuentes de eventos y múltiples mecanismos de respuesta manteniendo un núcleo único de inteligencia.
+
+La arquitectura continuará creciendo mediante componentes desacoplados, reutilizables y documentados.

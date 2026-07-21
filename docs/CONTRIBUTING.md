@@ -4,13 +4,15 @@
 
 Gracias por tu interés en contribuir a ARE (Abuse Reputation Engine).
 
-ARE es un proyecto desarrollado bajo principios de simplicidad, modularidad y evolución controlada.
+ARE evoluciona mediante una metodología incremental basada en estabilidad, simplicidad y arquitectura modular.
 
-Toda contribución deberá respetar la arquitectura, la filosofía de diseño y la metodología oficial de desarrollo del proyecto.
+Toda contribución deberá respetar la arquitectura del proyecto, la filosofía de diseño y el proceso oficial de desarrollo.
 
-Para comprender el funcionamiento interno de ARE se recomienda leer previamente:
+Antes de realizar cualquier modificación se recomienda leer:
 
 - README.md
+- PROJECT.md
+- PHILOSOPHY.md
 - ARCHITECTURE.md
 - DESIGN.md
 - DEVELOPMENT.md
@@ -19,166 +21,200 @@ Para comprender el funcionamiento interno de ARE se recomienda leer previamente:
 
 # Principios
 
-Toda contribución deberá seguir los siguientes principios:
+Toda contribución deberá respetar los siguientes principios.
 
-- Simplicidad.
-- Responsabilidad única.
-- Modularidad.
-- Compatibilidad hacia atrás siempre que sea posible.
-- Documentación sincronizada con el código.
+- Una única responsabilidad por cambio.
+- Arquitectura antes que implementación.
 - Estabilidad antes que nuevas funcionalidades.
+- Bajo acoplamiento.
+- Alta cohesión.
+- Compatibilidad hacia atrás cuando sea posible.
+- Documentación sincronizada con el código.
+- Código simple antes que código complejo.
 
 ---
 
 # Antes de comenzar
 
-Antes de escribir código deberá verificarse:
+Antes de implementar cualquier cambio deberá verificarse:
 
-- Que la funcionalidad no exista.
-- Que la idea no haya sido documentada previamente.
-- Que corresponda a la versión objetivo del proyecto.
-- Que exista una justificación técnica.
+- que la funcionalidad no exista;
+- que no exista una tarea equivalente documentada;
+- que la propuesta corresponda a la versión objetivo;
+- que exista una justificación técnica.
 
-Si la propuesta modifica la arquitectura deberá abrirse previamente un RFC.
+Si la modificación afecta la arquitectura deberá documentarse previamente mediante un RFC.
 
 ---
 
 # Clasificación de cambios
 
-Toda contribución deberá clasificarse antes de comenzar su implementación.
+Toda contribución deberá clasificarse antes de comenzar.
 
 ## BUG
 
 Corrección de un comportamiento incorrecto.
 
+---
+
 ## TASK
 
-Trabajo técnico, reorganización o refactorización sin incorporar nuevas funcionalidades.
+Refactorización, reorganización o mantenimiento sin incorporar nuevas funcionalidades.
+
+---
 
 ## FEATURE
 
-Nueva funcionalidad para el proyecto.
+Nueva funcionalidad compatible con la arquitectura existente.
+
+---
 
 ## RFC
 
-Propuesta que modifica o amplía la arquitectura de ARE.
+Propuesta que modifica la arquitectura del proyecto.
+
+Toda modificación arquitectónica deberá aprobarse antes de comenzar su implementación.
+
+---
 
 ## IDEA
 
-Propuesta aún no planificada para una versión específica.
+Propuesta sin planificación para una versión específica.
+
+Las ideas no forman parte automáticamente del Roadmap.
 
 ---
 
 # Flujo de contribución
 
-Toda contribución seguirá el siguiente proceso:
+Toda contribución seguirá el siguiente proceso.
 
-```
+```text
 Idea
-   ↓
-
+ │
+ ▼
 Análisis técnico
-   ↓
-
+ │
+ ▼
 Clasificación
-
-BUG
-TASK
-FEATURE
-RFC
-IDEA
-
-   ↓
-
-Actualización del TODO
-
-   ↓
-
-Diseño (si aplica)
-
-   ↓
-
+ │
+ ▼
+Documentación
+ │
+ ▼
+Diseño
+ │
+ ▼
 Implementación
-
-   ↓
-
+ │
+ ▼
 Pruebas
-
-   ↓
-
-Actualización de documentación
-
-   ↓
-
+ │
+ ▼
+Actualización documental
+ │
+ ▼
 Commit
-
-   ↓
-
+ │
+ ▼
 Pull Request
 ```
 
+Ninguna etapa deberá omitirse.
+
 ---
 
-# Un cambio, una responsabilidad
+# Una responsabilidad por cambio
 
-Cada contribución deberá resolver una única responsabilidad.
+Cada cambio deberá resolver un único problema.
 
 Ejemplos válidos:
 
-- Corregir un bug.
-- Incorporar una nueva funcionalidad.
-- Mejorar la documentación.
-- Refactorizar un módulo.
+- corregir un bug;
+- implementar una funcionalidad;
+- mejorar la documentación;
+- reorganizar un módulo;
+- optimizar un algoritmo.
 
-Se evitará mezclar múltiples cambios no relacionados dentro de una misma contribución.
+Se evitará mezclar responsabilidades diferentes dentro del mismo cambio.
+
+---
+
+# Arquitectura
+
+Toda modificación deberá respetar la separación entre:
+
+- Sensor Framework;
+- Reputation Engine;
+- State Engine;
+- Policy Engine;
+- Firewall Backend;
+- Installer Engine.
+
+No deberán introducirse dependencias innecesarias entre motores.
 
 ---
 
 # Documentación
 
-La documentación forma parte del proyecto.
+La documentación forma parte del código fuente.
 
-Toda modificación importante deberá reflejarse en los documentos correspondientes antes de considerarse finalizada.
+Toda modificación relevante deberá actualizar la documentación correspondiente.
 
-Dependiendo del cambio podrá ser necesario actualizar:
+Según el cambio podrá ser necesario actualizar:
 
+- README.md
 - CHANGELOG.md
-- TODO.md
+- ROADMAP.md
 - ARCHITECTURE.md
 - DESIGN.md
 - DEVELOPMENT.md
-- ROADMAP.md
 - SECURITY.md
+- INSTALL.md
+- USER_GUIDE.md
+
+Una funcionalidad no se considera finalizada hasta que su documentación haya sido actualizada.
 
 ---
 
 # Pruebas
 
-Toda nueva funcionalidad deberá validarse antes de enviarse.
+Toda modificación deberá validarse antes de integrarse al proyecto.
 
-Las pruebas deberán demostrar que:
+Las pruebas deberán demostrar:
 
-- El cambio funciona correctamente.
-- No introduce regresiones.
-- Mantiene la compatibilidad con el resto del sistema.
+- funcionamiento correcto;
+- ausencia de regresiones;
+- compatibilidad con la arquitectura;
+- conservación de datos persistentes cuando corresponda.
+
+Las funcionalidades relacionadas con el Installer deberán validar:
+
+- install;
+- upgrade;
+- repair;
+- verify;
+- uninstall.
 
 ---
 
 # Commits
 
-Los commits deberán ser pequeños, claros y representar una única responsabilidad.
+Los commits deberán representar una única responsabilidad.
 
 Ejemplos:
 
+```text
+BUG-006  Fix anomaly category
+
+TASK-008  Refactor installer manifest
+
+FEAT-004  Add Installer Engine
+
+DOC-005  Update installation guide
 ```
-BUG-006 - Fix anomaly category
 
-TASK-005 - Extend reputation categories
-
-FEAT-003 - Add top jails dashboard
-
-DOC-002 - Rewrite contributing guide
-```
+Los mensajes deberán ser claros, específicos y trazables.
 
 ---
 
@@ -186,22 +222,22 @@ DOC-002 - Rewrite contributing guide
 
 Antes de enviar un Pull Request deberá verificarse:
 
-- Código funcional.
-- Pruebas realizadas.
-- Documentación actualizada.
-- Consistencia con la arquitectura.
-- Cumplimiento de la metodología de desarrollo.
+- código funcional;
+- pruebas completadas;
+- documentación actualizada;
+- cumplimiento de la arquitectura;
+- cumplimiento de la metodología oficial.
 
-Las revisiones podrán solicitar modificaciones antes de aceptar una contribución.
+Las revisiones podrán solicitar cambios antes de aceptar la integración.
 
 ---
 
 # Filosofía
 
-ARE evoluciona mediante pequeñas mejoras continuas.
+ARE evoluciona mediante mejoras pequeñas, verificables y documentadas.
 
-Las buenas ideas no implican su implementación inmediata.
+La incorporación de nuevas funcionalidades nunca deberá comprometer la estabilidad del núcleo.
 
-Toda propuesta deberá analizarse, documentarse y clasificarse antes de incorporarse al proyecto.
+Cada versión deberá representar un estado consistente del proyecto.
 
-El objetivo principal es preservar un núcleo estable sobre el cual continuar evolucionando de forma ordenada.
+La prioridad de ARE es mantener una arquitectura sólida que permita evolucionar el sistema durante múltiples versiones sin introducir deuda técnica.

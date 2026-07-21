@@ -1,44 +1,169 @@
 # Changelog
 
-Todos los cambios relevantes de ARE (Abuse Reputation Engine) serán documentados en este archivo.
+Todos los cambios relevantes de ARE (Abuse Reputation Engine) se documentan en este archivo.
 
-El proyecto sigue un versionado basado en versiones estables.
+ARE sigue versionado semántico para versiones estables y ramas de desarrollo controladas.
 
 ---
 
-# v1.1-dev
+# v1.1.0
 
-**Fecha:** 2026-07-07
+**Fecha:** 2026-07
 
 ## Resumen
 
-Inicio del desarrollo de la rama v1.1, incorporando mejoras en el modelo de reputación, nuevos mecanismos de observación y mejoras operativas del Dashboard sin modificar la arquitectura principal de ARE.
+Primera versión enfocada en consolidar el ciclo de vida completo del producto.
+
+La versión 1.1 incorpora el Installer Engine, el Sensor Framework, la ampliación del modelo de reputación y diversas mejoras arquitectónicas sin modificar el núcleo de decisión de ARE.
+
+---
 
 ## Nuevas funcionalidades
 
-- Incorporación del primer Sensor oficial para eventos `FOUND` de Fail2Ban.
-- Integración del sensor mediante `systemd` Timer.
-- Incorporación de las categorías:
-  - ANOMALY
-  - MALWARE
-  - DOS
-  - SOCIAL
-- Nuevo panel **TOP JAILS** dentro del Dashboard.
-- Ampliación del Dashboard para mostrar todas las categorías de reputación.
+### Installer Engine
+
+Se incorpora el ciclo de vida completo del producto mediante:
+
+- install
+- upgrade
+- repair
+- verify
+- uninstall
+
+Características principales:
+
+- detección automática del estado de instalación;
+- protección de la configuración persistente;
+- actualización segura;
+- reparación automática de instalaciones incompletas;
+- validación final;
+- desinstalación conservando configuración, datos y logs.
+
+---
+
+### Sensor Framework
+
+Se incorpora la primera implementación oficial del Sensor Framework.
+
+Sensor disponible:
+
+- Fail2Ban Sensor (`FOUND`)
+
+El framework permite incorporar nuevos sensores sin modificar el núcleo de ARE.
+
+---
+
+### Reputation Engine
+
+Ampliación del modelo de reputación.
+
+Nuevas categorías:
+
+- ANOMALY
+- MALWARE
+- DOS
+- SOCIAL
+
+Categorías soportadas:
+
+- RECON
+- EXPLOIT
+- CREDENTIAL
+- PROTOCOL
+- ANOMALY
+- MALWARE
+- DOS
+- SOCIAL
+
+---
+
+### Dashboard
+
+Mejoras incorporadas:
+
+- TOP JAILS
+- visualización de todas las categorías
+- mejoras estadísticas
+- separación entre eventos y reputación
+- mejoras operativas
+
+---
+
+### Manifest del producto
+
+Se incorpora `manifest/product.sh` como definición oficial del paquete.
+
+Centraliza:
+
+- estructura del producto;
+- archivos;
+- directorios;
+- configuración;
+- servicios;
+- enlaces;
+- ejecutables;
+- exclusiones;
+- componentes persistentes.
+
+---
+
+### Installer Manifest
+
+El Installer Engine pasa a utilizar el Manifest como única fuente de información del paquete.
+
+Se elimina la duplicación de listas internas.
+
+---
+
+## Mejoras
+
+- consolidación del ciclo de vida del producto;
+- separación definitiva entre Core y configuración;
+- enlaces oficiales persistentes;
+- instalación idempotente;
+- upgrade seguro;
+- repair reutilizando el mismo Installer Core;
+- validación automática posterior a cada operación.
+
+---
 
 ## Correcciones
 
-- Corrección de la categoría `ANOMALY` en el Reputation Engine.
-- Corrección del cálculo de `total_score`.
-- Corrección de `stats` para mostrar todas las categorías.
-- Corrección de `score` para visualizar las nuevas categorías.
-- Actualización de la creación inicial de la base de datos con las nuevas columnas de reputación.
+- corrección del cálculo de `total_score`;
+- corrección de categorías de reputación;
+- reorganización del Dashboard;
+- reorganización del Backend;
+- limpieza del proceso de inicialización;
+- eliminación de duplicaciones del Installer;
+- conservación de configuración durante upgrades;
+- restauración automática de instalaciones incompletas.
+
+---
 
 ## Arquitectura
 
-- Se consolida el modelo oficial de categorías del Reputation Engine para la rama v1.x.
-- Se incorpora la primera implementación del Sensor Framework mediante el sensor de eventos `FOUND` de Fail2Ban.
-- El Dashboard incorpora información operacional basada en la tabla `events`, separando la actividad del sistema de la reputación acumulada.
+La arquitectura permanece basada en:
+
+- Sensor Framework;
+- Reputation Engine;
+- State Engine;
+- Policy Engine;
+- Firewall Backend.
+
+Se incorpora oficialmente el Installer Engine como responsable del ciclo de vida del producto.
+
+---
+
+## Compatibilidad
+
+- Linux
+- SQLite
+- IPSet
+- iptables
+- ip6tables
+- systemd
+- Fail2Ban
+- ModSecurity
 
 ---
 
@@ -52,22 +177,17 @@ Primera actualización de mantenimiento de ARE centrada en estabilizar el núcle
 
 ## Nuevas funcionalidades
 
-- Implementación completa del flujo `UNBAN`.
-- Integración del backend con IPSet para eliminación de direcciones IP.
-- Reorganización del Policy Engine.
-- Centralización de la inicialización del backend.
-- Reorganización de la documentación del proyecto.
+- implementación completa del flujo `UNBAN`;
+- integración del Backend con IPSet para eliminación de direcciones IP;
+- reorganización del Policy Engine;
+- centralización de la inicialización del Backend;
+- reorganización de la documentación.
 
 ## Correcciones
 
-- Corregida la ausencia de `handle_unban()`.
-- Eliminada la doble inicialización de IPSet y Firewall.
-- Limpieza y modularización del backend.
-
-## Arquitectura
-
-- Reorganización del módulo `policy/rules/`.
-- Separación del proceso de inicialización del backend.
+- incorporación de `handle_unban()`;
+- eliminación de inicializaciones duplicadas del Backend;
+- limpieza y modularización del código.
 
 ---
 
@@ -81,22 +201,22 @@ Primera versión estable de ARE.
 
 ## Funcionalidades principales
 
-- Reputation Engine.
-- State Engine.
-- Policy Engine.
-- Firewall Backend basado en IPSet.
-- Persistencia mediante SQLite.
-- Dashboard.
-- Integración con Fail2Ban.
-- Integración con ModSecurity.
-- Soporte IPv4 e IPv6.
+- Reputation Engine;
+- State Engine;
+- Policy Engine;
+- Firewall Backend;
+- SQLite;
+- Dashboard;
+- integración con Fail2Ban;
+- integración con ModSecurity;
+- soporte IPv4 e IPv6.
 
 ## Estado
 
-Versión inicial estable utilizada en producción.
+Primera versión estable utilizada en producción.
 
 ---
 
 ## Licencia
 
-GPL v3
+GPL-3.0

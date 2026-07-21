@@ -2,11 +2,11 @@
 
 ## Introducción
 
-ARE (Abuse Reputation Engine) ha sido diseñado bajo una arquitectura modular, desacoplada y orientada a motores de decisión.
+ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para desacoplar completamente la detección de amenazas de la aplicación de contramedidas.
 
-Cada componente posee una responsabilidad específica, permitiendo extender el sistema sin modificar el núcleo del proyecto.
+La arquitectura está basada en componentes independientes, donde cada motor posee una única responsabilidad y puede evolucionar sin afectar al resto del sistema.
 
-La filosofía principal de ARE es separar la detección de amenazas de la toma de decisiones.
+Esta separación permite incorporar nuevas fuentes de eventos, nuevas políticas y nuevos mecanismos de respuesta manteniendo un núcleo estable.
 
 ---
 
@@ -14,109 +14,134 @@ La filosofía principal de ARE es separar la detección de amenazas de la toma d
 
 ```text
                  +----------------------+
-                 |     ModSecurity      |
+                 |  External Systems    |
                  +----------+-----------+
                             |
-                            v
-                 +----------------------+
-                 |      Fail2Ban        |
-                 +----------+-----------+
-                            |
-             +--------------+--------------+
-             |                             |
-             v                             v
-     +------------------+         +------------------+
-     | Action Backend   |         |     Sensors      |
-     | BAN / UNBAN      |         | Fail2Ban FOUND   |
-     +--------+---------+         +--------+---------+
-              \                         /
-               \                       /
-                +---------------------+
-                |         ARE         |
-                +---------------------+
-                | Reputation Engine   |
-                | State Engine        |
-                | Policy Engine       |
-                +----------+----------+
-                           |
-                           v
-                +---------------------+
-                | Firewall Backend    |
-                +----------+----------+
-                           |
-                           v
-                    IPSet / Firewall
+        +-------------------+-------------------+
+        |                   |                   |
+        v                   v                   v
+
+   ModSecurity         Fail2Ban            Future Sensors
+                                              (SSH, Zeek,
+                                           Suricata, etc.)
+
+                            │
+                            ▼
+
+                     Sensor Framework
+
+                            │
+                            ▼
+
+               +---------------------------+
+               |     Reputation Engine      |
+               +-------------+-------------+
+                             │
+                             ▼
+               +---------------------------+
+               |       State Engine        |
+               +-------------+-------------+
+                             │
+                             ▼
+               +---------------------------+
+               |      Policy Engine        |
+               +-------------+-------------+
+                             │
+                             ▼
+               +---------------------------+
+               |   Firewall Backend API    |
+               +-------------+-------------+
+                             │
+              +--------------+--------------+
+              |                             |
+              ▼                             ▼
+
+            IPSet                  Future Backends
+                               (nftables, pf,
+                              firewalld, APIs)
+
 ```
 
 ---
 
 # Componentes
 
-## Sensors
+## Sensor Framework
 
-Los sensores constituyen la capa de observación de ARE.
+El Sensor Framework constituye la capa de observación de ARE.
 
-Su única responsabilidad es transformar eventos generados por sistemas externos en eventos internos comprensibles para el motor de reputación.
+Su única responsabilidad consiste en transformar eventos provenientes de sistemas externos al formato interno utilizado por el motor de reputación.
 
-Los sensores nunca toman decisiones de seguridad.
+Los sensores nunca:
 
-La arquitectura incorpora una capa de sensores para desacoplar las fuentes de eventos del núcleo de ARE.
+- calculan reputación;
+- modifican estados;
+- aplican bloqueos;
+- toman decisiones.
 
-Actualmente el primer sensor implementado es:
+Actualmente se encuentra implementado:
 
-- Fail2Ban Sensor (FOUND)
+- Fail2Ban Sensor (`FOUND`).
 
-La arquitectura permite incorporar nuevos sensores sin modificar el núcleo del sistema.
+La arquitectura permite incorporar nuevos sensores sin modificar el núcleo de ARE.
 
-Ejemplos futuros:
+Ejemplos previstos:
 
-- ModSecurity
-- Suricata
-- Zeek
-- CrowdSec
-- Apache
-- Syslog
+- ModSecurity;
+- SSH;
+- Suricata;
+- Zeek;
+- CrowdSec;
+- Syslog;
+- Apache;
+- DNS;
+- APIs externas.
 
 ---
 
 ## Reputation Engine
 
-Responsable de mantener la reputación histórica de cada dirección IP.
+El Reputation Engine mantiene la reputación histórica de cada dirección IP.
 
-Cada evento recibido incrementa la puntuación correspondiente a una categoría determinada.
+Cada evento incrementa la puntuación correspondiente según el perfil de reputación asociado.
 
-Categorías actuales:
+Categorías soportadas:
 
-- EXPLOIT
 - RECON
-- PROTOCOL
+- EXPLOIT
 - CREDENTIAL
+- PROTOCOL
 - ANOMALY
+- MALWARE
+- DOS
+- SOCIAL
 
-Toda la reputación permanece almacenada de forma persistente en SQLite.
+Toda la reputación permanece almacenada de forma persistente mediante SQLite.
 
 ---
 
 ## State Engine
 
-Determina el estado operativo actual de una dirección IP.
+El State Engine determina el estado operativo de cada dirección IP.
 
-Estados implementados:
+Estados:
 
 - NEW
 - WATCH
 - FILTER
 - BANNED
 
-El estado representa la evolución histórica del comportamiento observado y no únicamente el último evento recibido.
-
 ---
 
 ## Policy Engine
 
-Evalúa la reputación y el estado actual para determinar la acción más adecuada.
+Evalúa:
 
-Decisiones disponibles:
+- reputación;
+- estado;
+- políticas.
+
+Decisiones:
 
 - ALLOW
 - WATCH
@@ -124,89 +149,101 @@ Decisiones disponibles:
 - TEMP_BAN
 - BAN
 
-El Policy Engine permanece completamente desacoplado del backend encargado de ejecutar dichas acciones.
+---
+
+## Ban Lifecycle Engine
+
+Administra la evolución de las sanciones aplicadas por el Policy Engine.
 
 ---
 
 ## Firewall Backend
 
-Es la única capa responsable de interactuar con el sistema operativo.
+Único componente autorizado para modificar el sistema operativo.
 
-Actualmente se implementa un backend basado en IPSet.
-
-La arquitectura permite incorporar nuevos backends sin modificar el núcleo de ARE.
-
-Backends previstos:
+Backends actuales:
 
 - IPSet
+- iptables
+- ip6tables
+
+Backends previstos para v2:
+
 - nftables
 - firewalld
 - pf
 - Cloud Firewall
-- APIs externas
 
 ---
 
 ## SQLite
 
-Toda la información persistente del sistema se almacena en SQLite.
+Persistencia de:
 
-Actualmente ARE mantiene:
-
-- reputación
-- estados
-- eventos
-- perfiles de jail
-- configuración
+- reputación;
+- estados;
+- eventos;
+- configuración;
+- historial de sanciones.
 
 ---
 
-# Flujo de procesamiento
+## Installer Engine
 
-1. Un sistema externo detecta un evento.
-2. El sensor correspondiente transforma dicho evento al formato interno de ARE.
-3. Se identifica el perfil de reputación asociado al evento.
-4. Se calcula el score correspondiente.
-5. Se actualiza la reputación.
-6. Se recalcula el estado.
-7. El Policy Engine genera una decisión.
-8. El Firewall Backend ejecuta la acción correspondiente.
-9. El evento queda registrado en la base de datos.
+Administra:
+
+- install
+- upgrade
+- repair
+- verify
+- uninstall
 
 ---
 
-# Filosofía del proyecto
+# Flujo
 
-ARE no sustituye los sistemas de detección existentes.
-
-Los sistemas externos actúan como fuentes de eventos.
-
-ARE interpreta dichos eventos, mantiene una reputación persistente y decide cuál debe ser la respuesta más adecuada según el comportamiento histórico observado.
-
-La inteligencia y la toma de decisiones residen exclusivamente en ARE.
+```text
+Evento
+    │
+    ▼
+Sensor Framework
+    │
+    ▼
+Reputation Engine
+    │
+    ▼
+State Engine
+    │
+    ▼
+Policy Engine
+    │
+    ▼
+Ban Lifecycle Engine
+    │
+    ▼
+Firewall Backend
+    │
+    ▼
+Sistema operativo
+```
 
 ---
 
-# Diseño modular
+# Principios arquitectónicos
 
-La arquitectura busca mantener un bajo acoplamiento entre componentes.
-
-Cada módulo debe cumplir una única responsabilidad.
-
-Este diseño facilita:
-
-- mantenimiento
-- pruebas
-- ampliaciones
-- incorporación de nuevos sensores
-- incorporación de nuevos backends
-- evolución del motor de decisión
+- Una responsabilidad por componente.
+- Separación entre decisión y ejecución.
+- Persistencia del conocimiento.
+- Configuración desacoplada.
+- Bajo acoplamiento.
+- Alta cohesión.
+- Evolución incremental.
 
 ---
 
 # Compatibilidad
 
-Versión 1
+Versión 1.1
 
 - Linux
 - SQLite
@@ -215,55 +252,12 @@ Versión 1
 - IPSet
 - iptables
 - ip6tables
+- systemd
 
 ---
 
 # Evolución
 
-La arquitectura ha sido diseñada para permitir la incorporación de nuevas capacidades sin modificar el núcleo del sistema.
+La arquitectura ha sido diseñada para permitir el crecimiento del proyecto manteniendo estable el núcleo.
 
-Las futuras versiones podrán añadir:
-
-- nuevos sensores
-- nuevos motores
-- nuevos backends
-- nuevas fuentes de eventos
-- nuevos mecanismos de reputación
-
-manteniendo la misma arquitectura modular y desacoplada.
-
----
-
-## Principios de diseño
-
-### Una única responsabilidad
-
-Cada motor de ARE debe cumplir una única responsabilidad claramente definida.
-
-### Separación entre decisión y ejecución
-
-ARE decide qué hacer.
-
-Los backends ejecutan la acción correspondiente.
-
-### Persistencia del conocimiento
-
-Toda decisión importante debe mantenerse de forma persistente.
-
-ARE distingue entre:
-
-- historial de eventos
-- reputación
-- estado de sanción
-
-### Configuración desacoplada
-
-Toda política debe residir en `/etc/f2b-ipset`.
-
-Los motores nunca contendrán parámetros de configuración embebidos.
-
-### Evolución basada en evidencia
-
-ARE ha sido diseñado y validado sobre tráfico real en un entorno de producción.
-
-Las decisiones de arquitectura se fundamentan en el comportamiento observado y no únicamente en modelos teóricos.
+Las capacidades que amplían el alcance del producto (nuevos sensores, nuevos backends, API y arquitectura distribuida) forman parte del Roadmap de la v2.

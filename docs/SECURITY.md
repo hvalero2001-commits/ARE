@@ -1,110 +1,147 @@
-# Política de Seguridad
+# Security Policy
 
-## Objetivo
+## Introducción
 
 La seguridad constituye uno de los principios fundamentales de ARE (Abuse Reputation Engine).
 
-Esta política describe el procedimiento oficial para reportar vulnerabilidades y gestionar incidentes relacionados con la seguridad del proyecto.
+Este documento define la política oficial para el reporte, análisis, corrección y divulgación de vulnerabilidades relacionadas con el proyecto.
+
+El objetivo es garantizar una gestión responsable de los incidentes de seguridad y mantener la estabilidad del núcleo antes de publicar cualquier corrección.
 
 ---
 
-# Versiones Soportadas
+# Versiones soportadas
 
-| Versión | Soporte |
-| ------- | :-----: |
-| 1.x     |   ✅ Sí  |
-| < 1.0   |   ❌ No  |
+| Versión | Estado |
+|---------|:------:|
+| 1.1.x | ✅ Soportada |
+| 1.0.x | ✅ Soporte limitado |
+| < 1.0 | ❌ No soportada |
 
 ---
 
-# Reporte de Vulnerabilidades
+# Reporte de vulnerabilidades
 
-Si descubres una vulnerabilidad de seguridad en **ARE**, te solicitamos que **no la publiques inmediatamente**.
+Si descubres una vulnerabilidad en ARE, evita su divulgación pública antes de que pueda ser analizada.
 
-En su lugar, repórtala de forma privada al responsable del proyecto para permitir su análisis y corrección antes de su divulgación pública.
+Todo reporte debería incluir, siempre que sea posible:
 
-El reporte debería incluir, en la medida de lo posible:
+- descripción del problema;
+- pasos para reproducirlo;
+- impacto esperado;
+- componentes afectados;
+- evidencia disponible;
+- propuesta de mitigación (opcional).
 
-- Descripción de la vulnerabilidad.
-- Pasos para reproducir el problema.
-- Impacto estimado.
-- Componentes afectados.
-- Evidencia disponible (registros, capturas o ejemplos).
-- Posible mitigación, si aplica.
+Los reportes deberán permitir reproducir el comportamiento observado.
 
 ---
 
 # Clasificación
 
-Los reportes serán evaluados considerando, entre otros aspectos:
+Toda vulnerabilidad será evaluada considerando:
 
-- Impacto sobre la disponibilidad.
-- Impacto sobre la integridad.
-- Impacto sobre la confidencialidad.
-- Facilidad de explotación.
-- Alcance del problema.
+- impacto sobre la disponibilidad;
+- impacto sobre la integridad;
+- impacto sobre la confidencialidad;
+- facilidad de explotación;
+- alcance del problema;
+- posibilidad de explotación remota.
 
-Esta clasificación permitirá establecer la prioridad de corrección.
+Esta clasificación determinará la prioridad de corrección.
 
 ---
 
-# Proceso de Gestión
+# Proceso de gestión
 
-Cada reporte seguirá el siguiente proceso:
+Todo incidente seguirá el siguiente proceso.
 
-```
+```text
 Reporte
-    ↓
-
+ │
+ ▼
 Análisis
-
-    ↓
-
+ │
+ ▼
 Validación
-
-    ↓
-
+ │
+ ▼
 Clasificación
-
-    ↓
-
+ │
+ ▼
 Corrección
-
-    ↓
-
+ │
+ ▼
 Pruebas
-
-    ↓
-
+ │
+ ▼
+Actualización documental
+ │
+ ▼
 Nueva versión
-
-    ↓
-
-Actualización del CHANGELOG
+ │
+ ▼
+CHANGELOG
 ```
+
+Las correcciones deberán validarse antes de formar parte de una versión estable.
 
 ---
 
-# Divulgación Responsable
+# Divulgación responsable
 
-El proyecto promueve la divulgación responsable de vulnerabilidades.
+ARE promueve la divulgación responsable.
 
-Se agradece la colaboración de investigadores, administradores de sistemas y miembros de la comunidad que contribuyan a mejorar la seguridad y estabilidad de ARE.
+Una vulnerabilidad sólo deberá hacerse pública cuando:
+
+- haya sido analizada;
+- exista una corrección disponible o una mitigación documentada;
+- la versión corregida haya sido publicada.
 
 ---
 
 # Alcance
 
-Esta política aplica a todos los componentes oficiales del proyecto, incluyendo:
+Esta política aplica a todos los componentes oficiales del proyecto.
 
-- Reputation Engine
-- State Engine
-- Policy Engine
-- Sensores
-- Firewall Backends
-- Dashboard
-- Base de datos
-- Scripts oficiales
+Incluye:
+
+- Sensor Framework;
+- Reputation Engine;
+- State Engine;
+- Policy Engine;
+- Firewall Backend;
+- Installer Engine;
+- Dashboard;
+- SQLite;
+- scripts oficiales;
+- documentación distribuida con el producto.
+
+---
+
+# Correcciones de seguridad
+
+Las correcciones deberán cumplir los mismos principios que el resto del proyecto.
+
+- una responsabilidad por cambio;
+- documentación sincronizada;
+- pruebas obligatorias;
+- ausencia de regresiones;
+- preservación de la arquitectura.
+
+No deberán introducirse cambios funcionales no relacionados dentro de una corrección de seguridad.
+
+---
+
+# Calidad
+
+Antes de publicar una corrección deberán verificarse:
+
+- funcionamiento correcto;
+- pruebas satisfactorias;
+- documentación actualizada;
+- ausencia de nuevos problemas;
+- actualización del CHANGELOG cuando corresponda.
 
 ---
 
@@ -112,7 +149,8 @@ Esta política aplica a todos los componentes oficiales del proyecto, incluyendo
 
 La seguridad no consiste únicamente en corregir vulnerabilidades.
 
-El objetivo de ARE es evolucionar mediante pequeñas mejoras continuas, manteniendo un núcleo estable, documentado y verificable antes de incorporar nuevas capacidades.
+Consiste en mantener una arquitectura simple, verificable y preparada para evolucionar.
 
-Toda corrección de seguridad deberá validarse antes de formar parte de una versión estable.
+Cada corrección debe fortalecer el proyecto sin comprometer la estabilidad del núcleo.
 
+ARE prioriza la prevención, la evidencia y la evolución incremental como principios fundamentales de su estrategia de seguridad.

@@ -2,85 +2,119 @@
 
 ## Introducción
 
-Este documento define el modelo de gobierno del proyecto ARE (Abuse Reputation Engine).
+Este documento define el modelo de gobierno de ARE (Abuse Reputation Engine).
 
-Su objetivo es establecer un proceso claro para la evolución del proyecto, garantizando estabilidad, coherencia técnica y calidad del código.
+Su objetivo es establecer un proceso claro para la evolución del proyecto, garantizando estabilidad, coherencia arquitectónica y calidad durante todo su ciclo de vida.
+
+El gobierno del proyecto define cómo se toman las decisiones técnicas y cómo evolucionan las distintas versiones de ARE.
 
 ---
 
 # Principios
 
-ARE se desarrolla siguiendo los siguientes principios:
+Toda decisión deberá respetar los siguientes principios:
 
-- Simplicidad
-- Modularidad
-- Responsabilidad única
-- Compatibilidad hacia atrás siempre que sea posible
-- Estabilidad antes que nuevas funcionalidades
+- arquitectura antes que implementación;
+- estabilidad antes que nuevas funcionalidades;
+- una responsabilidad por componente;
+- bajo acoplamiento;
+- alta cohesión;
+- documentación sincronizada con el código;
+- evolución incremental.
 
-Toda decisión deberá respetar los principios definidos en `DESIGN.md`.
+Toda decisión deberá ser consistente con:
+
+- PHILOSOPHY.md
+- ARCHITECTURE.md
+- DESIGN.md
+- DEVELOPMENT.md
 
 ---
 
 # Evolución del proyecto
 
-Toda nueva capacidad deberá seguir un proceso de evolución controlado.
+Toda nueva capacidad seguirá el siguiente proceso.
 
-```
+```text
 Idea
-   ↓
-
+ │
+ ▼
 Análisis técnico
-   ↓
-
+ │
+ ▼
 Clasificación
-
-BUG
-TASK
-FEAT
-RFC
-IDEA
-
-   ↓
-
-Documentación inicial (TODO)
-
-   ↓
-
-Diseño (si aplica)
-
-   ↓
-
+ │
+ ▼
+Actualización del TODO
+ │
+ ▼
+Diseño
+ │
+ ▼
 Implementación
-
-   ↓
-
-Validación
-
-   ↓
-
+ │
+ ▼
+Pruebas
+ │
+ ▼
 Actualización documental
-
-   ↓
-
+ │
+ ▼
 Versión estable
 ```
 
-No deberán incorporarse funcionalidades directamente al código sin haber sido previamente analizadas cuando impliquen cambios de arquitectura.
+Las modificaciones arquitectónicas nunca deberán implementarse directamente sin análisis previo.
+
+---
+
+# Clasificación
+
+Toda propuesta deberá clasificarse antes de comenzar.
+
+## BUG
+
+Corrección de un comportamiento incorrecto.
+
+---
+
+## TASK
+
+Mantenimiento, reorganización o refactorización.
+
+---
+
+## FEATURE
+
+Nueva funcionalidad compatible con la arquitectura vigente.
+
+---
+
+## RFC
+
+Propuesta que modifica o amplía la arquitectura del proyecto.
+
+Todo RFC deberá aprobarse antes de iniciar su implementación.
+
+---
+
+## IDEA
+
+Propuesta sin planificación para una versión específica.
+
+Las ideas no forman parte automáticamente del Roadmap.
 
 ---
 
 # RFC
 
-Los RFC (Request For Comments) representan propuestas técnicas que modifican o amplían la arquitectura del proyecto.
+Todo RFC deberá documentar al menos:
 
-Un RFC deberá incluir como mínimo:
-
-- Objetivo
-- Justificación
-- Impacto esperado
-- Compatibilidad
-- Estado
+- objetivo;
+- justificación;
+- impacto;
+- compatibilidad;
+- alternativas;
+- estado.
 
 Estados posibles:
 
@@ -91,53 +125,100 @@ Estados posibles:
 
 ---
 
-# Versiones
+# Política de versiones
 
-## Estrategia de Versionado
+ARE evoluciona mediante versiones incrementales.
 
-ARE mantiene una evolución incremental.
+## Versiones de mantenimiento
 
-Las ramas principales siguen la siguiente política:
+```text
+v1.0.x
+```
 
-- v1.0.x → Corrección de errores y estabilización.
-- v1.1.x → Nuevas funcionalidades compatibles con la arquitectura existente.
-- v2.x → Cambios arquitectónicos o incompatibles con versiones anteriores.
-
-Las nuevas funcionalidades deberán ubicarse en la versión correspondiente antes de comenzar su implementación.
+Correcciones y estabilización.
 
 ---
 
-# Calidad
+## Versiones funcionales
 
-dddAntes de cerrar una versión deberán verificarse:
+```text
+v1.1.x
+```
 
-- Código funcional
-- Pruebas satisfactorias
-- Documentación actualizada
-- Bugs críticos resueltos
-- coherencia con la arquitectura
-- actualización del CHANGELOG
-- actualización del TODO
+Nuevas funcionalidades compatibles con la arquitectura existente.
+
+---
+
+## Versiones mayores
+
+```text
+v2.x
+```
+
+Cambios incompatibles o modificaciones arquitectónicas.
+
+---
+
+# Criterios para cerrar una versión
+
+Antes de publicar una versión deberán verificarse:
+
+- código funcional;
+- pruebas satisfactorias;
+- documentación actualizada;
+- arquitectura consistente;
+- CHANGELOG actualizado;
+- TODO revisado;
+- ausencia de errores críticos.
+
+Una versión estable deberá representar un estado coherente del proyecto.
 
 ---
 
 # Documentación
 
-La documentación forma parte del proyecto.
+La documentación forma parte del gobierno del proyecto.
 
-Todo cambio importante deberá reflejarse en los documentos correspondientes antes de considerarse finalizado.
+Toda modificación relevante deberá actualizar la documentación correspondiente antes de considerarse finalizada.
+
+Ningún cambio importante deberá incorporarse dejando documentación desactualizada.
+
+---
+
+# Calidad
+
+La aceptación de una modificación dependerá de:
+
+- consistencia con la arquitectura;
+- calidad de implementación;
+- simplicidad;
+- reutilización;
+- ausencia de lógica duplicada;
+- impacto sobre el núcleo;
+- cobertura documental.
+
+---
+
+# Responsabilidad arquitectónica
+
+La arquitectura oficial del proyecto está definida por:
+
+- PHILOSOPHY.md
+- ARCHITECTURE.md
+- DESIGN.md
+
+Toda nueva funcionalidad deberá respetar dichos documentos.
+
+Las implementaciones nunca deberán redefinir la arquitectura.
 
 ---
 
 # Filosofía
 
-ARE evoluciona mediante pequeñas mejoras continuas.
+ARE evoluciona mediante mejoras pequeñas, verificables y documentadas.
 
-Se prioriza la estabilidad del núcleo antes de incorporar nuevas capacidades.
+Cada versión debe dejar una base más sólida que la anterior.
 
-Cada versión deberá dejar una base sólida para la siguiente.
+Las decisiones técnicas se toman priorizando la estabilidad del proyecto sobre la incorporación acelerada de nuevas funcionalidades.
 
-Las buenas ideas no implican su implementación inmediata.
-
-Toda propuesta deberá analizarse y clasificarse dentro de la versión correspondiente antes de incorporarse al proyecto.
-
+La evolución continua constituye uno de los principios fundamentales del gobierno de ARE.
