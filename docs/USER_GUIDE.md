@@ -361,6 +361,29 @@ Ejecutables:
 
 ---
 
+# Whitelist
+
+ARE permite definir direcciones IP que no deben recibir sanciones.
+
+La whitelist se administra mediante:
+
+/etc/f2b-ipset/whitelist.conf
+
+El archivo utiliza una dirección IP por línea. Se admiten direcciones IPv4 e IPv6.
+
+Una IP incluida en la whitelist queda excluida de la aplicación de sanciones. ARE verifica la whitelist antes de procesar acciones que puedan generar un bloqueo.
+
+Las IPs whitelistadas pueden seguir apareciendo como fuente de eventos o ser consultadas mediante el dashboard. La whitelist no elimina información de reputación existente.
+
+Si una IP whitelistada no posee un registro de reputación, `are score <IP>` muestra:
+
+```text
+Estado................ WHITELIST
+Reputación............ Sin datos
+```
+
+---
+
 # Flujo operativo
 
 El flujo general de ARE es:
