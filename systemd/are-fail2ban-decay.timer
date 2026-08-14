@@ -1,0 +1,10 @@
+[Unit]
+Description=Run ARE Fail2Ban Decay daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=are-fail2ban-decay.service
+
+[Install]
+WantedBy=timers.target

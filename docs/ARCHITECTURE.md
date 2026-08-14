@@ -1,263 +1,310 @@
-# ARE Architecture
+ARE Architecture
+Introducción
 
-## Introducción
+ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para desacoplar la detección de amenazas de la aplicación de contramedidas.
 
-ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para desacoplar completamente la detección de amenazas de la aplicación de contramedidas.
+La arquitectura está basada en componentes con responsabilidades diferenciadas, donde los eventos son procesados mediante reputación, estado y política antes de aplicar una contramedida.
 
-La arquitectura está basada en componentes independientes, donde cada motor posee una única responsabilidad y puede evolucionar sin afectar al resto del sistema.
+Esta separación permite incorporar nuevas fuentes de eventos y evolucionar las políticas manteniendo separado el procesamiento de eventos de la aplicación de acciones sobre el sistema.
 
-Esta separación permite incorporar nuevas fuentes de eventos, nuevas políticas y nuevos mecanismos de respuesta manteniendo un núcleo estable.
-
----
-
-# Arquitectura general
-
-```text
+Arquitectura general
                  +----------------------+
                  |  External Systems    |
                  +----------+-----------+
                             |
-        +-------------------+-------------------+
-        |                   |                   |
-        v                   v                   v
+                            v
 
-   ModSecurity         Fail2Ban            Future Sensors
-                                              (SSH, Zeek,
-                                           Suricata, etc.)
 
-                            │
-                            ▼
-
-                     Sensor Framework
-
-                            │
-                            ▼
-
-               +---------------------------+
-               |     Reputation Engine      |
-               +-------------+-------------+
-                             │
-                             ▼
-               +---------------------------+
-               |       State Engine        |
-               +-------------+-------------+
-                             │
-                             ▼
-               +---------------------------+
-               |      Policy Engine        |
-               +-------------+-------------+
-                             │
-                             ▼
-               +---------------------------+
-               |   Firewall Backend API    |
-               +-------------+-------------+
-                             │
-              +--------------+--------------+
-              |                             |
-              ▼                             ▼
-
-            IPSet                  Future Backends
-                               (nftables, pf,
-                              firewalld, APIs)
-
-```
-
----
-
-# Componentes
-
-## Sensor Framework
+                    Sensor Framework
+                            |
+                            v
+                  +-------------------+
+                  | Reputation Engine |
+                  +---------+---------+
+                            |
+                            v
+                    +---------------+
+                    |  State Engine |
+                    +-------+-------+
+                            |
+                            v
+                    +---------------+
+                    | Policy Engine  |
+                    +-------+-------+
+                            |
+                            v
+                    +---------------+
+                    | Policy Apply   |
+                    +-------+-------+
+                            |
+          +-----------------+------------------+
+          |                 |                  |
+          v                 v                  v
+        ALLOW            WATCH              FILTER
+                            |
+                            |
+                            v
+                          BAN
+                            |
+                            |
+                       TEMP_BAN
+                            |
+                            v
+                  Ban Lifecycle Engine
+                            |
+                            v
+                   Firewall Backend
+                            |
+                            v
+                    Operating System
+Componentes
+Sensor Framework
 
 El Sensor Framework constituye la capa de observación de ARE.
 
-Su única responsabilidad consiste en transformar eventos provenientes de sistemas externos al formato interno utilizado por el motor de reputación.
+Su responsabilidad consiste en procesar eventos provenientes de sistemas externos y convertirlos en acciones internas que ARE pueda procesar.
 
-Los sensores nunca:
+En la versión 1.1 se encuentra implementado el sensor de Fail2Ban.
 
-- calculan reputación;
-- modifican estados;
-- aplican bloqueos;
-- toman decisiones.
+El sensor procesa actualmente:
 
-Actualmente se encuentra implementado:
+FOUND
+EXTERNAL_UNBAN
 
-- Fail2Ban Sensor (`FOUND`).
+Los eventos FOUND son enviados a ARE mediante:
 
-La arquitectura permite incorporar nuevos sensores sin modificar el núcleo de ARE.
+f2b-ipset.sh found <IP> <JAIL>
 
-Ejemplos previstos:
+Los eventos EXTERNAL_UNBAN son enviados mediante:
 
-- ModSecurity;
-- SSH;
-- Suricata;
-- Zeek;
-- CrowdSec;
-- Syslog;
-- Apache;
-- DNS;
-- APIs externas.
+f2b-ipset.sh external-unban <IP> <JAIL>
 
----
+El sensor de Fail2Ban admite los siguientes perfiles de jail:
 
-## Reputation Engine
+modsec-*
+recidive
+sshd
+telnet
 
-El Reputation Engine mantiene la reputación histórica de cada dirección IP.
+El procesamiento puede ejecutarse en modo de observación (--dry-run) o ejecución (--execute).
 
-Cada evento incrementa la puntuación correspondiente según el perfil de reputación asociado.
+La arquitectura permite incorporar nuevas fuentes de eventos sin modificar el mecanismo central de procesamiento.
 
-Categorías soportadas:
-
-- RECON
-- EXPLOIT
-- CREDENTIAL
-- PROTOCOL
-- ANOMALY
-- MALWARE
-- DOS
-- SOCIAL
-
-Toda la reputación permanece almacenada de forma persistente mediante SQLite.
-
----
-
-## State Engine
-
-El State Engine determina el estado operativo de cada dirección IP.
-
-Estados:
-
-- NEW
-- WATCH
-- FILTER
-- BANNED
-
----
-
-## Policy Engine
-
-Evalúa:
-
-- reputación;
-- estado;
-- políticas.
-
-Decisiones:
-
-- ALLOW
-- WATCH
-- FILTER
-- TEMP_BAN
-- BAN
-
----
-
-## Ban Lifecycle Engine
-
-Administra la evolución de las sanciones aplicadas por el Policy Engine.
-
----
-
-## Firewall Backend
-
-Único componente autorizado para modificar el sistema operativo.
-
-Backends actuales:
-
-- IPSet
-- iptables
-- ip6tables
-
-Backends previstos para v2:
-
-- nftables
-- firewalld
-- pf
-- Cloud Firewall
-
----
-
-## SQLite
-
-Persistencia de:
-
-- reputación;
-- estados;
-- eventos;
-- configuración;
-- historial de sanciones.
-
----
-
-## Installer Engine
-
-Administra:
-
-- install
-- upgrade
-- repair
-- verify
-- uninstall
-
----
-
-# Flujo
-
-```text
-Evento
-    │
-    ▼
-Sensor Framework
-    │
-    ▼
 Reputation Engine
-    │
-    ▼
+
+El Reputation Engine mantiene la reputación acumulada de cada dirección IP.
+
+La reputación se almacena persistentemente en SQLite.
+
+ARE v1.1 utiliza las siguientes categorías:
+
+RECON
+EXPLOIT
+CREDENTIAL
+PROTOCOL
+BOT
+ANOMALY
+MALWARE
+DOS
+SOCIAL
+
+Cada evento puede incrementar la puntuación correspondiente a su categoría según el perfil de reputación asociado al jail.
+
+El total_score representa la suma de las puntuaciones de todas las categorías de reputación.
+
 State Engine
-    │
-    ▼
+
+El State Engine determina el estado operativo de una dirección IP a partir de su puntuación total.
+
+Estados utilizados por ARE v1.1:
+
+NEW
+WATCH
+FILTER
+BANNED_TEMP
+BANNED
+
+La actualización normal del estado mediante state_update() utiliza los siguientes umbrales:
+
+Puntuación	Estado
+0	NEW
+1–19	WATCH
+20–49	FILTER
+50–79	WATCH
+≥80	BANNED
+
+BANNED_TEMP forma parte del ciclo de sanción temporal y de las transiciones de estado, pero no es asignado directamente por state_update().
+
 Policy Engine
-    │
-    ▼
+
+El Policy Engine evalúa la puntuación de reputación y el estado actual para producir una decisión.
+
+Las decisiones utilizadas por ARE v1.1 son:
+
+ALLOW
+WATCH
+FILTER
+TEMP_BAN
+BAN
+
+La política aplica un bloqueo inmediato cuando el estado actual es BANNED.
+
+Los umbrales efectivos de la política son:
+
+Condición	Decisión
+Estado BANNED	BAN
+Score ≥ 200	TEMP_BAN
+Score ≥ 150	BAN
+Score ≥ 100	WATCH
+Score < 100	ALLOW
+
+La decisión producida por el Policy Engine es posteriormente entregada al mecanismo de aplicación de políticas.
+
+Policy Apply
+
+Policy Apply ejecuta la decisión producida por el Policy Engine.
+
+Las acciones soportadas son:
+
+ALLOW
+WATCH
+FILTER
+TEMP_BAN
+BAN
+
+ALLOW y WATCH no aplican un bloqueo de firewall.
+
+FILTER incorpora la dirección IP al conjunto de filtrado.
+
+BAN incorpora la dirección IP al conjunto de bloqueo permanente y establece el estado BANNED.
+
+TEMP_BAN delega el cálculo de la sanción en el Ban Lifecycle Engine antes de aplicar el bloqueo correspondiente.
+
 Ban Lifecycle Engine
-    │
-    ▼
+
+El Ban Lifecycle Engine administra la duración y escalamiento de las sanciones temporales.
+
+Se utiliza cuando Policy Apply recibe una decisión TEMP_BAN.
+
+El motor determina si corresponde:
+
+aplicar una sanción temporal;
+escalar la sanción a un bloqueo permanente.
+
+Cuando corresponde una sanción temporal, se calcula el momento de finalización y se aplica el timeout correspondiente al conjunto de bloqueo.
+
+Cuando corresponde una escalada permanente, la dirección IP pasa a un bloqueo permanente.
+
 Firewall Backend
-    │
-    ▼
-Sistema operativo
-```
 
----
+El Firewall Backend constituye la capa encargada de aplicar las contramedidas de red sobre el sistema operativo.
 
-# Principios arquitectónicos
+ARE v1.1 utiliza:
 
-- Una responsabilidad por componente.
-- Separación entre decisión y ejecución.
-- Persistencia del conocimiento.
-- Configuración desacoplada.
-- Bajo acoplamiento.
-- Alta cohesión.
-- Evolución incremental.
+IPSet para almacenar las direcciones IP;
+iptables para las reglas IPv4;
+ip6tables para las reglas IPv6.
 
----
+Se utilizan conjuntos independientes para:
 
-# Compatibilidad
+FILTER
+BAN
 
-Versión 1.1
+El backend instala reglas de firewall que bloquean las direcciones contenidas en dichos conjuntos.
 
-- Linux
-- SQLite
-- Fail2Ban
-- ModSecurity
-- IPSet
-- iptables
-- ip6tables
-- systemd
+SQLite
 
----
+SQLite proporciona la persistencia de ARE.
 
-# Evolución
+La base de datos almacena información relacionada con:
 
-La arquitectura ha sido diseñada para permitir el crecimiento del proyecto manteniendo estable el núcleo.
+reputación;
+estados;
+eventos;
+perfiles de jail;
+configuración;
+información relacionada con sanciones.
+Installer Engine
 
-Las capacidades que amplían el alcance del producto (nuevos sensores, nuevos backends, API y arquitectura distribuida) forman parte del Roadmap de la v2.
+El Installer Engine administra las operaciones de instalación y mantenimiento del sistema ARE.
+
+Las operaciones contempladas por el instalador son:
+
+install
+upgrade
+repair
+verify
+uninstall
+Flujo de procesamiento
+Evento Fail2Ban
+      |
+      v
+Sensor Framework
+      |
+      v
+FOUND / EXTERNAL_UNBAN
+      |
+      v
+ARE
+      |
+      +----------------------+
+      |                      |
+      v                      v
+Reputation Engine      External Unban
+      |
+      v
+State Engine
+      |
+      v
+Policy Engine
+      |
+      v
+Policy Apply
+      |
+      +---------+---------+---------+---------+
+      |         |         |         |         |
+      v         v         v         v         v
+    ALLOW     WATCH     FILTER     BAN    TEMP_BAN
+                                      |         |
+                                      |         v
+                                      |   Ban Lifecycle
+                                      |      Engine
+                                      |         |
+                                      +---------+
+                                            |
+                                            v
+                                     Firewall Backend
+                                            |
+                                            v
+                                      Operating System
+Principios arquitectónicos
+Separación entre detección y aplicación de contramedidas.
+Responsabilidades diferenciadas entre sensores, reputación, estado y política.
+Separación entre decisión y ejecución.
+Persistencia de la reputación y del estado.
+Aplicación centralizada de las decisiones.
+Uso de SQLite como persistencia local.
+Uso de IPSet como mecanismo de almacenamiento de direcciones bloqueadas o filtradas.
+Aplicación de reglas mediante iptables e ip6tables.
+Compatibilidad
+
+ARE v1.1 está diseñado para ejecutarse sobre:
+
+Linux
+Bash
+SQLite
+Fail2Ban
+IPSet
+iptables
+ip6tables
+systemd
+
+La integración de eventos implementada en esta versión utiliza Fail2Ban como fuente de eventos.
+
+Evolución
+
+ARE v1.1 constituye la versión operativa documentada en este release.
+
+Las futuras ampliaciones del producto deben incorporarse mediante cambios explícitos de arquitectura y documentación en versiones posteriores.
+
+You have not enough Humanizer words left. Upgrade your Surfer plan.

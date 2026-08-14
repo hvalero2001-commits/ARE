@@ -26,7 +26,7 @@ Estado:
 Producción
 ```
 
-La prioridad continúa siendo consolidar el núcleo antes de ampliar capacidades.
+La versión actual se encuentra operativa y continúa siendo objeto de consolidación y mantenimiento.
 
 ---
 
@@ -34,7 +34,7 @@ La prioridad continúa siendo consolidar el núcleo antes de ampliar capacidades
 
 ## Objetivo
 
-Construcción del núcleo de ARE.
+Construcción y estabilización del núcleo de ARE.
 
 ## Estado
 
@@ -42,16 +42,16 @@ Construcción del núcleo de ARE.
 
 ## Capacidades incorporadas
 
-- Reputation Engine
-- State Engine
-- Policy Engine
-- Firewall Backend
-- SQLite
-- Dashboard
-- Integración con Fail2Ban
-- Integración con ModSecurity
-- Soporte IPv4
-- Soporte IPv6
+* Reputation Engine
+* State Engine
+* Policy Engine
+* Firewall Backend
+* SQLite
+* Dashboard
+* Integración con Fail2Ban
+* Integración con ModSecurity
+* Soporte IPv4
+* Soporte IPv6
 
 ---
 
@@ -59,7 +59,7 @@ Construcción del núcleo de ARE.
 
 ## Objetivo
 
-Consolidar el producto y completar el ciclo de vida operativo.
+Consolidar el producto y ampliar su ciclo de vida operativo.
 
 ## Estado
 
@@ -69,42 +69,54 @@ Consolidar el producto y completar el ciclo de vida operativo.
 
 ### Installer Engine
 
-- install
-- upgrade
-- repair
-- verify
-- uninstall
+* install
+* upgrade
+* repair
+* verify
+* uninstall
+* detección del estado de instalación
+* protección de configuración persistente
+* conservación de datos persistentes
+* validación de la instalación
+* desinstalación conservando configuración, datos y logs
+
+Las operaciones `install`, `upgrade` y `repair` utilizan un Core fuente separado de la instalación activa cuando requieren copiar los componentes del producto.
+
+La generación, descarga, extracción y staging automático de paquetes no forman parte del Installer actual.
 
 ### Sensor Framework
 
-- arquitectura de sensores
-- primer Sensor oficial de Fail2Ban (`FOUND`)
+* arquitectura de sensores
+* primer Sensor oficial de Fail2Ban (`FOUND`)
+* procesamiento mediante offset persistente
+* ejecución `--dry-run`
+* ejecución `--execute`
 
 ### Installer Manifest
 
-- definición oficial del paquete
-- estructura centralizada del producto
+* definición oficial de los componentes administrados
+* estructura centralizada del producto
 
 ### Dashboard
 
-- TOP JAILS
-- ampliación de estadísticas
-- separación entre eventos y reputación
+* TOP JAILS
+* ampliación de estadísticas
+* separación entre eventos y reputación
 
 ### Reputation Engine
 
 Nuevas categorías:
 
-- ANOMALY
-- MALWARE
-- DOS
-- SOCIAL
+* ANOMALY
+* MALWARE
+* DOS
+* SOCIAL
 
 ### Documentación
 
-- reorganización completa
-- normalización documental
-- documentación sincronizada con el código
+* reorganización completa
+* normalización documental
+* documentación sincronizada con el código
 
 ---
 
@@ -112,36 +124,36 @@ Nuevas categorías:
 
 ## Objetivo
 
-Incrementar la inteligencia del motor de decisión.
+Incrementar la inteligencia del motor de decisión y continuar la consolidación del sistema.
 
 ## Funcionalidades previstas
 
 ### Reputation
 
-- Decay Engine completo
-- optimización del cálculo de reputación
-- mejora de perfiles
+* Decay Engine completo
+* optimización del cálculo de reputación
+* mejora de perfiles
 
 ### Policy Engine
 
-- reglas dinámicas
-- correlación de categorías
-- optimización del modelo de decisión
+* reglas dinámicas
+* correlación de categorías
+* optimización del modelo de decisión
 
 ### Sensor Framework
 
 Nuevos sensores previstos:
 
-- ModSecurity
-- SSH
-- Apache
-- Syslog
+* ModSecurity
+* SSH
+* Apache
+* Syslog
 
 ### Dashboard
 
-- gráficos históricos
-- métricas ampliadas
-- consultas avanzadas
+* gráficos históricos
+* métricas ampliadas
+* consultas avanzadas
 
 ---
 
@@ -149,14 +161,14 @@ Nuevos sensores previstos:
 
 ## Objetivo
 
-Ampliar la integración con sistemas externos.
+Ampliar la integración con sistemas externos y las capacidades de observación del motor.
 
 ## Funcionalidades previstas
 
-- exportación de métricas
-- eventos externos
-- APIs
-- integración con plataformas SIEM
+* exportación de métricas
+* eventos externos
+* APIs
+* integración con plataformas SIEM
 
 ---
 
@@ -164,39 +176,39 @@ Ampliar la integración con sistemas externos.
 
 ## Objetivo
 
-Convertir ARE en un motor de reputación completamente independiente del Firewall.
+Evolucionar ARE hacia una arquitectura de reputación y decisión con mayor independencia de un mecanismo específico de Firewall.
 
 ## Sensores previstos
 
-- ModSecurity
-- Suricata
-- Zeek
-- CrowdSec
-- Apache
-- Syslog
-- DNS
-- APIs externas
+* ModSecurity
+* Suricata
+* Zeek
+* CrowdSec
+* Apache
+* Syslog
+* DNS
+* APIs externas
 
 ---
 
 ## Backends previstos
 
-- IPSet
-- nftables
-- firewalld
-- pf
-- Cloud Firewall
+* IPSet
+* nftables
+* firewalld
+* pf
+* Cloud Firewall
 
 ---
 
 ## Plataforma
 
-- API REST
-- Backend Manager
-- métricas
-- alta disponibilidad
-- replicación
-- integración distribuida
+* API REST
+* Backend Manager
+* métricas
+* alta disponibilidad
+* replicación
+* integración distribuida
 
 ---
 
@@ -204,13 +216,13 @@ Convertir ARE en un motor de reputación completamente independiente del Firewal
 
 Toda evolución deberá respetar los siguientes principios.
 
-- estabilidad antes que nuevas funcionalidades;
-- arquitectura antes que implementación;
-- reutilización antes que duplicación;
-- documentación sincronizada;
-- evolución incremental.
+* estabilidad antes que nuevas funcionalidades;
+* arquitectura antes que implementación;
+* reutilización antes que duplicación;
+* documentación sincronizada;
+* evolución incremental.
 
-Las versiones mayores únicamente deberán introducir cambios arquitectónicos incompatibles con versiones anteriores.
+Las versiones mayores podrán introducir cambios arquitectónicos cuando éstos hayan sido previamente analizados y documentados.
 
 ---
 
@@ -218,11 +230,13 @@ Las versiones mayores únicamente deberán introducir cambios arquitectónicos i
 
 Toda nueva capacidad deberá:
 
-- responder a una necesidad técnica;
-- mantener la arquitectura existente;
-- encontrarse documentada;
-- haber sido validada;
-- formar parte del Roadmap antes de comenzar su implementación.
+* responder a una necesidad técnica;
+* mantener la arquitectura existente o justificar formalmente cualquier modificación;
+* encontrarse documentada;
+* haber sido validada;
+* formar parte del Roadmap antes de comenzar su implementación.
+
+La presencia de una funcionalidad en este documento no implica que se encuentre implementada.
 
 ---
 

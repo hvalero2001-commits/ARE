@@ -2,44 +2,57 @@
 
 ## Introducción
 
-Esta guía describe el uso cotidiano de ARE (Abuse Reputation Engine).
+Esta guía describe el uso operativo de ARE (Abuse Reputation Engine).
 
-Está dirigida a administradores de sistemas responsables de operar, supervisar y mantener una instalación de ARE.
-
-No explica la arquitectura interna del proyecto. Esa información se encuentra en la documentación técnica correspondiente.
+Está dirigida a administradores responsables de operar, supervisar y mantener una instalación de ARE v1.1.
 
 ---
 
 # Requisitos
 
-ARE debe encontrarse correctamente instalado y validado.
+ARE debe encontrarse instalado y validado.
 
-Verificar el estado mediante:
+Verificar la instalación mediante:
 
 ```bash
 are-installer verify
 ```
 
-Si la instalación es correcta, el resultado finalizará con:
-
-```text
-ARE está instalado correctamente.
-```
-
 ---
 
-# Comandos disponibles
+# Interfaz de comandos
 
-ARE proporciona una interfaz de línea de comandos para consultar el estado del motor de reputación y administrar el sistema.
+La interfaz oficial de ARE se encuentra disponible mediante el comando:
 
-Comandos principales:
+```bash
+are
+```
+
+Comandos operativos:
 
 ```text
 are stats
+are top
 are score <IP>
 are events <IP>
 are found <IP> <JAIL>
+are ban <IP> <JAIL>
+are unban <IP>
+are external-unban <IP> [JAIL]
+are autoban
+are decay-dry-run
+are decay-apply
+```
 
+El Installer Engine utiliza el comando:
+
+```text
+are-installer
+```
+
+con las siguientes operaciones:
+
+```text
 are-installer install
 are-installer upgrade
 are-installer repair
@@ -51,28 +64,49 @@ are-installer uninstall
 
 # Estadísticas
 
-Mostrar información general del sistema.
+Mostrar información general del sistema:
 
 ```bash
 are stats
 ```
 
-La salida incluye información como:
+La información incluye:
 
-- direcciones IP registradas;
-- direcciones IP activas;
-- IPs bloqueadas;
-- categorías de reputación;
-- actividad por Jail;
-- estadísticas generales.
+* IPs registradas;
+* IPs activas;
+* IPs baneadas;
+* eventos totales;
+* eventos del día;
+* score promedio;
+* IPs candidatas para decay;
+* actividad por categoría;
+* principales Jails.
 
-Este comando no modifica información del sistema.
+El comando es de consulta y no modifica la reputación.
+
+---
+
+# Top de amenazas
+
+Mostrar las principales IPs según su reputación:
+
+```bash
+are top
+```
+
+La salida presenta las IPs con mayor score y parte de su composición de reputación.
 
 ---
 
 # Consultar reputación
 
-Mostrar la reputación de una dirección IP.
+Consultar la reputación de una dirección IP:
+
+```bash
+are score <IP>
+```
+
+Ejemplo:
 
 ```bash
 are score 192.168.1.10
@@ -80,134 +114,216 @@ are score 192.168.1.10
 
 La información incluye:
 
-- score total;
-- categorías;
-- estado;
-- historial de sanción;
-- última actividad;
-- información temporal;
-- reputación acumulada.
+* reputación por categoría;
+* score total;
+* nivel de amenaza;
+* último evento;
+* última actividad;
+* antigüedad;
+* estado de sanción;
+* nivel de sanción;
+* cantidad de sanciones;
+* última sanción;
+* último unban.
 
 ---
 
 # Consultar eventos
 
-Mostrar el historial registrado para una dirección IP.
+Consultar los eventos registrados para una dirección IP:
+
+```bash
+are events <IP>
+```
+
+Ejemplo:
 
 ```bash
 are events 192.168.1.10
 ```
 
-Los eventos aparecen ordenados cronológicamente.
-
-Cada registro representa evidencia utilizada por el Reputation Engine.
+Los eventos representan la actividad registrada por ARE para la dirección consultada.
 
 ---
 
-# Registrar un evento FOUND
+# Procesar un evento FOUND
 
-Procesar manualmente un evento procedente de un Sensor.
+Procesar manualmente un evento procedente de un sensor:
+
+```bash
+are found <IP> <JAIL>
+```
+
+Ejemplo:
 
 ```bash
 are found 192.168.1.10 modsec-protocol
 ```
 
-El comando:
+ARE:
 
-- registra el evento;
-- actualiza la reputación;
-- recalcula el estado;
-- ejecuta el Policy Engine;
-- aplica la decisión correspondiente.
+1. registra la evidencia;
+2. obtiene el perfil del Jail;
+3. calcula el score correspondiente;
+4. actualiza la reputación;
+5. recalcula el estado;
+6. evalúa la política;
+7. aplica la decisión;
+8. registra el evento.
 
-Su uso principal es:
+---
 
-- pruebas;
-- validación;
-- integración de sensores.
+# Ban
+
+Procesar un evento de ban:
+
+```bash
+are ban <IP> <JAIL>
+```
+
+El Jail determina el perfil utilizado para calcular el score y la categoría de reputación.
+
+ARE actualiza la reputación, recalcula el estado, evalúa la política y aplica la decisión correspondiente.
+
+---
+
+# Unban
+
+Eliminar una sanción activa para una dirección IP:
+
+```bash
+are unban <IP>
+```
+
+ARE determina automáticamente el backend correspondiente para IPv4 o IPv6 y registra el evento `UNBAN`.
+
+---
+
+# Unban externo
+
+Procesar un unban generado externamente:
+
+```bash
+are external-unban <IP> [JAIL]
+```
+
+Si no se especifica un Jail, se utiliza:
+
+```text
+fail2ban
+```
+
+El evento se registra como `EXTERNAL_UNBAN` y ARE vuelve a evaluar el estado y la política de la dirección IP.
+
+---
+
+# Autoban
+
+Ejecutar el mecanismo de enforcement automático:
+
+```bash
+are autoban
+```
+
+---
+
+# Decay
+
+### Simulación
+
+Consultar qué IPs son candidatas para decay sin aplicar modificaciones:
+
+```bash
+are decay-dry-run
+```
+
+### Aplicación
+
+Aplicar el decay sobre las IPs que cumplen las condiciones configuradas:
+
+```bash
+are decay-apply
+```
+
+El proceso reduce proporcionalmente los scores de reputación que cumplen los criterios de antigüedad establecidos.
+
+Después de aplicar el decay, ARE recalcula el estado y vuelve a evaluar la política.
 
 ---
 
 # Verificar la instalación
 
-Comprobar la integridad del producto.
+Comprobar el estado de la instalación:
 
 ```bash
 are-installer verify
 ```
 
-Se validan automáticamente:
+La validación comprueba los componentes administrados por ARE, incluyendo:
 
-- estructura;
-- manifiesto;
-- permisos;
-- enlaces;
-- ejecutables;
-- SQLite;
-- Backend;
-- Firewall;
-- systemd;
-- logrotate;
-- runtime.
+* integridad;
+* enlaces;
+* comandos;
+* permisos;
+* base de datos;
+* runtime;
+* firewall;
+* systemd;
+* logrotate.
 
-No modifica información del sistema.
+La operación es de verificación y no constituye una actualización del producto.
 
 ---
 
-# Reparar una instalación
+# Reparar
 
-Restaurar componentes faltantes.
+Reparar una instalación detectada como incompleta:
 
 ```bash
 are-installer repair
 ```
 
-La operación reconstruye únicamente archivos distribuidos con ARE.
+La operación reconstruye los componentes administrados por el Installer.
 
-Nunca modifica:
-
-- configuración;
-- SQLite;
-- reputación;
-- eventos.
+La configuración persistente y los datos de la instalación no forman parte de los archivos distribuidos del Core.
 
 ---
 
 # Actualizar
 
-Actualizar el producto.
+Actualizar una instalación existente:
 
 ```bash
 are-installer upgrade
 ```
 
-La actualización conserva automáticamente:
+El Installer reutiliza el mismo núcleo de instalación y conserva los componentes persistentes de la instalación, incluyendo la configuración y la base de datos.
 
-- configuración;
-- base de datos;
-- reputación;
-- historial;
-- registros.
+---
+
+# Instalar
+
+Instalar ARE desde un árbol fuente:
+
+```bash
+are-installer install
+```
+
+La instalación debe ejecutarse desde un árbol fuente diferente de la instalación activa.
+
+La instalación crea los directorios, archivos, configuración, enlaces, base de datos, unidades systemd y configuración de logrotate definidos por el Manifest.
 
 ---
 
 # Desinstalar
 
-Eliminar el producto.
+Eliminar ARE:
 
 ```bash
 are-installer uninstall
 ```
 
-La desinstalación elimina únicamente los componentes distribuidos por ARE.
-
-Se conservan:
-
-- configuración;
-- SQLite;
-- reputación;
-- historial;
-- logs.
+La operación elimina los componentes administrados por el Installer según el modelo definido por el producto.
 
 ---
 
@@ -225,7 +341,7 @@ Configuración:
 /etc/f2b-ipset
 ```
 
-Base de datos:
+Datos:
 
 ```text
 /var/lib/f2b-ipset
@@ -245,53 +361,89 @@ Ejecutables:
 
 ---
 
+# Flujo operativo
+
+El flujo general de ARE es:
+
+```text
+Evento
+   │
+   ▼
+Reputación
+   │
+   ▼
+Score
+   │
+   ▼
+Estado
+   │
+   ▼
+Policy Engine
+   │
+   ▼
+Decisión
+   │
+   ▼
+Firewall
+```
+
+Las consultas operativas principales son:
+
+```bash
+are stats
+are top
+are score <IP>
+are events <IP>
+```
+
+Las operaciones de mantenimiento se realizan mediante:
+
+```bash
+are-installer verify
+are-installer repair
+are-installer upgrade
+are-installer uninstall
+```
+
+---
+
 # Buenas prácticas
 
-Se recomienda:
-
-- verificar la instalación después de cada actualización;
-- mantener copias de seguridad de SQLite;
-- conservar la configuración bajo control de versiones;
-- revisar periódicamente las estadísticas;
-- supervisar los eventos registrados por los sensores.
+* Verificar la instalación después de cambios de mantenimiento.
+* Mantener copias de seguridad de la base de datos.
+* Mantener protegida la configuración de ARE.
+* Revisar periódicamente las estadísticas y eventos.
+* Supervisar los sensores y las decisiones aplicadas por ARE.
 
 ---
 
 # Solución de problemas
 
-## Verificar instalación
+### Verificar instalación
 
 ```bash
 are-installer verify
 ```
 
----
-
-## Reparar componentes
+### Reparar instalación incompleta
 
 ```bash
 are-installer repair
 ```
 
----
-
-## Consultar reputación
+### Consultar una IP
 
 ```bash
 are score <IP>
 ```
 
----
-
-## Consultar eventos
+### Consultar eventos
 
 ```bash
 are events <IP>
 ```
 
----
-
-## Revisar estadísticas
+### Consultar estadísticas
 
 ```bash
 are stats
@@ -299,60 +451,26 @@ are stats
 
 ---
 
-# Flujo operativo recomendado
-
-Durante la operación normal de ARE se recomienda seguir el siguiente flujo.
-
-```text
-Eventos
-      │
-      ▼
-Reputación
-      │
-      ▼
-Score
-      │
-      ▼
-Estado
-      │
-      ▼
-Decisión
-      │
-      ▼
-Firewall
-```
-
-La administración diaria se basa principalmente en los comandos:
-
-- `are stats`
-- `are score`
-- `are events`
-
-El Installer Engine sólo interviene durante tareas de mantenimiento.
-
----
-
 # Compatibilidad
 
-Versión soportada:
+Versión:
 
 ```text
 ARE v1.1
 ```
 
-Esta guía corresponde exclusivamente a la versión estable del proyecto.
+Esta guía corresponde a la versión 1.1 del producto.
 
 ---
 
 # Referencias
 
-Para obtener información adicional consultar:
+Para información adicional consultar:
 
-- README.md
-- PROJECT.md
-- PHILOSOPHY.md
-- ARCHITECTURE.md
-- INSTALL.md
-- CHANGELOG.md
+* `README.md`
+* `docs/ARCHITECTURE.md`
+* `docs/DESIGN.md`
+* `docs/INSTALL.md`
+* `docs/CHANGELOG.md`
 
-La documentación técnica complementa esta guía y describe el funcionamiento interno del proyecto.
+La documentación técnica complementa esta guía con información sobre arquitectura, diseño, instalación y evolución del proyecto.

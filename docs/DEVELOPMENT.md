@@ -2,11 +2,11 @@
 
 ## Introducción
 
-Este documento define la metodología oficial de desarrollo de ARE (Abuse Reputation Engine).
+Este documento define la metodología de desarrollo de ARE (Abuse Reputation Engine).
 
-Su objetivo es garantizar una evolución controlada del proyecto mediante una arquitectura estable, documentación sincronizada y cambios pequeños, verificables y trazables.
+Su objetivo es establecer un proceso controlado para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia de la arquitectura y la documentación sincronizada con el código.
 
-Toda funcionalidad deberá seguir el proceso definido en este documento antes de incorporarse a una versión estable.
+La documentación forma parte del desarrollo y debe reflejar el estado real del proyecto.
 
 ---
 
@@ -16,220 +16,244 @@ El desarrollo de ARE se basa en un principio fundamental:
 
 > **Comprender antes de implementar.**
 
-Antes de escribir código deberá comprenderse completamente el problema, analizar su impacto sobre la arquitectura y definir claramente la responsabilidad del cambio.
+Antes de modificar código debe comprenderse el comportamiento existente y verificarse el impacto del cambio sobre los componentes involucrados.
 
-La documentación forma parte del desarrollo y evoluciona junto con el código.
+No deberán realizarse modificaciones innecesarias sobre componentes que no formen parte del cambio.
 
 ---
 
 # Objetivos
 
-La metodología busca garantizar:
+La metodología busca preservar:
 
-- estabilidad del núcleo;
-- evolución incremental;
-- arquitectura consistente;
-- bajo acoplamiento;
-- alta cohesión;
-- documentación sincronizada;
-- ausencia de deuda técnica innecesaria.
+* estabilidad del sistema;
+* evolución incremental;
+* arquitectura coherente;
+* separación de responsabilidades;
+* bajo acoplamiento;
+* reutilización de componentes existentes;
+* documentación sincronizada;
+* trazabilidad de los cambios.
 
 ---
 
 # Flujo de desarrollo
 
-Toda funcionalidad seguirá el siguiente proceso.
+Los cambios deberán seguir un proceso controlado:
 
 ```text
-Idea
- │
- ▼
-Análisis técnico
- │
- ▼
-Clasificación
-(BUG / TASK / FEATURE / RFC / IDEA)
- │
- ▼
-Actualización del TODO
- │
- ▼
-Diseño
- │
- ▼
+Problema o necesidad
+        │
+        ▼
+Análisis del comportamiento actual
+        │
+        ▼
+Identificación del componente afectado
+        │
+        ▼
+Definición del cambio
+        │
+        ▼
 Implementación
- │
- ▼
-Pruebas
- │
- ▼
+        │
+        ▼
+Verificación
+        │
+        ▼
 Actualización documental
- │
- ▼
+        │
+        ▼
 Commit
- │
- ▼
-Merge
 ```
 
-Ninguna etapa deberá omitirse.
+Cada etapa debe completarse antes de considerar terminado el cambio.
 
 ---
 
 # Desarrollo incremental
 
-ARE evoluciona mediante iteraciones pequeñas.
+ARE evoluciona mediante cambios pequeños y verificables.
 
-Antes de comenzar una nueva funcionalidad deberá verificarse que la anterior se encuentre:
+Antes de iniciar un cambio debe verificarse el comportamiento existente y determinar qué componentes están realmente involucrados.
 
-- implementada;
-- validada;
-- documentada;
-- integrada.
+No deberán modificarse archivos o componentes que no sean necesarios para resolver el problema o implementar el cambio correspondiente.
 
-No deberán desarrollarse funcionalidades paralelas que generen dependencias innecesarias.
+Cuando una modificación produzca un comportamiento incorrecto, el problema deberá resolverse y verificarse antes de continuar con otros cambios dependientes.
 
 ---
 
 # Clasificación de cambios
 
+Los cambios pueden clasificarse según su naturaleza.
+
 ## BUG
 
-Corrección de un comportamiento incorrecto.
+Corrección de un comportamiento incorrecto existente.
 
-No incorpora nuevas funcionalidades.
+La corrección debe preservar las funcionalidades que no forman parte del problema.
 
 ---
 
 ## TASK
 
-Refactorización, reorganización o mantenimiento técnico.
+Trabajo técnico de mantenimiento, reorganización o documentación.
 
-No modifica el comportamiento funcional del sistema.
+Debe mantenerse claramente definido el alcance del cambio.
 
 ---
 
 ## FEATURE
 
-Nueva funcionalidad compatible con la arquitectura existente.
+Incorporación de una nueva funcionalidad.
+
+La funcionalidad debe integrarse respetando las responsabilidades de los componentes existentes.
 
 ---
 
 ## RFC
 
-Propuesta que modifica la arquitectura del proyecto.
+Propuesta de modificación arquitectónica.
 
-Toda modificación arquitectónica requiere aprobación previa.
+Los cambios que alteren responsabilidades, interfaces o relaciones fundamentales entre componentes deben analizarse antes de su implementación.
 
 ---
 
 ## IDEA
 
-Propuesta aún no planificada para una versión específica.
+Propuesta que todavía no forma parte de una implementación definida.
 
-Las ideas no forman parte automáticamente del Roadmap.
+Una idea no representa por sí misma una funcionalidad implementada.
 
 ---
 
 # Principios de implementación
 
-Toda implementación deberá respetar los siguientes principios.
-
 ## Responsabilidad única
 
-Cada módulo deberá implementar una única responsabilidad.
+Cada componente debe mantener una responsabilidad claramente definida.
+
+Una modificación no debe trasladar responsabilidades entre componentes sin una razón arquitectónica verificable.
 
 ---
 
 ## Reutilización
 
-Siempre que sea posible se reutilizarán componentes existentes.
+Cuando exista una función o componente que ya resuelva una necesidad, deberá evaluarse su reutilización antes de crear una implementación duplicada.
 
-No deberá duplicarse lógica.
+No deberá duplicarse lógica innecesariamente.
 
 ---
 
 ## Modularidad
 
-Las nuevas funcionalidades deberán integrarse mediante módulos independientes.
+Las funcionalidades deben permanecer separadas según su responsabilidad.
+
+La incorporación de una funcionalidad no debe introducir dependencias innecesarias sobre componentes no relacionados.
 
 ---
 
 ## Simplicidad
 
-Se priorizarán soluciones simples antes que implementaciones complejas.
+Se deben priorizar soluciones simples y verificables.
+
+No debe introducirse complejidad que no sea necesaria para resolver el problema concreto.
 
 ---
 
-## Compatibilidad
+## Conservación del comportamiento
 
-Toda modificación deberá preservar la compatibilidad con la arquitectura existente salvo que corresponda a una nueva versión mayor.
+Las modificaciones deben preservar el comportamiento existente cuando éste no forme parte del cambio solicitado.
+
+No se deben realizar cambios adicionales únicamente por conveniencia, limpieza o reorganización si no son necesarios para el objetivo del cambio.
 
 ---
 
 # Arquitectura
 
-Toda implementación deberá respetar la separación entre:
+El desarrollo debe respetar la separación existente entre:
 
-- Sensor Framework;
-- Reputation Engine;
-- State Engine;
-- Policy Engine;
-- Firewall Backend;
-- Installer Engine.
+* Sensor Framework;
+* Reputation Engine;
+* State Engine;
+* Policy Engine;
+* Ban Lifecycle Engine;
+* Firewall Backend;
+* Installer Engine.
 
-No deberán introducirse dependencias circulares entre motores.
+Cada componente debe utilizar las funciones y mecanismos correspondientes a su responsabilidad.
+
+Las modificaciones que afecten las relaciones entre estos componentes deben verificarse sobre el comportamiento real del sistema.
 
 ---
 
 # Documentación
 
-La documentación forma parte del proceso de desarrollo.
+La documentación forma parte del código fuente del proyecto.
 
-Toda modificación importante deberá actualizar los documentos correspondientes.
+Cuando un cambio modifica el comportamiento documentado de ARE, los documentos correspondientes deben actualizarse para reflejar el estado real del código.
 
-Según el cambio podrá ser necesario actualizar:
+Según el alcance del cambio pueden verse afectados:
 
-- README.md
-- PROJECT.md
-- ARCHITECTURE.md
-- DESIGN.md
-- INSTALL.md
-- CHANGELOG.md
-- ROADMAP.md
-- CONTRIBUTING.md
-- GOVERNANCE.md
-- SECURITY.md
-- USER_GUIDE.md
+* README.md;
+* PROJECT.md;
+* ARCHITECTURE.md;
+* DESIGN.md;
+* INSTALL.md;
+* CHANGELOG.md;
+* ROADMAP.md;
+* CONTRIBUTING.md;
+* GOVERNANCE.md;
+* SECURITY.md;
+* USER_GUIDE.md.
 
-Una funcionalidad no se considerará terminada hasta que su documentación refleje el mismo estado que el código.
+La documentación no debe describir funcionalidades que no estén implementadas.
+
+Tampoco debe presentar como comportamiento actual una capacidad que corresponda únicamente a una planificación futura.
 
 ---
 
-# Pruebas
+# Verificación
 
-Toda modificación deberá validarse antes de integrarse.
+Toda modificación debe verificarse antes de considerarse terminada.
 
-Las pruebas deberán demostrar:
+La verificación debe comprobar, según corresponda:
 
-- funcionamiento correcto;
-- ausencia de regresiones;
-- consistencia arquitectónica;
-- preservación de datos persistentes cuando corresponda.
+* funcionamiento del cambio;
+* ausencia de errores introducidos;
+* conservación del comportamiento no afectado;
+* coherencia con los componentes involucrados;
+* conservación de los datos persistentes cuando corresponda.
 
-Las modificaciones relacionadas con el Installer deberán validar:
+La verificación debe basarse en resultados observables del sistema y no en suposiciones.
 
-- install;
-- upgrade;
-- repair;
-- verify;
-- uninstall.
+---
+
+# Installer Engine
+
+Los cambios relacionados con el Installer Engine deben verificarse de acuerdo con la operación afectada.
+
+Las operaciones administradas por el Installer Engine son:
+
+* install;
+* upgrade;
+* repair;
+* verify;
+* uninstall.
+
+La validación debe limitarse a las operaciones realmente modificadas por el cambio y a sus dependencias directas.
 
 ---
 
 # Commits
 
-Cada commit representará una única responsabilidad.
+Cada commit debe representar un cambio identificable y coherente.
+
+Los mensajes deben ser:
+
+* claros;
+* específicos;
+* trazables;
+* representativos del contenido real del commit.
 
 Ejemplos:
 
@@ -243,56 +267,34 @@ FEAT-005  Add Sensor Framework
 DOC-006  Rewrite installation guide
 ```
 
-Los commits deberán ser:
-
-- pequeños;
-- autocontenidos;
-- descriptivos;
-- trazables.
-
----
-
-# Versiones
-
-Las ramas de desarrollo deberán permanecer funcionales en todo momento.
-
-Política recomendada:
-
-```text
-main
-```
-
-Versión estable.
-
-```text
-v1.x-dev
-```
-
-Desarrollo de la siguiente versión.
+Un commit no debe utilizarse para ocultar cambios no relacionados con su objetivo.
 
 ---
 
 # Calidad
 
-Antes de cerrar una tarea deberá verificarse:
+Antes de cerrar un cambio debe verificarse:
 
-- código funcional;
-- pruebas satisfactorias;
-- documentación actualizada;
-- consistencia arquitectónica;
-- actualización del CHANGELOG cuando corresponda;
-- actualización del TODO cuando corresponda.
+* código correspondiente al objetivo definido;
+* funcionamiento comprobado;
+* ausencia de modificaciones innecesarias;
+* documentación actualizada cuando corresponda;
+* coherencia con la arquitectura;
+* estado del repositorio revisado.
 
 ---
 
 # Principios finales
 
-Toda información de ARE pertenece exactamente a una de las siguientes categorías:
+El desarrollo de ARE debe mantener los siguientes principios:
 
-1. Definición del producto.
-2. Configuración de la instalación.
-3. Estado de ejecución.
-
-Estas categorías nunca deberán mezclarse.
-
-La metodología de desarrollo tiene como objetivo preservar una arquitectura estable que permita la evolución continua del proyecto sin introducir deuda técnica ni duplicación de responsabilidades.
+1. Comprender antes de implementar.
+2. Modificar únicamente lo necesario.
+3. Una responsabilidad por componente.
+4. Verificar antes de concluir.
+5. Resolver completamente los problemas encontrados antes de continuar.
+6. Preservar el comportamiento no afectado.
+7. Reutilizar componentes existentes antes de duplicar lógica.
+8. Mantener la documentación sincronizada con el código.
+9. Basar las conclusiones en comportamiento verificable.
+10. Mantener cada cambio trazable y coherente.

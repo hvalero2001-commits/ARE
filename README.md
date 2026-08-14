@@ -4,25 +4,21 @@
 
 > **Comprender antes de responder.**
 
-ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para analizar eventos de seguridad, construir reputación histórica y aplicar respuestas inteligentes basadas en riesgo.
+ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para analizar eventos de seguridad, construir reputación histórica y aplicar respuestas basadas en riesgo.
 
-Su arquitectura permite integrar múltiples fuentes de eventos, centralizar el análisis del comportamiento de las amenazas y desacoplar completamente la detección de la toma de decisiones.
-
-Actualmente ARE utiliza herramientas como Fail2Ban y ModSecurity como sensores de eventos, mientras que el motor de reputación, el estado de las direcciones IP y las políticas de respuesta son administradas por ARE.
+Su arquitectura separa la detección de eventos, el análisis de reputación, la evaluación de políticas y la aplicación de decisiones de seguridad.
 
 ## ¿Qué problema resuelve ARE?
 
-Las soluciones tradicionales de seguridad reaccionan de forma independiente ante los eventos que detectan. Un firewall bloquea, Fail2Ban aplica un ban temporal y ModSecurity protege las aplicaciones web, pero cada componente toma decisiones basadas únicamente en su propia información.
+Las herramientas de seguridad tradicionales reaccionan principalmente a los eventos que detectan. Un firewall bloquea, Fail2Ban aplica sanciones y ModSecurity detecta y bloquea solicitudes según sus propias reglas.
 
-ARE incorpora una capa de inteligencia sobre estos sistemas. Su función es observar los eventos generados por múltiples sensores, construir una reputación histórica para cada dirección IP y aplicar políticas de respuesta basadas en el comportamiento acumulado y no únicamente en un evento aislado.
+ARE incorpora una capa centralizada de reputación y decisión. Los eventos recibidos de los sensores generan evidencia asociada a una dirección IP, la cual permite construir una reputación histórica y determinar el estado y la respuesta correspondiente.
 
-Este enfoque permite tomar decisiones más consistentes, reducir falsos positivos y adaptar la respuesta de seguridad según el nivel real de riesgo.
+De esta forma, la decisión puede considerar el comportamiento acumulado de una dirección IP y no únicamente un evento aislado.
 
 ## Arquitectura General
 
 ARE implementa una arquitectura modular basada en la separación de responsabilidades.
-
-Cada componente cumple una función específica dentro del proceso de análisis y respuesta:
 
 ```text
 +----------------------+
@@ -30,7 +26,6 @@ Cada componente cumple una función específica dentro del proceso de análisis 
 |----------------------|
 | Fail2Ban             |
 | ModSecurity          |
-| SSH                  |
 | Otros                |
 +----------+-----------+
            |
@@ -55,7 +50,7 @@ Cada componente cumple una función específica dentro del proceso de análisis 
            |
            v
 +----------------------+
-| Acción               |
+|       Decisión       |
 |----------------------|
 | ALLOW                |
 | WATCH                |
@@ -64,72 +59,48 @@ Cada componente cumple una función específica dentro del proceso de análisis 
 +----------------------+
 ```
 
-Esta arquitectura desacopla completamente la detección de amenazas de la toma de decisiones, permitiendo incorporar nuevos sensores o mecanismos de respuesta sin modificar el núcleo del sistema.
+La arquitectura permite incorporar sensores y mecanismos de respuesta manteniendo separados los componentes de detección, reputación, decisión y aplicación.
 
 ## Características Principales
 
-ARE ha sido diseñado para evolucionar de forma modular, permitiendo incorporar nuevos sensores, motores de decisión y mecanismos de respuesta sin modificar su arquitectura principal.
+Entre las capacidades actuales de ARE se encuentran:
 
-Entre sus capacidades actuales se encuentran:
+* Motor de reputación basado en categorías de amenaza.
+* Evaluación histórica del comportamiento de cada dirección IP.
+* Motor de estados para el ciclo de vida de las IP.
+* Policy Engine separado del mecanismo de detección.
+* Framework de sensores.
+* Sensor de integración con Fail2Ban.
+* Persistencia mediante SQLite.
+* Dashboard operativo para reputación, eventos y estadísticas.
+* Backend de firewall basado en IPSet, IPTables e IP6Tables.
+* Integración con ModSecurity y Fail2Ban.
+* Soporte para IPv4 e IPv6.
+* Decay de reputación.
+* Gestión de sanciones.
+* Installer Engine para instalación y mantenimiento.
 
-- Motor de reputación basado en categorías de amenaza.
-- Evaluación histórica del comportamiento de cada dirección IP.
-- Motor de estados para el ciclo de vida de las IP.
-- Policy Engine desacoplado del mecanismo de detección.
-- Framework de sensores para integración con múltiples fuentes de eventos.
-- Backend de firewall independiente del motor de decisión.
-- Persistencia mediante SQLite.
-- Dashboard operativo para consulta de reputación, eventos y estadísticas.
-- Integración con Fail2Ban y ModSecurity.
-- Soporte para IPv4 e IPv6.
-- Arquitectura modular preparada para futuras ampliaciones.
+Las categorías de reputación utilizadas actualmente son:
 
-Actualmente ARE clasifica los eventos en las siguientes categorías de reputación:
-
-| Categoría | Descripción |
-|-----------|-------------|
-| RECON | Actividades de reconocimiento y exploración. |
-| EXPLOIT | Intentos de explotación de vulnerabilidades. |
-| CREDENTIAL | Ataques contra credenciales y autenticación. |
-| PROTOCOL | Violaciones o anomalías del protocolo. |
-| BOT | Actividad automatizada identificada. |
-| ANOMALY | Comportamientos anómalos o no clasificados. |
-| MALWARE | Actividad relacionada con software malicioso. |
-| DOS | Ataques de denegación de servicio. |
-| SOCIAL | Eventos asociados a técnicas de ingeniería social. |
+| Categoría  | Descripción                                        |
+| ---------- | -------------------------------------------------- |
+| RECON      | Actividades de reconocimiento y exploración.       |
+| EXPLOIT    | Intentos de explotación de vulnerabilidades.       |
+| CREDENTIAL | Ataques contra credenciales y autenticación.       |
+| PROTOCOL   | Violaciones o anomalías del protocolo.             |
+| BOT        | Actividad automatizada identificada.               |
+| ANOMALY    | Comportamientos anómalos o no clasificados.        |
+| MALWARE    | Actividad relacionada con software malicioso.      |
+| DOS        | Ataques de denegación de servicio.                 |
+| SOCIAL     | Eventos asociados a técnicas de ingeniería social. |
 
 ## Estado del Proyecto
 
-ARE evoluciona mediante versiones incrementales, priorizando la estabilidad del núcleo antes de incorporar nuevas capacidades.
+### Versión
 
-### Versión estable
+**ARE v1.1.0**
 
-**v1.0.x**
-
-Incluye el núcleo funcional del proyecto:
-
-- Reputation Engine.
-- State Engine.
-- Policy Engine.
-- Firewall Backend.
-- Persistencia SQLite.
-- Dashboard operativo.
-- Integración con ModSecurity y Fail2Ban.
-
-### Rama de desarrollo
-
-**v1.1-dev**
-
-La rama actual incorpora mejoras compatibles con la arquitectura existente, entre ellas:
-
-- Sensor Framework.
-- Sensor Fail2Ban (`FOUND`).
-- Cursor persistente para sensores.
-- Ejecución automática mediante `systemd timer`.
-- Ampliación del modelo de categorías de reputación.
-- Dashboard con estadísticas ampliadas y TOP JAILS.
-
-El desarrollo de nuevas funcionalidades sigue una metodología incremental, donde cada bloque debe quedar completamente implementado, probado y documentado antes de considerarse finalizado.
+La versión 1.1 incorpora el Installer Engine, el Sensor Framework, la ampliación del modelo de reputación, la gestión de sanciones y mejoras en los mecanismos de reputación y mantenimiento.
 
 ## Instalación
 
@@ -137,84 +108,195 @@ El desarrollo de nuevas funcionalidades sigue una metodología incremental, dond
 
 ARE está diseñado para ejecutarse sobre sistemas GNU/Linux.
 
-Requisitos recomendados:
+Requisitos:
 
-- Bash 4.x o superior.
-- SQLite 3.
-- IPSet.
-- IPTables / IP6Tables.
-- systemd.
-- Fail2Ban (opcional).
-- ModSecurity (opcional).
+* Bash.
+* SQLite 3.
+* IPSet.
+* IPTables.
+* IP6Tables.
+* systemd.
 
-Las instrucciones de instalación y configuración se encuentran disponibles en la documentación del proyecto y evolucionan junto con cada versión estable.
+Fail2Ban y ModSecurity pueden actuar como fuentes de eventos según la integración configurada.
 
-## Uso Básico
+### Instalación
 
-ARE proporciona una interfaz de línea de comandos para consultar información de reputación, eventos y estadísticas del sistema.
+El Installer Engine utiliza `manifest/product.sh` como definición de los componentes administrados.
 
-### Ver estadísticas generales
+La instalación se ejecuta desde un árbol fuente separado de la instalación activa:
 
 ```bash
-./f2b-ipset.sh stats
+are-installer install
 ```
 
-### Consultar la reputación de una dirección IP
+La instalación crea y configura los componentes de ARE en sus ubicaciones correspondientes.
+
+Después de instalar, verificar:
 
 ```bash
-./f2b-ipset.sh score <IP>
+are-installer verify
+```
+
+## Uso
+
+La interfaz oficial de ARE es:
+
+```bash
+are
+```
+
+### Estadísticas
+
+```bash
+are stats
+```
+
+### Top de amenazas
+
+```bash
+are top
+```
+
+### Consultar reputación
+
+```bash
+are score <IP>
 ```
 
 Ejemplo:
 
 ```bash
-./f2b-ipset.sh score 192.168.1.10
+are score 192.168.1.10
 ```
 
-### Consultar el historial de eventos
+### Consultar eventos
 
 ```bash
-./f2b-ipset.sh events <IP>
+are events <IP>
 ```
 
 ### Procesar un evento FOUND
 
 ```bash
-./f2b-ipset.sh found <IP> <JAIL>
+are found <IP> <JAIL>
 ```
 
 Ejemplo:
 
 ```bash
-./f2b-ipset.sh found 192.168.1.10 modsec-protocol
+are found 192.168.1.10 modsec-protocol
 ```
 
-Estas herramientas permiten consultar el estado del motor de reputación y verificar el comportamiento de ARE durante su funcionamiento.
+### Gestionar un UNBAN
+
+```bash
+are unban <IP>
+```
+
+### Procesar un UNBAN externo
+
+```bash
+are external-unban <IP> [JAIL]
+```
+
+Si no se especifica el Jail, ARE utiliza `fail2ban`.
+
+### Decay
+
+Simular el decay sin modificar la reputación:
+
+```bash
+are decay-dry-run
+```
+
+Aplicar el decay:
+
+```bash
+are decay-apply
+```
+
+## Installer Engine
+
+El Installer Engine administra el ciclo de vida de la instalación.
+
+### Verificar
+
+```bash
+are-installer verify
+```
+
+### Actualizar
+
+```bash
+are-installer upgrade
+```
+
+### Reparar
+
+```bash
+are-installer repair
+```
+
+### Desinstalar
+
+```bash
+are-installer uninstall
+```
+
+Las operaciones de mantenimiento utilizan el Manifest del producto como referencia de los componentes administrados.
+
+## Ubicaciones principales
+
+Core:
+
+```text
+/opt/f2b-ipset
+```
+
+Configuración:
+
+```text
+/etc/f2b-ipset
+```
+
+Base de datos:
+
+```text
+/var/lib/f2b-ipset
+```
+
+Logs:
+
+```text
+/var/log/are
+```
+
+Ejecutables:
+
+```text
+/usr/local/sbin
+```
 
 ## Documentación
 
-ARE mantiene una documentación técnica organizada, donde cada documento posee una responsabilidad específica.
-
-| Documento | Descripción |
-|-----------|-------------|
-| `README.md` | Presentación general del proyecto. |
-| `docs/ARCHITECTURE.md` | Arquitectura general y componentes del sistema. |
-| `docs/DESIGN.md` | Principios y decisiones de diseño. |
-| `docs/ROADMAP.md` | Plan de evolución del proyecto. |
-| `docs/CHANGELOG.md` | Historial de versiones y cambios. |
-| `docs/TODO.md` | Gestión de tareas, bugs, RFC y nuevas funcionalidades. |
-| `docs/DEVELOPMENT.md` | Metodología oficial de desarrollo. |
-| `docs/CONTRIBUTING.md` | Guía para colaboradores. |
-| `docs/GOVERNANCE.md` | Modelo de gobierno y evolución del proyecto. |
-| `docs/SECURITY.md` | Política de seguridad y gestión de vulnerabilidades. |
+| Documento              | Descripción                                     |
+| ---------------------- | ----------------------------------------------- |
+| `README.md`            | Presentación general y uso básico del proyecto. |
+| `docs/USER_GUIDE.md`   | Guía de operación y administración.             |
+| `docs/ARCHITECTURE.md` | Arquitectura y componentes del sistema.         |
+| `docs/DESIGN.md`       | Principios y decisiones de diseño.              |
+| `docs/ROADMAP.md`      | Evolución planificada del proyecto.             |
+| `docs/CHANGELOG.md`    | Historial de versiones y cambios.               |
+| `docs/DEVELOPMENT.md`  | Metodología de desarrollo.                      |
+| `docs/CONTRIBUTING.md` | Guía para colaboradores.                        |
+| `docs/GOVERNANCE.md`   | Gobierno y evolución del proyecto.              |
+| `docs/SECURITY.md`     | Seguridad y gestión de vulnerabilidades.        |
 
 ## Licencia
 
-ARE se distribuye bajo los términos de la licencia **GNU General Public License v3.0 (GPL-3.0)**.
+ARE se distribuye bajo los términos de la **GNU General Public License v3.0 (GPL-3.0)**.
 
-Esto garantiza que el proyecto pueda ser utilizado, estudiado, modificado y redistribuido respetando las condiciones establecidas por dicha licencia.
-
-Consulte el archivo `LICENSE` para obtener el texto completo de la licencia.
+Consulte `LICENSE` para obtener el texto completo de la licencia.
 
 ## Filosofía del Proyecto
 
@@ -224,8 +306,4 @@ ARE fue concebido bajo un principio fundamental:
 
 La seguridad no debe depender de decisiones aisladas ni de eventos individuales. Cada dirección IP construye una reputación basada en su comportamiento, permitiendo que las respuestas sean proporcionales al riesgo observado.
 
-El proyecto evoluciona mediante pequeñas mejoras incrementales, priorizando la estabilidad del núcleo, la modularidad de sus componentes y una arquitectura preparada para crecer sin perder coherencia.
-
-Toda nueva funcionalidad es analizada, documentada y validada antes de incorporarse al proyecto, garantizando que cada versión represente un estado consistente y mantenible.
-
-ARE no pretende reemplazar las herramientas de seguridad existentes. Su propósito es complementarlas, actuando como un motor central de reputación y decisión capaz de transformar eventos independientes en respuestas inteligentes.
+ARE no pretende reemplazar las herramientas de seguridad existentes. Su propósito es complementarlas mediante un motor centralizado de reputación y decisión capaz de transformar eventos independientes en respuestas basadas en el riesgo acumulado.

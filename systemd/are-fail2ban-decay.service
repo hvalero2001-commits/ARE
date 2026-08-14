@@ -1,0 +1,11 @@
+[Unit]
+Description=ARE Fail2Ban Decay (Dry Run y Apply)
+After=fail2ban.service
+Requires=fail2ban.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/f2b-ipset/f2b-ipset.sh decay-dry-run
+ExecStart=/opt/f2b-ipset/f2b-ipset.sh decay-apply
+User=root
+Group=root

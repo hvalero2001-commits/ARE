@@ -4,7 +4,7 @@
 
 Este documento define los principios de diseño utilizados durante el desarrollo de ARE (Abuse Reputation Engine).
 
-Su propósito es garantizar que todas las decisiones de implementación mantengan una arquitectura coherente, modular y preparada para evolucionar sin introducir deuda técnica.
+Su propósito es garantizar que todas las decisiones de implementación mantengan una arquitectura coherente y modular.
 
 Las decisiones de diseño complementan la arquitectura del proyecto y sirven como referencia para el desarrollo de nuevas funcionalidades.
 
@@ -18,14 +18,14 @@ ARE fue diseñado bajo un principio fundamental:
 
 Las decisiones de seguridad no deben depender de un único evento sino del comportamiento histórico observado.
 
-La arquitectura separa completamente:
+La arquitectura separa:
 
-- observación;
-- evaluación;
-- decisión;
-- ejecución.
+* observación;
+* evaluación;
+* decisión;
+* ejecución.
 
-Esta separación permite que cada componente evolucione de forma independiente.
+Esta separación permite que cada componente mantenga una responsabilidad definida.
 
 ---
 
@@ -33,16 +33,16 @@ Esta separación permite que cada componente evolucione de forma independiente.
 
 ## Responsabilidad única
 
-Cada componente implementa una única responsabilidad claramente definida.
+Cada componente implementa una responsabilidad claramente definida.
 
 Ejemplos:
 
-- Sensor Framework observa.
-- Reputation Engine calcula reputación.
-- State Engine determina estados.
-- Policy Engine decide.
-- Firewall Backend ejecuta.
-- Installer Engine administra el ciclo de vida del producto.
+* Sensor Framework observa.
+* Reputation Engine gestiona la reputación.
+* State Engine determina estados.
+* Policy Engine decide.
+* Firewall Backend ejecuta las acciones sobre el sistema.
+* Installer Engine administra el ciclo de vida del producto.
 
 ---
 
@@ -50,15 +50,15 @@ Ejemplos:
 
 ARE está compuesto por módulos independientes.
 
-La incorporación de nuevos componentes no requiere modificar el resto del sistema.
+La incorporación de nuevos componentes debe minimizar las modificaciones sobre el resto del sistema.
 
 ---
 
 ## Bajo acoplamiento
 
-Los motores sólo dependen de interfaces claramente definidas.
+Los motores dependen de interfaces y funciones claramente definidas.
 
-La implementación interna de un componente no afecta a los demás.
+La implementación interna de un componente debe mantenerse separada de las responsabilidades de los demás.
 
 ---
 
@@ -70,7 +70,7 @@ Cada módulo agrupa únicamente funciones relacionadas con una misma responsabil
 
 ## Simplicidad
 
-Se priorizan soluciones simples antes que implementaciones complejas.
+Se priorizan soluciones simples antes que implementaciones innecesariamente complejas.
 
 Las funciones pequeñas y reutilizables tienen preferencia sobre bloques monolíticos.
 
@@ -78,7 +78,7 @@ Las funciones pequeñas y reutilizables tienen preferencia sobre bloques monolí
 
 ## Configuración desacoplada
 
-Toda configuración reside fuera del Core.
+La configuración del entorno reside fuera del Core.
 
 Ubicación oficial:
 
@@ -86,20 +86,21 @@ Ubicación oficial:
 /etc/f2b-ipset
 ```
 
-El código distribuido nunca contiene parámetros específicos del entorno.
+El código distribuido no debe contener parámetros específicos del entorno.
 
 ---
 
 ## Persistencia
 
-Toda la información necesaria para la toma de decisiones permanece almacenada de forma persistente.
+ARE mantiene de forma persistente la información necesaria para gestionar la reputación, los estados y los eventos.
 
-ARE diferencia claramente entre:
+Se diferencian:
 
-- configuración;
-- reputación;
-- estados;
-- eventos.
+* configuración;
+* reputación;
+* estados;
+* eventos;
+* información asociada al ciclo de sanciones.
 
 ---
 
@@ -107,37 +108,38 @@ ARE diferencia claramente entre:
 
 Los sensores constituyen la capa de observación del sistema.
 
-Su única responsabilidad consiste en transformar eventos externos al formato interno utilizado por ARE.
+Su responsabilidad consiste en transformar eventos externos al formato interno utilizado por ARE.
 
-Los sensores nunca:
+El sensor de Fail2Ban actualmente implementado procesa:
 
-- modifican reputación;
-- cambian estados;
-- aplican bloqueos;
-- ejecutan acciones.
+* `FOUND`;
+* `EXTERNAL_UNBAN`.
 
-Actualmente se implementa:
+El procesamiento del sensor puede ejecutarse en modo de simulación (`--dry-run`) o ejecución (`--execute`).
 
-- Fail2Ban Sensor (`FOUND`).
-
-La arquitectura permite incorporar nuevos sensores sin modificar el núcleo.
+La arquitectura permite incorporar nuevos sensores sin modificar el núcleo de ARE.
 
 ---
 
 # Modelo de decisión
 
-ARE adopta un modelo de decisión basado en riesgo.
+ARE utiliza la reputación y el estado de una dirección IP como entradas para la evaluación de políticas.
 
-Las respuestas no dependen únicamente del tiempo de bloqueo ni del último evento recibido.
+El flujo principal considera:
 
-Cada decisión considera:
+* reputación acumulada;
+* estado actual;
+* política configurada.
 
-- reputación acumulada;
-- estado actual;
-- historial;
-- políticas configuradas.
+El resultado de la evaluación determina la acción que será aplicada.
 
-El resultado puede evolucionar progresivamente conforme cambia el comportamiento observado.
+Las decisiones implementadas incluyen:
+
+* `ALLOW`;
+* `WATCH`;
+* `FILTER`;
+* `TEMP_BAN`;
+* `BAN`.
 
 ---
 
@@ -147,86 +149,79 @@ El resultado puede evolucionar progresivamente conforme cambia el comportamiento
 
 Los sensores reciben eventos desde sistemas externos.
 
-Ejemplos:
+El Sensor Framework transforma los eventos admitidos al flujo interno de ARE.
 
-- Fail2Ban;
-- ModSecurity;
-- SSH;
-- Apache;
-- futuros sensores.
+Actualmente se encuentra implementado el sensor de Fail2Ban.
 
 ---
 
 ## 2. Reputación
 
-Cada evento incrementa la reputación según el perfil configurado.
+Cada evento `FOUND` procesado por el flujo de ARE puede generar una modificación de la reputación de la dirección IP.
 
-Cada perfil define:
+El perfil asociado al jail determina:
 
-- categoría;
-- peso;
-- confianza;
-- decaimiento.
+* peso;
+* confianza;
+* categoría.
+
+La puntuación resultante se incorpora a la reputación persistente de la dirección IP.
 
 ---
 
 ## 3. Estado
 
-El State Engine determina el estado operativo de la dirección IP.
+El State Engine determina el estado operativo de la dirección IP en función de su puntuación.
 
-Estados actuales:
+Estados implementados:
 
-- NEW;
-- WATCH;
-- FILTER;
-- BANNED.
+* `NEW`;
+* `WATCH`;
+* `FILTER`;
+* `BANNED`.
 
 ---
 
 ## 4. Evaluación
 
-El Policy Engine analiza:
+El Policy Engine recibe:
 
-- reputación;
-- estado;
-- historial;
-- políticas.
+* puntuación total;
+* estado actual.
 
-Como resultado genera una decisión.
+A partir de estos valores genera una decisión.
 
 ---
 
 ## 5. Respuesta
 
-Las decisiones disponibles son:
+Las decisiones implementadas son:
 
-- ALLOW;
-- WATCH;
-- FILTER;
-- TEMP_BAN;
-- BAN.
+* `ALLOW`;
+* `WATCH`;
+* `FILTER`;
+* `TEMP_BAN`;
+* `BAN`.
 
-La ejecución corresponde exclusivamente al Firewall Backend.
-
----
-
-## 6. Recuperación
-
-La reputación disminuye progresivamente mediante el mecanismo de decaimiento.
-
-La recuperación nunca elimina automáticamente:
-
-- reputación;
-- historial;
-- eventos.
+La aplicación de estas decisiones corresponde al flujo de Policy Apply y al Backend utilizado por ARE.
 
 ---
 
-## 7. Reevaluación
+## 6. Sanciones temporales
 
-Cada modificación relevante provoca una nueva evaluación del riesgo.
+Cuando la decisión es `TEMP_BAN`, el flujo de aplicación consulta el Ban Lifecycle Engine.
 
-Una dirección IP puede cambiar de estado únicamente como consecuencia de una nueva decisión del Policy Engine.
+El Ban Lifecycle Engine determina el nivel de sanción siguiente y la duración correspondiente según la configuración disponible.
+
+La información del ciclo de sanción se almacena de forma persistente.
+
+---
+
+## 7. Persistencia
+
+La reputación, los estados y los eventos permanecen registrados en SQLite.
+
+La aplicación de una sanción no elimina automáticamente la reputación histórica de la dirección IP.
 
 ---
 
@@ -234,21 +229,15 @@ Una dirección IP puede cambiar de estado únicamente como consecuencia de una n
 
 El Installer Engine constituye un componente independiente de la arquitectura.
 
-Responsabilidades:
+Sus operaciones comprenden:
 
-- instalación;
-- actualización;
-- reparación;
-- validación;
-- desinstalación.
+* instalación;
+* actualización;
+* reparación;
+* validación;
+* desinstalación.
 
-Todas las operaciones reutilizan un único Installer Core.
-
-El Installer protege automáticamente:
-
-- configuración;
-- datos persistentes;
-- historial.
+El Installer Engine utiliza el Manifest del producto como referencia de los componentes administrados por el instalador.
 
 ---
 
@@ -258,9 +247,9 @@ Toda nueva funcionalidad deberá respetar los principios definidos en este docum
 
 La evolución del proyecto deberá favorecer:
 
-- extensión antes que modificación;
-- reutilización antes que duplicación;
-- estabilidad antes que complejidad.
+* extensión antes que modificación;
+* reutilización antes que duplicación;
+* estabilidad antes que complejidad.
 
 ---
 

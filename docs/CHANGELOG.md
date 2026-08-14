@@ -1,18 +1,10 @@
-# Changelog
-
-Todos los cambios relevantes de ARE (Abuse Reputation Engine) se documentan en este archivo.
-
-ARE sigue versionado semántico para versiones estables y ramas de desarrollo controladas.
-
----
-
 # v1.1.0
 
 **Fecha:** 2026-07
 
 ## Resumen
 
-Primera versión enfocada en consolidar el ciclo de vida completo del producto.
+Primera versión enfocada en consolidar el ciclo de vida operativo del producto.
 
 La versión 1.1 incorpora el Installer Engine, el Sensor Framework, la ampliación del modelo de reputación y diversas mejoras arquitectónicas sin modificar el núcleo de decisión de ARE.
 
@@ -22,22 +14,26 @@ La versión 1.1 incorpora el Installer Engine, el Sensor Framework, la ampliaci�
 
 ### Installer Engine
 
-Se incorpora el ciclo de vida completo del producto mediante:
+Se incorpora el Installer Engine con las operaciones:
 
-- install
-- upgrade
-- repair
-- verify
-- uninstall
+* install
+* upgrade
+* repair
+* verify
+* uninstall
 
 Características principales:
 
-- detección automática del estado de instalación;
-- protección de la configuración persistente;
-- actualización segura;
-- reparación automática de instalaciones incompletas;
-- validación final;
-- desinstalación conservando configuración, datos y logs.
+* detección automática del estado de instalación;
+* protección de la configuración persistente;
+* conservación de los datos persistentes;
+* validación de la instalación;
+* desinstalación conservando configuración, datos y logs;
+* reutilización de un Installer Core común entre las operaciones de instalación, actualización y reparación.
+
+Las operaciones `install`, `upgrade` y `repair` requieren que el Core utilizado como fuente sea distinto del directorio de instalación activa.
+
+El mecanismo actual no incorpora generación, descarga, extracción ni staging automático de paquetes externos.
 
 ---
 
@@ -47,7 +43,16 @@ Se incorpora la primera implementación oficial del Sensor Framework.
 
 Sensor disponible:
 
-- Fail2Ban Sensor (`FOUND`)
+* Fail2Ban Sensor
+
+Eventos procesados:
+
+* `FOUND`
+* `EXTERNAL_UNBAN`
+
+El sensor permite procesar eventos nuevos de Fail2Ban mediante un archivo de offset persistente.
+
+El procesamiento puede ejecutarse en modo `--dry-run` o `--execute`.
 
 El framework permite incorporar nuevos sensores sin modificar el núcleo de ARE.
 
@@ -57,23 +62,17 @@ El framework permite incorporar nuevos sensores sin modificar el núcleo de ARE.
 
 Ampliación del modelo de reputación.
 
-Nuevas categorías:
-
-- ANOMALY
-- MALWARE
-- DOS
-- SOCIAL
-
 Categorías soportadas:
 
-- RECON
-- EXPLOIT
-- CREDENTIAL
-- PROTOCOL
-- ANOMALY
-- MALWARE
-- DOS
-- SOCIAL
+* RECON
+* EXPLOIT
+* CREDENTIAL
+* PROTOCOL
+* BOT
+* ANOMALY
+* MALWARE
+* DOS
+* SOCIAL
 
 ---
 
@@ -81,35 +80,35 @@ Categorías soportadas:
 
 Mejoras incorporadas:
 
-- TOP JAILS
-- visualización de todas las categorías
-- mejoras estadísticas
-- separación entre eventos y reputación
-- mejoras operativas
+* TOP JAILS
+* visualización de todas las categorías
+* mejoras estadísticas
+* separación entre eventos y reputación
+* mejoras operativas
 
 ---
 
 ### Manifest del producto
 
-Se incorpora `manifest/product.sh` como definición oficial del paquete.
+Se incorpora `manifest/product.sh` como definición oficial de los componentes administrados por ARE.
 
 Centraliza:
 
-- estructura del producto;
-- archivos;
-- directorios;
-- configuración;
-- servicios;
-- enlaces;
-- ejecutables;
-- exclusiones;
-- componentes persistentes.
+* estructura del producto;
+* archivos;
+* directorios;
+* configuración;
+* servicios;
+* enlaces;
+* ejecutables;
+* exclusiones;
+* componentes persistentes.
 
 ---
 
 ### Installer Manifest
 
-El Installer Engine pasa a utilizar el Manifest como única fuente de información del paquete.
+El Installer Engine utiliza el Manifest como referencia de los componentes administrados por el producto.
 
 Se elimina la duplicación de listas internas.
 
@@ -117,26 +116,25 @@ Se elimina la duplicación de listas internas.
 
 ## Mejoras
 
-- consolidación del ciclo de vida del producto;
-- separación definitiva entre Core y configuración;
-- enlaces oficiales persistentes;
-- instalación idempotente;
-- upgrade seguro;
-- repair reutilizando el mismo Installer Core;
-- validación automática posterior a cada operación.
+* consolidación del ciclo de vida operativo del producto;
+* separación entre Core, configuración y datos persistentes;
+* enlaces oficiales persistentes;
+* conservación de configuración durante las operaciones de mantenimiento;
+* reutilización del Installer Core;
+* validación automática posterior a las operaciones de instalación, actualización y reparación.
 
 ---
 
 ## Correcciones
 
-- corrección del cálculo de `total_score`;
-- corrección de categorías de reputación;
-- reorganización del Dashboard;
-- reorganización del Backend;
-- limpieza del proceso de inicialización;
-- eliminación de duplicaciones del Installer;
-- conservación de configuración durante upgrades;
-- restauración automática de instalaciones incompletas.
+* corrección del cálculo de `total_score`;
+* corrección de categorías de reputación;
+* reorganización del Dashboard;
+* reorganización del Backend;
+* limpieza del proceso de inicialización;
+* eliminación de duplicaciones del Installer;
+* conservación de configuración durante upgrades;
+* manejo de instalaciones incompletas mediante la operación `repair`.
 
 ---
 
@@ -144,11 +142,11 @@ Se elimina la duplicación de listas internas.
 
 La arquitectura permanece basada en:
 
-- Sensor Framework;
-- Reputation Engine;
-- State Engine;
-- Policy Engine;
-- Firewall Backend.
+* Sensor Framework;
+* Reputation Engine;
+* State Engine;
+* Policy Engine;
+* Firewall Backend.
 
 Se incorpora oficialmente el Installer Engine como responsable del ciclo de vida del producto.
 
@@ -156,67 +154,11 @@ Se incorpora oficialmente el Installer Engine como responsable del ciclo de vida
 
 ## Compatibilidad
 
-- Linux
-- SQLite
-- IPSet
-- iptables
-- ip6tables
-- systemd
-- Fail2Ban
-- ModSecurity
-
----
-
-# v1.0.1
-
-**Fecha:** 2026-07-05
-
-## Resumen
-
-Primera actualización de mantenimiento de ARE centrada en estabilizar el núcleo del sistema y completar el ciclo de vida de las direcciones IP.
-
-## Nuevas funcionalidades
-
-- implementación completa del flujo `UNBAN`;
-- integración del Backend con IPSet para eliminación de direcciones IP;
-- reorganización del Policy Engine;
-- centralización de la inicialización del Backend;
-- reorganización de la documentación.
-
-## Correcciones
-
-- incorporación de `handle_unban()`;
-- eliminación de inicializaciones duplicadas del Backend;
-- limpieza y modularización del código.
-
----
-
-# v1.0.0
-
-**Fecha:** 2026-07-05
-
-## Resumen
-
-Primera versión estable de ARE.
-
-## Funcionalidades principales
-
-- Reputation Engine;
-- State Engine;
-- Policy Engine;
-- Firewall Backend;
-- SQLite;
-- Dashboard;
-- integración con Fail2Ban;
-- integración con ModSecurity;
-- soporte IPv4 e IPv6.
-
-## Estado
-
-Primera versión estable utilizada en producción.
-
----
-
-## Licencia
-
-GPL-3.0
+* Linux
+* SQLite
+* IPSet
+* iptables
+* ip6tables
+* systemd
+* Fail2Ban
+* ModSecurity

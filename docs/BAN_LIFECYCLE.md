@@ -1,217 +1,267 @@
-# ARE Ban Lifecycle
+ARE Ban Lifecycle
+Introducción
 
-## Introducción
+El Ban Lifecycle Engine es el componente encargado de calcular la siguiente sanción cuando el Policy Engine determina que corresponde una sanción temporal (TEMP_BAN).
 
-El Ban Lifecycle Engine administra el ciclo de vida de las sanciones aplicadas por ARE.
+Su responsabilidad es determinar el nivel de sanción siguiente a partir del nivel de ban actualmente registrado para una dirección IP y de los tiempos configurados para cada nivel.
 
-Su responsabilidad no consiste en determinar si una dirección IP representa una amenaza. Esa decisión corresponde al flujo formado por el Reputation Engine, State Engine y Policy Engine.
+El Ban Lifecycle Engine no determina si una dirección IP representa una amenaza. Esa responsabilidad corresponde al flujo de reputación, estado y política.
 
-El Ban Lifecycle Engine ejecuta la política decidida por ARE y administra su evolución a lo largo del tiempo.
+Tampoco modifica directamente el firewall. La aplicación de la sanción corresponde a Policy Apply.
 
----
+Objetivo
 
-# Objetivo
+El objetivo del Ban Lifecycle Engine es proporcionar una progresión consistente de las sanciones temporales.
 
-El objetivo del Ban Lifecycle Engine es garantizar que las sanciones evolucionen de forma consistente según el comportamiento histórico observado.
+Para cada solicitud de TEMP_BAN, el motor:
 
-En ARE una sanción representa el resultado de un proceso de decisión y no una respuesta aislada a un único evento.
+Inicializa el registro de sanción de la IP si es necesario.
+Obtiene el nivel de ban actual.
+Incrementa el nivel en uno.
+Determina la duración correspondiente al nuevo nivel.
+Devuelve la sanción calculada.
+Escala a BAN cuando se alcanza el nivel máximo configurado.
+Responsabilidad
 
----
+La función principal del componente es:
 
-# Principios
+ban_lifecycle_calculate()
 
-El ciclo de vida de una sanción se basa en los siguientes principios:
+Recibe:
 
-- la reputación es persistente;
-- las decisiones son acumulativas;
-- las sanciones pueden evolucionar;
-- la reincidencia incrementa el nivel de respuesta;
-- las políticas determinan la duración y el tipo de sanción.
+dirección IP.
 
----
+Utiliza:
 
-# Flujo general
+nivel de ban almacenado en SQLite;
+BAN_LEVEL_MAX;
+tiempos configurados para los niveles de sanción.
 
-```text
-Evento
-    │
-    ▼
-Sensor Framework
-    │
-    ▼
-Reputation Engine
-    │
-    ▼
-State Engine
-    │
-    ▼
+Devuelve una decisión con el formato:
+
+ACCIÓN|TIEMPO|RAZÓN
+
+Ejemplos:
+
+TEMP_BAN|3600|BAN_LEVEL_1
+
+BAN|0|BAN_LEVEL_MAX
+
+Flujo
 Policy Engine
-    │
-    ▼
+      |
+      | TEMP_BAN
+      v
+Policy Apply
+      |
+      v
 Ban Lifecycle Engine
-    │
-    ▼
+      |
+      +--> Obtener ban_level
+      |
+      +--> Incrementar nivel
+      |
+      +--> Comparar con BAN_LEVEL_MAX
+      |
+      +-------------------------+
+      |                         |
+      v                         v
+  Nivel disponible          Nivel máximo
+      |                         |
+      v                         v
+ TEMP_BAN                      BAN
+      |                         |
+      v                         v
+ Tiempo configurado       Escalamiento permanente
+Nivel de sanción
+
+El nivel actual de sanción se obtiene desde la información persistente asociada a la dirección IP.
+
+El siguiente nivel se calcula como:
+
+NEXT_LEVEL = CURRENT_LEVEL + 1
+
+Si no existe un nivel registrado, el nivel actual se considera 0.
+
+Por lo tanto, la primera sanción temporal corresponde al nivel 1.
+
+Niveles temporales
+
+El Ban Lifecycle Engine utiliza los tiempos configurados para los siguientes niveles:
+
+BAN_LEVEL_1_TIME
+BAN_LEVEL_2_TIME
+BAN_LEVEL_3_TIME
+BAN_LEVEL_4_TIME
+BAN_LEVEL_5_TIME
+BAN_LEVEL_6_TIME
+
+El tiempo utilizado para una sanción depende exclusivamente del nivel siguiente calculado y de su configuración correspondiente.
+
+Escalamiento
+
+Antes de seleccionar la duración, el motor comprueba:
+
+NEXT_LEVEL >= BAN_LEVEL_MAX
+
+Cuando esta condición se cumple, el motor devuelve:
+
+BAN|0|BAN_LEVEL_MAX
+
+Esto indica que la sanción debe escalar a un bloqueo permanente.
+
+No se calcula un timeout para esta situación.
+
+TEMP_BAN
+
+Cuando el nivel siguiente no alcanza BAN_LEVEL_MAX, el motor devuelve:
+
+TEMP_BAN|TIME|BAN_LEVEL_N
+
+donde:
+
+TIME es el tiempo configurado para el nivel;
+N es el siguiente nivel de sanción.
+
+Por ejemplo:
+
+TEMP_BAN|3600|BAN_LEVEL_1
+
+representa una sanción temporal correspondiente al nivel 1 con una duración de 3600 segundos.
+
+BAN
+
+Cuando se alcanza el nivel máximo configurado, el Ban Lifecycle Engine devuelve:
+
+BAN|0|BAN_LEVEL_MAX
+
+La aplicación de este resultado corresponde posteriormente a Policy Apply.
+
+El Ban Lifecycle Engine no modifica directamente los conjuntos IPSet ni las reglas de firewall.
+
+Persistencia
+
+El nivel de sanción se mantiene de forma persistente mediante SQLite.
+
+El Ban Lifecycle Engine utiliza la información almacenada para determinar la siguiente sanción.
+
+La reputación y los eventos pertenecen a otros componentes del sistema y no son modificados directamente por este motor.
+
+Relación con Policy Engine
+
+El Policy Engine determina que una dirección IP requiere una sanción mediante la decisión:
+
+TEMP_BAN
+
+Policy Apply recibe esa decisión y solicita al Ban Lifecycle Engine calcular la sanción concreta.
+
+El Ban Lifecycle Engine puede devolver:
+
+TEMP_BAN
+BAN
+
+Por lo tanto, el flujo es:
+
+Policy Engine
+      |
+      v
+TEMP_BAN
+      |
+      v
+Policy Apply
+      |
+      v
+Ban Lifecycle Engine
+      |
+      +--------+
+      |        |
+      v        v
+ TEMP_BAN    BAN
+Relación con Policy Apply
+
+Ban Lifecycle Engine calcula la sanción.
+
+Policy Apply ejecuta el resultado.
+
+Cuando el resultado es TEMP_BAN, Policy Apply:
+
+calcula el momento de expiración;
+incrementa el nivel de ban;
+registra la sanción;
+aplica el timeout al IPSet;
+establece el estado correspondiente.
+
+Cuando el resultado es BAN, Policy Apply:
+
+establece el nivel máximo;
+marca la sanción como permanente;
+elimina contenciones anteriores;
+incorpora la IP al conjunto de ban sin timeout;
+registra el evento;
+establece el estado BANNED.
 Firewall Backend
-    │
-    ▼
-Sistema operativo
-```
 
-Cada componente posee una única responsabilidad.
-
----
-
-# Estados de una dirección IP
-
-El Ban Lifecycle Engine administra la transición entre los estados definidos por el State Engine.
-
-Estados soportados:
-
-- NEW
-- WATCH
-- FILTER
-- BANNED
-
-El Ban Lifecycle Engine nunca modifica directamente la reputación.
-
----
-
-# Decisiones soportadas
-
-El Policy Engine puede generar las siguientes decisiones:
-
-- ALLOW
-- WATCH
-- FILTER
-- TEMP_BAN
-- BAN
-
-El Ban Lifecycle Engine interpreta cada decisión y ejecuta la política correspondiente.
-
----
-
-# ALLOW
-
-No se aplica ninguna sanción.
-
-La reputación permanece registrada.
-
-La dirección IP continúa siendo monitorizada.
-
----
-
-# WATCH
-
-La dirección IP permanece bajo observación.
-
-No se modifica el Firewall.
-
-La reputación continúa evolucionando.
-
----
-
-# FILTER
-
-Se aplican medidas preventivas definidas por la política activa.
-
-La implementación depende del Backend utilizado.
-
----
-
-# TEMP_BAN
-
-Se aplica una sanción temporal.
-
-La duración depende de:
-
-- política;
-- categoría;
-- reputación;
-- reincidencia.
-
-Al finalizar la sanción la dirección IP vuelve a ser evaluada por ARE.
-
-La expiración de un bloqueo no elimina la reputación acumulada.
-
----
-
-# BAN
-
-Se aplica una sanción permanente o de larga duración.
-
-Su eliminación requiere una decisión explícita del administrador o una política específica de recuperación.
-
----
-
-# Reincidencia
-
-La reincidencia constituye uno de los factores considerados por el Policy Engine.
-
-Una dirección IP que acumula múltiples sanciones podrá evolucionar hacia respuestas más restrictivas.
-
-El Ban Lifecycle Engine únicamente ejecuta dicha evolución.
-
----
-
-# Recuperación
-
-Una dirección IP puede abandonar un estado restrictivo únicamente cuando las políticas así lo permitan.
-
-La recuperación nunca implica eliminar automáticamente:
-
-- historial;
-- reputación;
-- eventos registrados.
-
----
-
-# Persistencia
-
-Toda la información necesaria para administrar el ciclo de vida permanece almacenada de forma persistente mediante SQLite.
-
-Entre otros elementos:
-
-- reputación;
-- estados;
-- eventos;
-- historial de sanciones;
-- configuración.
-
----
-
-# Relación con otros motores
-
-El Ban Lifecycle Engine depende de la salida generada por:
-
-- Sensor Framework;
-- Reputation Engine;
-- State Engine;
-- Policy Engine.
-
-Nunca sustituye las responsabilidades de dichos componentes.
-
----
-
-# Firewall Backend
-
-El Ban Lifecycle Engine nunca interactúa directamente con el Firewall.
-
-Toda modificación del sistema operativo se realiza exclusivamente a través del Firewall Backend.
-
-Actualmente:
-
-- IPSet
-- iptables
-- ip6tables
-
-La incorporación de nuevos Backends no modifica el comportamiento del Ban Lifecycle Engine.
-
----
-
-# Filosofía
-
-Las sanciones representan una consecuencia del comportamiento histórico observado y no únicamente del último evento recibido.
-
-ARE prioriza respuestas consistentes, progresivas y basadas en evidencia antes que bloqueos aislados.
-
-La evolución de una dirección IP constituye un proceso continuo administrado por el conjunto formado por el Reputation Engine, State Engine, Policy Engine y Ban Lifecycle Engine.
+El Ban Lifecycle Engine no interactúa directamente con el firewall.
+
+La modificación del sistema operativo corresponde a Policy Apply mediante los mecanismos de backend utilizados por ARE.
+
+En ARE v1.1 estos mecanismos utilizan:
+
+IPSet;
+iptables;
+ip6tables.
+Principios
+
+El Ban Lifecycle Engine mantiene una responsabilidad específica:
+
+calcular la siguiente sanción;
+aplicar la progresión de niveles;
+seleccionar el tiempo configurado;
+determinar cuándo corresponde escalar a BAN.
+
+No es responsable de:
+
+detectar eventos;
+calcular reputación;
+determinar el estado general de la IP;
+decidir inicialmente si corresponde TEMP_BAN;
+modificar directamente el firewall.
+Resumen
+
+El ciclo de una sanción temporal en ARE v1.1 es:
+
+Evento
+   |
+   v
+Reputation Engine
+   |
+   v
+State Engine
+   |
+   v
+Policy Engine
+   |
+   v
+TEMP_BAN
+   |
+   v
+Policy Apply
+   |
+   v
+Ban Lifecycle Engine
+   |
+   +------------------+
+   |                  |
+   v                  v
+TEMP_BAN             BAN
+   |                  |
+   v                  v
+Tiempo configurado   Nivel máximo
+   |                  |
+   +--------+---------+
+            |
+            v
+       Policy Apply
+            |
+            v
+      Firewall Backend

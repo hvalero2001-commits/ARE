@@ -2,223 +2,1187 @@
 
 ## Introducción
 
-Este documento define el modelo de gobierno de ARE (Abuse Reputation Engine).
+Este documento define los principios de gobierno utilizados para la evolución de ARE (Abuse Reputation Engine).
 
-Su objetivo es establecer un proceso claro para la evolución del proyecto, garantizando estabilidad, coherencia arquitectónica y calidad durante todo su ciclo de vida.
-
-El gobierno del proyecto define cómo se toman las decisiones técnicas y cómo evolucionan las distintas versiones de ARE.
+Su objetivo es establecer criterios claros para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia arquitectónica y la documentación sincronizada con el código.
 
 ---
 
 # Principios
 
-Toda decisión deberá respetar los siguientes principios:
+Las decisiones sobre ARE deben respetar los siguientes principios:
 
-- arquitectura antes que implementación;
-- estabilidad antes que nuevas funcionalidades;
-- una responsabilidad por componente;
-- bajo acoplamiento;
-- alta cohesión;
-- documentación sincronizada con el código;
-- evolución incremental.
+* comprender el comportamiento existente antes de modificarlo;
+* arquitectura antes que implementación;
+* estabilidad antes que cambios innecesarios;
+* una responsabilidad por componente;
+* bajo acoplamiento;
+* alta cohesión;
+* reutilización antes que duplicación;
+* documentación sincronizada con el código;
+* evolución incremental;
+* verificación antes de concluir un cambio.
 
-Toda decisión deberá ser consistente con:
+Las decisiones deben ser coherentes con:
 
-- PHILOSOPHY.md
-- ARCHITECTURE.md
-- DESIGN.md
-- DEVELOPMENT.md
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`;
+* `DEVELOPMENT.md`.
 
 ---
 
 # Evolución del proyecto
 
-Toda nueva capacidad seguirá el siguiente proceso.
+Los cambios deben realizarse de forma controlada.
 
-```text
-Idea
- │
- ▼
-Análisis técnico
- │
- ▼
-Clasificación
- │
- ▼
-Actualización del TODO
- │
- ▼
-Diseño
- │
- ▼
+El proceso general es:
+
+```text id="g6l8p4"
+Problema o necesidad
+        │
+        ▼
+Análisis del comportamiento actual
+        │
+        ▼
+Identificación del alcance
+        │
+        ▼
+Diseño del cambio
+        │
+        ▼
 Implementación
- │
- ▼
-Pruebas
- │
- ▼
+        │
+        ▼
+Verificación
+        │
+        ▼
 Actualización documental
- │
- ▼
-Versión estable
+        │
+        ▼
+Commit
 ```
 
-Las modificaciones arquitectónicas nunca deberán implementarse directamente sin análisis previo.
+Las modificaciones que afecten la arquitectura deben analizarse antes de su implementación.
 
 ---
 
-# Clasificación
+# Clasificación de cambios
 
-Toda propuesta deberá clasificarse antes de comenzar.
+Los cambios pueden clasificarse según su naturaleza.
 
 ## BUG
 
-Corrección de un comportamiento incorrecto.
+Corrección de un comportamiento incorrecto existente.
 
 ---
 
 ## TASK
 
-Mantenimiento, reorganización o refactorización.
+Trabajo de mantenimiento, reorganización, documentación o refactorización.
 
 ---
 
 ## FEATURE
 
-Nueva funcionalidad compatible con la arquitectura vigente.
+Incorporación de una nueva funcionalidad.
 
 ---
 
 ## RFC
 
-Propuesta que modifica o amplía la arquitectura del proyecto.
+Documento utilizado cuando sea necesario analizar formalmente una modificación arquitectónica.
 
-Todo RFC deberá aprobarse antes de iniciar su implementación.
+Un cambio arquitectónico debe estar definido y comprendido antes de implementarse.
 
 ---
 
 ## IDEA
 
-Propuesta sin planificación para una versión específica.
+Propuesta que todavía no constituye una implementación definida.
 
-Las ideas no forman parte automáticamente del Roadmap.
-
----
-
-# RFC
-
-Todo RFC deberá documentar al menos:
-
-- objetivo;
-- justificación;
-- impacto;
-- compatibilidad;
-- alternativas;
-- estado.
-
-Estados posibles:
-
-- Draft
-- Accepted
-- Rejected
-- Implemented
+Una idea no representa una funcionalidad implementada.
 
 ---
 
 # Política de versiones
 
-ARE evoluciona mediante versiones incrementales.
+ARE utiliza versiones para identificar estados concretos del proyecto.
 
-## Versiones de mantenimiento
+Las características, correcciones y cambios incluidos en una versión deben estar reflejados en la documentación correspondiente.
 
-```text
-v1.0.x
-```
-
-Correcciones y estabilización.
-
----
-
-## Versiones funcionales
-
-```text
-v1.1.x
-```
-
-Nuevas funcionalidades compatibles con la arquitectura existente.
-
----
-
-## Versiones mayores
-
-```text
-v2.x
-```
-
-Cambios incompatibles o modificaciones arquitectónicas.
+La documentación de una versión debe describir el estado real de esa versión y no funcionalidades futuras.
 
 ---
 
 # Criterios para cerrar una versión
 
-Antes de publicar una versión deberán verificarse:
+Antes de considerar una versión finalizada debe verificarse:
 
-- código funcional;
-- pruebas satisfactorias;
-- documentación actualizada;
-- arquitectura consistente;
-- CHANGELOG actualizado;
-- TODO revisado;
-- ausencia de errores críticos.
+* código correspondiente al estado que se pretende publicar;
+* funcionamiento comprobado;
+* ausencia de modificaciones innecesarias;
+* documentación actualizada;
+* arquitectura coherente con la implementación;
+* CHANGELOG actualizado cuando corresponda;
+* estado del repositorio revisado.
 
-Una versión estable deberá representar un estado coherente del proyecto.
+Una versión debe representar un estado coherente y verificable del proyecto.
 
 ---
 
 # Documentación
 
-La documentación forma parte del gobierno del proyecto.
+La documentación forma parte del proyecto.
 
-Toda modificación relevante deberá actualizar la documentación correspondiente antes de considerarse finalizada.
+Cuando una modificación cambia el comportamiento documentado de ARE, los documentos afectados deben actualizarse.
 
-Ningún cambio importante deberá incorporarse dejando documentación desactualizada.
+La documentación no debe:
+
+* describir funcionalidades inexistentes;
+* presentar planes futuros como funcionalidades actuales;
+* contradecir el comportamiento implementado;
+* conservar información que haya quedado invalidada por un cambio comprobado.
 
 ---
 
 # Calidad
 
-La aceptación de una modificación dependerá de:
+La evaluación de un cambio debe considerar:
 
-- consistencia con la arquitectura;
-- calidad de implementación;
-- simplicidad;
-- reutilización;
-- ausencia de lógica duplicada;
-- impacto sobre el núcleo;
-- cobertura documental.
+* comportamiento correcto;
+* alcance del cambio;
+* consistencia arquitectónica;
+* simplicidad;
+* reutilización de componentes existentes;
+* ausencia de duplicación innecesaria;
+* impacto sobre componentes no involucrados;
+* documentación correspondiente.
 
 ---
 
 # Responsabilidad arquitectónica
 
-La arquitectura oficial del proyecto está definida por:
+La arquitectura del proyecto se encuentra documentada principalmente en:
 
-- PHILOSOPHY.md
-- ARCHITECTURE.md
-- DESIGN.md
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`.
 
-Toda nueva funcionalidad deberá respetar dichos documentos.
+La implementación debe respetar las responsabilidades definidas para los componentes existentes.
 
-Las implementaciones nunca deberán redefinir la arquitectura.
+Una implementación no debe utilizarse para justificar retrospectivamente una arquitectura que no haya sido definida o verificada.
+
+Cuando el comportamiento real difiera de la documentación, primero debe verificarse el comportamiento y posteriormente corregirse la documentación o el código según corresponda.
+
+---
+
+# Cambios y estabilidad
+
+Los cambios deben limitarse al alcance necesario para resolver el objetivo definido.
+
+No deben modificarse componentes no relacionados únicamente para reorganizar, limpiar o anticipar necesidades futuras.
+
+Cuando aparezca un error durante un cambio, debe resolverse y verificarse antes de continuar con cambios dependientes.
 
 ---
 
 # Filosofía
 
-ARE evoluciona mediante mejoras pequeñas, verificables y documentadas.
+ARE debe evolucionar mediante cambios pequeños, verificables y documentados.
 
-Cada versión debe dejar una base más sólida que la anterior.
+La estabilidad del sistema tiene prioridad sobre la incorporación innecesaria de cambios.
 
-Las decisiones técnicas se toman priorizando la estabilidad del proyecto sobre la incorporación acelerada de nuevas funcionalidades.
+Cada versión debe representar un estado que pueda ser comprendido y comprobado a partir del código y de su documentación.
 
-La evolución continua constituye uno de los principios fundamentales del gobierno de ARE.
+El gobierno de ARE tiene como objetivo preservar esa coherencia durante la evolución del proyecto.
+# ARE Governance
+
+## Introducción
+
+Este documento define los principios de gobierno utilizados para la evolución de ARE (Abuse Reputation Engine).
+
+Su objetivo es establecer criterios claros para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia arquitectónica y la documentación sincronizada con el código.
+
+---
+
+# Principios
+
+Las decisiones sobre ARE deben respetar los siguientes principios:
+
+* comprender el comportamiento existente antes de modificarlo;
+* arquitectura antes que implementación;
+* estabilidad antes que cambios innecesarios;
+* una responsabilidad por componente;
+* bajo acoplamiento;
+* alta cohesión;
+* reutilización antes que duplicación;
+* documentación sincronizada con el código;
+* evolución incremental;
+* verificación antes de concluir un cambio.
+
+Las decisiones deben ser coherentes con:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`;
+* `DEVELOPMENT.md`.
+
+---
+
+# Evolución del proyecto
+
+Los cambios deben realizarse de forma controlada.
+
+El proceso general es:
+
+```text id="g6l8p4"
+Problema o necesidad
+        │
+        ▼
+Análisis del comportamiento actual
+        │
+        ▼
+Identificación del alcance
+        │
+        ▼
+Diseño del cambio
+        │
+        ▼
+Implementación
+        │
+        ▼
+Verificación
+        │
+        ▼
+Actualización documental
+        │
+        ▼
+Commit
+```
+
+Las modificaciones que afecten la arquitectura deben analizarse antes de su implementación.
+
+---
+
+# Clasificación de cambios
+
+Los cambios pueden clasificarse según su naturaleza.
+
+## BUG
+
+Corrección de un comportamiento incorrecto existente.
+
+---
+
+## TASK
+
+Trabajo de mantenimiento, reorganización, documentación o refactorización.
+
+---
+
+## FEATURE
+
+Incorporación de una nueva funcionalidad.
+
+---
+
+## RFC
+
+Documento utilizado cuando sea necesario analizar formalmente una modificación arquitectónica.
+
+Un cambio arquitectónico debe estar definido y comprendido antes de implementarse.
+
+---
+
+## IDEA
+
+Propuesta que todavía no constituye una implementación definida.
+
+Una idea no representa una funcionalidad implementada.
+
+---
+
+# Política de versiones
+
+ARE utiliza versiones para identificar estados concretos del proyecto.
+
+Las características, correcciones y cambios incluidos en una versión deben estar reflejados en la documentación correspondiente.
+
+La documentación de una versión debe describir el estado real de esa versión y no funcionalidades futuras.
+
+---
+
+# Criterios para cerrar una versión
+
+Antes de considerar una versión finalizada debe verificarse:
+
+* código correspondiente al estado que se pretende publicar;
+* funcionamiento comprobado;
+* ausencia de modificaciones innecesarias;
+* documentación actualizada;
+* arquitectura coherente con la implementación;
+* CHANGELOG actualizado cuando corresponda;
+* estado del repositorio revisado.
+
+Una versión debe representar un estado coherente y verificable del proyecto.
+
+---
+
+# Documentación
+
+La documentación forma parte del proyecto.
+
+Cuando una modificación cambia el comportamiento documentado de ARE, los documentos afectados deben actualizarse.
+
+La documentación no debe:
+
+* describir funcionalidades inexistentes;
+* presentar planes futuros como funcionalidades actuales;
+* contradecir el comportamiento implementado;
+* conservar información que haya quedado invalidada por un cambio comprobado.
+
+---
+
+# Calidad
+
+La evaluación de un cambio debe considerar:
+
+* comportamiento correcto;
+* alcance del cambio;
+* consistencia arquitectónica;
+* simplicidad;
+* reutilización de componentes existentes;
+* ausencia de duplicación innecesaria;
+* impacto sobre componentes no involucrados;
+* documentación correspondiente.
+
+---
+
+# Responsabilidad arquitectónica
+
+La arquitectura del proyecto se encuentra documentada principalmente en:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`.
+
+La implementación debe respetar las responsabilidades definidas para los componentes existentes.
+
+Una implementación no debe utilizarse para justificar retrospectivamente una arquitectura que no haya sido definida o verificada.
+
+Cuando el comportamiento real difiera de la documentación, primero debe verificarse el comportamiento y posteriormente corregirse la documentación o el código según corresponda.
+
+---
+
+# Cambios y estabilidad
+
+Los cambios deben limitarse al alcance necesario para resolver el objetivo definido.
+
+No deben modificarse componentes no relacionados únicamente para reorganizar, limpiar o anticipar necesidades futuras.
+
+Cuando aparezca un error durante un cambio, debe resolverse y verificarse antes de continuar con cambios dependientes.
+
+---
+
+# Filosofía
+
+ARE debe evolucionar mediante cambios pequeños, verificables y documentados.
+
+La estabilidad del sistema tiene prioridad sobre la incorporación innecesaria de cambios.
+
+Cada versión debe representar un estado que pueda ser comprendido y comprobado a partir del código y de su documentación.
+
+El gobierno de ARE tiene como objetivo preservar esa coherencia durante la evolución del proyecto.
+# ARE Governance
+
+## Introducción
+
+Este documento define los principios de gobierno utilizados para la evolución de ARE (Abuse Reputation Engine).
+
+Su objetivo es establecer criterios claros para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia arquitectónica y la documentación sincronizada con el código.
+
+---
+
+# Principios
+
+Las decisiones sobre ARE deben respetar los siguientes principios:
+
+* comprender el comportamiento existente antes de modificarlo;
+* arquitectura antes que implementación;
+* estabilidad antes que cambios innecesarios;
+* una responsabilidad por componente;
+* bajo acoplamiento;
+* alta cohesión;
+* reutilización antes que duplicación;
+* documentación sincronizada con el código;
+* evolución incremental;
+* verificación antes de concluir un cambio.
+
+Las decisiones deben ser coherentes con:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`;
+* `DEVELOPMENT.md`.
+
+---
+
+# Evolución del proyecto
+
+Los cambios deben realizarse de forma controlada.
+
+El proceso general es:
+
+```text id="g6l8p4"
+Problema o necesidad
+        │
+        ▼
+Análisis del comportamiento actual
+        │
+        ▼
+Identificación del alcance
+        │
+        ▼
+Diseño del cambio
+        │
+        ▼
+Implementación
+        │
+        ▼
+Verificación
+        │
+        ▼
+Actualización documental
+        │
+        ▼
+Commit
+```
+
+Las modificaciones que afecten la arquitectura deben analizarse antes de su implementación.
+
+---
+
+# Clasificación de cambios
+
+Los cambios pueden clasificarse según su naturaleza.
+
+## BUG
+
+Corrección de un comportamiento incorrecto existente.
+
+---
+
+## TASK
+
+Trabajo de mantenimiento, reorganización, documentación o refactorización.
+
+---
+
+## FEATURE
+
+Incorporación de una nueva funcionalidad.
+
+---
+
+## RFC
+
+Documento utilizado cuando sea necesario analizar formalmente una modificación arquitectónica.
+
+Un cambio arquitectónico debe estar definido y comprendido antes de implementarse.
+
+---
+
+## IDEA
+
+Propuesta que todavía no constituye una implementación definida.
+
+Una idea no representa una funcionalidad implementada.
+
+---
+
+# Política de versiones
+
+ARE utiliza versiones para identificar estados concretos del proyecto.
+
+Las características, correcciones y cambios incluidos en una versión deben estar reflejados en la documentación correspondiente.
+
+La documentación de una versión debe describir el estado real de esa versión y no funcionalidades futuras.
+
+---
+
+# Criterios para cerrar una versión
+
+Antes de considerar una versión finalizada debe verificarse:
+
+* código correspondiente al estado que se pretende publicar;
+* funcionamiento comprobado;
+* ausencia de modificaciones innecesarias;
+* documentación actualizada;
+* arquitectura coherente con la implementación;
+* CHANGELOG actualizado cuando corresponda;
+* estado del repositorio revisado.
+
+Una versión debe representar un estado coherente y verificable del proyecto.
+
+---
+
+# Documentación
+
+La documentación forma parte del proyecto.
+
+Cuando una modificación cambia el comportamiento documentado de ARE, los documentos afectados deben actualizarse.
+
+La documentación no debe:
+
+* describir funcionalidades inexistentes;
+* presentar planes futuros como funcionalidades actuales;
+* contradecir el comportamiento implementado;
+* conservar información que haya quedado invalidada por un cambio comprobado.
+
+---
+
+# Calidad
+
+La evaluación de un cambio debe considerar:
+
+* comportamiento correcto;
+* alcance del cambio;
+* consistencia arquitectónica;
+* simplicidad;
+* reutilización de componentes existentes;
+* ausencia de duplicación innecesaria;
+* impacto sobre componentes no involucrados;
+* documentación correspondiente.
+
+---
+
+# Responsabilidad arquitectónica
+
+La arquitectura del proyecto se encuentra documentada principalmente en:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`.
+
+La implementación debe respetar las responsabilidades definidas para los componentes existentes.
+
+Una implementación no debe utilizarse para justificar retrospectivamente una arquitectura que no haya sido definida o verificada.
+
+Cuando el comportamiento real difiera de la documentación, primero debe verificarse el comportamiento y posteriormente corregirse la documentación o el código según corresponda.
+
+---
+
+# Cambios y estabilidad
+
+Los cambios deben limitarse al alcance necesario para resolver el objetivo definido.
+
+No deben modificarse componentes no relacionados únicamente para reorganizar, limpiar o anticipar necesidades futuras.
+
+Cuando aparezca un error durante un cambio, debe resolverse y verificarse antes de continuar con cambios dependientes.
+
+---
+
+# Filosofía
+
+ARE debe evolucionar mediante cambios pequeños, verificables y documentados.
+
+La estabilidad del sistema tiene prioridad sobre la incorporación innecesaria de cambios.
+
+Cada versión debe representar un estado que pueda ser comprendido y comprobado a partir del código y de su documentación.
+
+El gobierno de ARE tiene como objetivo preservar esa coherencia durante la evolución del proyecto.
+# ARE Governance
+
+## Introducción
+
+Este documento define los principios de gobierno utilizados para la evolución de ARE (Abuse Reputation Engine).
+
+Su objetivo es establecer criterios claros para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia arquitectónica y la documentación sincronizada con el código.
+
+---
+
+# Principios
+
+Las decisiones sobre ARE deben respetar los siguientes principios:
+
+* comprender el comportamiento existente antes de modificarlo;
+* arquitectura antes que implementación;
+* estabilidad antes que cambios innecesarios;
+* una responsabilidad por componente;
+* bajo acoplamiento;
+* alta cohesión;
+* reutilización antes que duplicación;
+* documentación sincronizada con el código;
+* evolución incremental;
+* verificación antes de concluir un cambio.
+
+Las decisiones deben ser coherentes con:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`;
+* `DEVELOPMENT.md`.
+
+---
+
+# Evolución del proyecto
+
+Los cambios deben realizarse de forma controlada.
+
+El proceso general es:
+
+```text id="g6l8p4"
+Problema o necesidad
+        │
+        ▼
+Análisis del comportamiento actual
+        │
+        ▼
+Identificación del alcance
+        │
+        ▼
+Diseño del cambio
+        │
+        ▼
+Implementación
+        │
+        ▼
+Verificación
+        │
+        ▼
+Actualización documental
+        │
+        ▼
+Commit
+```
+
+Las modificaciones que afecten la arquitectura deben analizarse antes de su implementación.
+
+---
+
+# Clasificación de cambios
+
+Los cambios pueden clasificarse según su naturaleza.
+
+## BUG
+
+Corrección de un comportamiento incorrecto existente.
+
+---
+
+## TASK
+
+Trabajo de mantenimiento, reorganización, documentación o refactorización.
+
+---
+
+## FEATURE
+
+Incorporación de una nueva funcionalidad.
+
+---
+
+## RFC
+
+Documento utilizado cuando sea necesario analizar formalmente una modificación arquitectónica.
+
+Un cambio arquitectónico debe estar definido y comprendido antes de implementarse.
+
+---
+
+## IDEA
+
+Propuesta que todavía no constituye una implementación definida.
+
+Una idea no representa una funcionalidad implementada.
+
+---
+
+# Política de versiones
+
+ARE utiliza versiones para identificar estados concretos del proyecto.
+
+Las características, correcciones y cambios incluidos en una versión deben estar reflejados en la documentación correspondiente.
+
+La documentación de una versión debe describir el estado real de esa versión y no funcionalidades futuras.
+
+---
+
+# Criterios para cerrar una versión
+
+Antes de considerar una versión finalizada debe verificarse:
+
+* código correspondiente al estado que se pretende publicar;
+* funcionamiento comprobado;
+* ausencia de modificaciones innecesarias;
+* documentación actualizada;
+* arquitectura coherente con la implementación;
+* CHANGELOG actualizado cuando corresponda;
+* estado del repositorio revisado.
+
+Una versión debe representar un estado coherente y verificable del proyecto.
+
+---
+
+# Documentación
+
+La documentación forma parte del proyecto.
+
+Cuando una modificación cambia el comportamiento documentado de ARE, los documentos afectados deben actualizarse.
+
+La documentación no debe:
+
+* describir funcionalidades inexistentes;
+* presentar planes futuros como funcionalidades actuales;
+* contradecir el comportamiento implementado;
+* conservar información que haya quedado invalidada por un cambio comprobado.
+
+---
+
+# Calidad
+
+La evaluación de un cambio debe considerar:
+
+* comportamiento correcto;
+* alcance del cambio;
+* consistencia arquitectónica;
+* simplicidad;
+* reutilización de componentes existentes;
+* ausencia de duplicación innecesaria;
+* impacto sobre componentes no involucrados;
+* documentación correspondiente.
+
+---
+
+# Responsabilidad arquitectónica
+
+La arquitectura del proyecto se encuentra documentada principalmente en:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`.
+
+La implementación debe respetar las responsabilidades definidas para los componentes existentes.
+
+Una implementación no debe utilizarse para justificar retrospectivamente una arquitectura que no haya sido definida o verificada.
+
+Cuando el comportamiento real difiera de la documentación, primero debe verificarse el comportamiento y posteriormente corregirse la documentación o el código según corresponda.
+
+---
+
+# Cambios y estabilidad
+
+Los cambios deben limitarse al alcance necesario para resolver el objetivo definido.
+
+No deben modificarse componentes no relacionados únicamente para reorganizar, limpiar o anticipar necesidades futuras.
+
+Cuando aparezca un error durante un cambio, debe resolverse y verificarse antes de continuar con cambios dependientes.
+
+---
+
+# Filosofía
+
+ARE debe evolucionar mediante cambios pequeños, verificables y documentados.
+
+La estabilidad del sistema tiene prioridad sobre la incorporación innecesaria de cambios.
+
+Cada versión debe representar un estado que pueda ser comprendido y comprobado a partir del código y de su documentación.
+
+El gobierno de ARE tiene como objetivo preservar esa coherencia durante la evolución del proyecto.
+# ARE Governance
+
+## Introducción
+
+Este documento define los principios de gobierno utilizados para la evolución de ARE (Abuse Reputation Engine).
+
+Su objetivo es establecer criterios claros para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia arquitectónica y la documentación sincronizada con el código.
+
+---
+
+# Principios
+
+Las decisiones sobre ARE deben respetar los siguientes principios:
+
+* comprender el comportamiento existente antes de modificarlo;
+* arquitectura antes que implementación;
+* estabilidad antes que cambios innecesarios;
+* una responsabilidad por componente;
+* bajo acoplamiento;
+* alta cohesión;
+* reutilización antes que duplicación;
+* documentación sincronizada con el código;
+* evolución incremental;
+* verificación antes de concluir un cambio.
+
+Las decisiones deben ser coherentes con:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`;
+* `DEVELOPMENT.md`.
+
+---
+
+# Evolución del proyecto
+
+Los cambios deben realizarse de forma controlada.
+
+El proceso general es:
+
+```text id="g6l8p4"
+Problema o necesidad
+        │
+        ▼
+Análisis del comportamiento actual
+        │
+        ▼
+Identificación del alcance
+        │
+        ▼
+Diseño del cambio
+        │
+        ▼
+Implementación
+        │
+        ▼
+Verificación
+        │
+        ▼
+Actualización documental
+        │
+        ▼
+Commit
+```
+
+Las modificaciones que afecten la arquitectura deben analizarse antes de su implementación.
+
+---
+
+# Clasificación de cambios
+
+Los cambios pueden clasificarse según su naturaleza.
+
+## BUG
+
+Corrección de un comportamiento incorrecto existente.
+
+---
+
+## TASK
+
+Trabajo de mantenimiento, reorganización, documentación o refactorización.
+
+---
+
+## FEATURE
+
+Incorporación de una nueva funcionalidad.
+
+---
+
+## RFC
+
+Documento utilizado cuando sea necesario analizar formalmente una modificación arquitectónica.
+
+Un cambio arquitectónico debe estar definido y comprendido antes de implementarse.
+
+---
+
+## IDEA
+
+Propuesta que todavía no constituye una implementación definida.
+
+Una idea no representa una funcionalidad implementada.
+
+---
+
+# Política de versiones
+
+ARE utiliza versiones para identificar estados concretos del proyecto.
+
+Las características, correcciones y cambios incluidos en una versión deben estar reflejados en la documentación correspondiente.
+
+La documentación de una versión debe describir el estado real de esa versión y no funcionalidades futuras.
+
+---
+
+# Criterios para cerrar una versión
+
+Antes de considerar una versión finalizada debe verificarse:
+
+* código correspondiente al estado que se pretende publicar;
+* funcionamiento comprobado;
+* ausencia de modificaciones innecesarias;
+* documentación actualizada;
+* arquitectura coherente con la implementación;
+* CHANGELOG actualizado cuando corresponda;
+* estado del repositorio revisado.
+
+Una versión debe representar un estado coherente y verificable del proyecto.
+
+---
+
+# Documentación
+
+La documentación forma parte del proyecto.
+
+Cuando una modificación cambia el comportamiento documentado de ARE, los documentos afectados deben actualizarse.
+
+La documentación no debe:
+
+* describir funcionalidades inexistentes;
+* presentar planes futuros como funcionalidades actuales;
+* contradecir el comportamiento implementado;
+* conservar información que haya quedado invalidada por un cambio comprobado.
+
+---
+
+# Calidad
+
+La evaluación de un cambio debe considerar:
+
+* comportamiento correcto;
+* alcance del cambio;
+* consistencia arquitectónica;
+* simplicidad;
+* reutilización de componentes existentes;
+* ausencia de duplicación innecesaria;
+* impacto sobre componentes no involucrados;
+* documentación correspondiente.
+
+---
+
+# Responsabilidad arquitectónica
+
+La arquitectura del proyecto se encuentra documentada principalmente en:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`.
+
+La implementación debe respetar las responsabilidades definidas para los componentes existentes.
+
+Una implementación no debe utilizarse para justificar retrospectivamente una arquitectura que no haya sido definida o verificada.
+
+Cuando el comportamiento real difiera de la documentación, primero debe verificarse el comportamiento y posteriormente corregirse la documentación o el código según corresponda.
+
+---
+
+# Cambios y estabilidad
+
+Los cambios deben limitarse al alcance necesario para resolver el objetivo definido.
+
+No deben modificarse componentes no relacionados únicamente para reorganizar, limpiar o anticipar necesidades futuras.
+
+Cuando aparezca un error durante un cambio, debe resolverse y verificarse antes de continuar con cambios dependientes.
+
+---
+
+# Filosofía
+
+ARE debe evolucionar mediante cambios pequeños, verificables y documentados.
+
+La estabilidad del sistema tiene prioridad sobre la incorporación innecesaria de cambios.
+
+Cada versión debe representar un estado que pueda ser comprendido y comprobado a partir del código y de su documentación.
+
+El gobierno de ARE tiene como objetivo preservar esa coherencia durante la evolución del proyecto.
+# ARE Governance
+
+## Introducción
+
+Este documento define los principios de gobierno utilizados para la evolución de ARE (Abuse Reputation Engine).
+
+Su objetivo es establecer criterios claros para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia arquitectónica y la documentación sincronizada con el código.
+
+---
+
+# Principios
+
+Las decisiones sobre ARE deben respetar los siguientes principios:
+
+* comprender el comportamiento existente antes de modificarlo;
+* arquitectura antes que implementación;
+* estabilidad antes que cambios innecesarios;
+* una responsabilidad por componente;
+* bajo acoplamiento;
+* alta cohesión;
+* reutilización antes que duplicación;
+* documentación sincronizada con el código;
+* evolución incremental;
+* verificación antes de concluir un cambio.
+
+Las decisiones deben ser coherentes con:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`;
+* `DEVELOPMENT.md`.
+
+---
+
+# Evolución del proyecto
+
+Los cambios deben realizarse de forma controlada.
+
+El proceso general es:
+
+```text id="g6l8p4"
+Problema o necesidad
+        │
+        ▼
+Análisis del comportamiento actual
+        │
+        ▼
+Identificación del alcance
+        │
+        ▼
+Diseño del cambio
+        │
+        ▼
+Implementación
+        │
+        ▼
+Verificación
+        │
+        ▼
+Actualización documental
+        │
+        ▼
+Commit
+```
+
+Las modificaciones que afecten la arquitectura deben analizarse antes de su implementación.
+
+---
+
+# Clasificación de cambios
+
+Los cambios pueden clasificarse según su naturaleza.
+
+## BUG
+
+Corrección de un comportamiento incorrecto existente.
+
+---
+
+## TASK
+
+Trabajo de mantenimiento, reorganización, documentación o refactorización.
+
+---
+
+## FEATURE
+
+Incorporación de una nueva funcionalidad.
+
+---
+
+## RFC
+
+Documento utilizado cuando sea necesario analizar formalmente una modificación arquitectónica.
+
+Un cambio arquitectónico debe estar definido y comprendido antes de implementarse.
+
+---
+
+## IDEA
+
+Propuesta que todavía no constituye una implementación definida.
+
+Una idea no representa una funcionalidad implementada.
+
+---
+
+# Política de versiones
+
+ARE utiliza versiones para identificar estados concretos del proyecto.
+
+Las características, correcciones y cambios incluidos en una versión deben estar reflejados en la documentación correspondiente.
+
+La documentación de una versión debe describir el estado real de esa versión y no funcionalidades futuras.
+
+---
+
+# Criterios para cerrar una versión
+
+Antes de considerar una versión finalizada debe verificarse:
+
+* código correspondiente al estado que se pretende publicar;
+* funcionamiento comprobado;
+* ausencia de modificaciones innecesarias;
+* documentación actualizada;
+* arquitectura coherente con la implementación;
+* CHANGELOG actualizado cuando corresponda;
+* estado del repositorio revisado.
+
+Una versión debe representar un estado coherente y verificable del proyecto.
+
+---
+
+# Documentación
+
+La documentación forma parte del proyecto.
+
+Cuando una modificación cambia el comportamiento documentado de ARE, los documentos afectados deben actualizarse.
+
+La documentación no debe:
+
+* describir funcionalidades inexistentes;
+* presentar planes futuros como funcionalidades actuales;
+* contradecir el comportamiento implementado;
+* conservar información que haya quedado invalidada por un cambio comprobado.
+
+---
+
+# Calidad
+
+La evaluación de un cambio debe considerar:
+
+* comportamiento correcto;
+* alcance del cambio;
+* consistencia arquitectónica;
+* simplicidad;
+* reutilización de componentes existentes;
+* ausencia de duplicación innecesaria;
+* impacto sobre componentes no involucrados;
+* documentación correspondiente.
+
+---
+
+# Responsabilidad arquitectónica
+
+La arquitectura del proyecto se encuentra documentada principalmente en:
+
+* `PHILOSOPHY.md`;
+* `ARCHITECTURE.md`;
+* `DESIGN.md`.
+
+La implementación debe respetar las responsabilidades definidas para los componentes existentes.
+
+Una implementación no debe utilizarse para justificar retrospectivamente una arquitectura que no haya sido definida o verificada.
+
+Cuando el comportamiento real difiera de la documentación, primero debe verificarse el comportamiento y posteriormente corregirse la documentación o el código según corresponda.
+
+---
+
+# Cambios y estabilidad
+
+Los cambios deben limitarse al alcance necesario para resolver el objetivo definido.
+
+No deben modificarse componentes no relacionados únicamente para reorganizar, limpiar o anticipar necesidades futuras.
+
+Cuando aparezca un error durante un cambio, debe resolverse y verificarse antes de continuar con cambios dependientes.
+
+---
+
+# Filosofía
+
+ARE debe evolucionar mediante cambios pequeños, verificables y documentados.
+
+La estabilidad del sistema tiene prioridad sobre la incorporación innecesaria de cambios.
+
+Cada versión debe representar un estado que pueda ser comprendido y comprobado a partir del código y de su documentación.
+
+El gobierno de ARE tiene como objetivo preservar esa coherencia durante la evolución del proyecto.
