@@ -63,6 +63,11 @@ handle_found() {
     local ip="$IP"
     local jail="$JAIL"
 
+    if is_whitelisted "$ip"; then
+        INFO "IP whitelistada: $ip"
+        return 0
+    fi
+
     INFO "FOUND recibido: $ip desde $jail"
 
     db_init_reputation "$ip"
@@ -144,6 +149,11 @@ handle_external_unban() {
     local ip="$IP"
     local jail="$JAIL"
 
+    if is_whitelisted "$ip"; then
+        INFO "IP whitelistada: $ip"
+        return 0
+    fi
+
     [ -z "$jail" ] && jail="fail2ban"
 
     INFO "UNBAN externo recibido para $ip desde $jail"
@@ -173,6 +183,11 @@ handle_ban() {
 
     local ip="$IP"
     local jail="$JAIL"
+
+    if is_whitelisted "$ip"; then
+        INFO "IP whitelistada: $ip"
+        return 0
+    fi
 
     INFO "Evento recibido: $ip desde $jail"
 

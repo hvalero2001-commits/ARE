@@ -17,6 +17,7 @@ source "$BASE/policy/context_api.sh"
 
 #TOOL
 source "$BASE/net_utils.sh"
+source "$BASE/policy/whitelist.sh"
 
 # RISK + DECISION
 source "$BASE/policy/risk.sh"

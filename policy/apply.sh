@@ -13,6 +13,15 @@ policy_apply() {
     local TIMEOUT="$3"
     local REASON="$4"
 
+    if is_whitelisted "$IP"; then
+        case "$ACTION" in
+            BAN|TEMP_BAN|FILTER)
+            INFO "[APPLY] IP whitelistada: $IP - sanción bloqueada"
+                return 0
+                ;;
+        esac
+    fi
+
     INFO "[APPLY] RECEIVED DECISION"
     INFO "[APPLY] IP............. $IP"
     INFO "[APPLY] ACTION......... $ACTION"

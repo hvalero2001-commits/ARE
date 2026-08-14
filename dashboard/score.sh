@@ -14,20 +14,34 @@
 dashboard_score() {
 
     local IP="$1"
+    local WHITELISTED=0
 
     if [ -z "$IP" ]; then
         ERROR "Uso: score <IP>"
         return 1
     fi
 
-    db_init_reputation "$IP"
+    if is_whitelisted "$IP"; then
+        WHITELISTED=1
+    fi
 
-    # Obtener reputación
+    # Obtener reputación sin crear registros para IPs whitelistadas
     local REP
-    REP=$(db_get_reputation "$IP")
+
+    if [ "$WHITELISTED" -eq 1 ]; then
+        REP=$(db_get_reputation "$IP")
+    else
+        db_init_reputation "$IP"
+        REP=$(db_get_reputation "$IP")
+    fi
 
     local SANCTION
+
     SANCTION=$(db_get_sanction "$IP")
+
+    if [ -z "$SANCTION" ]; then
+        SANCTION="0|0|0|0|0|0|0"
+    fi
 
     local ban_level ban_count ban_until permanent last_ban last_unban
 
@@ -39,10 +53,22 @@ dashboard_score() {
     last_unban=$(echo "$SANCTION" | cut -d'|' -f6)
 
     if [ -z "$REP" ]; then
+        if [ "$WHITELISTED" -eq 1 ]; then
+            echo "=================================================="
+            echo "ARE - REPUTATION DASHBOARD"
+            echo "=================================================="
+                echo ""
+            echo "IP.................... $IP"
+            echo "Estado................ WHITELIST"
+            echo "Reputación............ Sin datos"
+            echo ""
+            echo "=================================================="
+            return 0
+        fi
         WARN "IP sin datos: $IP"
         return 0
     fi
-   
+
     local recon exploit credential protocol bot anomaly malware dos social total updated
 
     recon=$(echo "$REP" | cut -d'|' -f1)
@@ -69,6 +95,10 @@ dashboard_score() {
     echo ""
     echo "IP.................... $IP"
     echo ""
+    if [ "$WHITELISTED" -eq 1 ]; then
+        echo "Estado................ WHITELIST"
+        echo ""
+    fi
     echo "Recon................. $recon"
     echo "Exploit............... $exploit"
     echo "Credential............ $credential"
