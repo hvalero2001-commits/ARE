@@ -1,5 +1,4 @@
 #!/bin/bash
-#!/bin/bash
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
@@ -40,6 +39,7 @@ do
             ACTION="FOUND"
             JAIL=$(echo "$LINE" | sed -n 's/.*\[\([^]]*\)\] Found .*/\1/p')
             IP=$(echo "$LINE" | sed -n 's/.* Found \([^ ]*\) .*/\1/p')
+            IP="${IP%,}"
         ;;
 
         *" NOTICE  ["*" Unban "*)
