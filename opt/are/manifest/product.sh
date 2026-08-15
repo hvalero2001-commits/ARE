@@ -18,13 +18,13 @@ PRODUCT_LICENSE="GPL-3.0"
 # Installation Layout
 ##################################################
 
-PRODUCT_HOME="/opt/are-install-target/opt/are"
+PRODUCT_HOME="opt/are"
 PRODUCT_CONFIG="$PRODUCT_HOME/config"
-PRODUCT_DATA="/opt/are-install-target/var/lib/are"
-PRODUCT_SYSTEMD="/opt/are-install-target/etc/systemd/system"
-PRODUCT_BIN="/opt/are-install-target/usr/local/sbin"
-PRODUCT_LOG="/opt/are-install-target/var/log/are"
-PRODUCT_LOGROTATE="/opt/are-install-target/etc/logrotate.d"
+PRODUCT_DATA="var/lib/are"
+PRODUCT_SYSTEMD="etc/systemd/system"
+PRODUCT_BIN="usr/local/sbin"
+PRODUCT_LOG="var/log/are"
+PRODUCT_LOGROTATE="etc/logrotate.d"
 
 ##################################################
 # Core Directories

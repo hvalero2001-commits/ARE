@@ -5,3 +5,6 @@ tmp/
 cache/
 config.conf
 
+etc/
+usr/
+var/

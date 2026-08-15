@@ -9,7 +9,7 @@
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-CONFIG="$SCRIPT_DIR/config.conf"
+CONFIG="$SCRIPT_DIR/config/config.conf"
 
 if [ ! -f "$CONFIG" ]; then
     echo "ERROR: Configuración no encontrada: $CONFIG"
