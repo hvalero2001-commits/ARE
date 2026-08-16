@@ -1,10 +1,8 @@
 # ARE TODO
 
-Este documento mantiene el registro de trabajo y evolución técnica de ARE (Abuse Reputation Engine).
+Este documento mantiene el registro de trabajo activo del proyecto.
 
-El documento conserva tanto el historial técnico relevante como el trabajo pendiente. Las tareas resueltas permanecen documentadas cuando contienen decisiones, fases, validaciones o información útil para comprender la evolución del proyecto.
-
-Se organiza en:
+Se divide en:
 
 * Bugs
 * Tasks
@@ -15,6 +13,16 @@ Se organiza en:
 ---
 
 # BUGS
+###### ########################################
+## BUG-001
+
+**Título:** Implementar `handle_unban()`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.0.1
+
+---
 
 ## BUG-002
 
@@ -26,224 +34,209 @@ Se organiza en:
 
 **Descripción**
 
-Continuar validando durante la operación en producción que todas las acciones generadas por Fail2Ban sean procesadas correctamente por ARE.
+Continuar validando durante operación en producción que todas las acciones generadas por Fail2Ban sean procesadas correctamente por ARE.
 
-El objetivo es garantizar que la transición entre los eventos generados por Fail2Ban y las decisiones ejecutadas por ARE permanezca sincronizada.
+---
+
+## BUG-005
+
+**Título:** Inicialización duplicada del backend
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Descripción**
+
+Se eliminó la doble inicialización de IPSet y Firewall centralizando el proceso en `backend/init.sh`.
+
+---
+
+## BUG-006
+
+**Título:** La categoría ANOMALY no se refleja en las estadísticas
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Media
+
+**Descripción**
+
+La categoría ANOMALY ya es utilizada por el Policy Engine y los perfiles de jail, pero actualmente no existe dentro del modelo de reputación persistente (`reputation`).
+
+Como consecuencia, el Dashboard no puede mostrar estadísticas correctas de dicha categoría.
+
+**Impacto**
+
+* Dashboard incompleto.
+* Estadísticas inconsistentes.
+* Categorías del motor y del Dashboard no coinciden.
+
+**Validación**
+
+* `stats` muestra `Anomaly`.
+* `score <ip>` muestra `Anomaly`.
+* `FOUND modsec-anomaly` suma correctamente al total.
+
+---
+
+## BUG-007
+
+**Título:** ARE no procesa correctamente eventos BAN/UNBAN provenientes de Fail2Ban
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+Se detectó que ARE procesa correctamente eventos `FOUND` mediante el sensor Fail2Ban, pero algunos eventos `BAN` y `UNBAN` generados por Fail2Ban no quedan registrados en el historial de ARE.
+
+**Evidencia**
+
+Fail2Ban registra eventos `Unban`, pero al consultar `events <IP>` no aparece información asociada en ARE.
+
+**Impacto**
+
+* El ciclo completo `FOUND → BAN → UNBAN` puede quedar incompleto.
+* El historial de reputación puede no reflejar correctamente la actividad real.
+* ARE depende parcialmente de que la acción directa de Fail2Ban ejecute correctamente `ban/unban`.
+
+**Hipótesis inicial**
+
+Actualmente existe un sensor para eventos `FOUND`, pero no existe un sensor equivalente para eventos `BAN` y `UNBAN` leídos desde el log de Fail2Ban.
+
+**Archivos relacionados**
+
+* `sensors/fail2ban_found.sh`
+* `/etc/fail2ban/action.d/ipset-smart.conf`
+* `f2b-ipset.sh`
+* `database.sh`
+
+**Validación**
+
+* El sensor Fail2Ban unificado procesa eventos `FOUND`.
+* El sensor Fail2Ban unificado procesa eventos `UNBAN`.
+* Los eventos `UNBAN` externos se registran como `EXTERNAL_UNBAN`.
+* `EXTERNAL_UNBAN` no libera directamente la IP.
+* ARE reevalúa la IP mediante el Policy Engine.
+* Validado en producción con IP `103.59.161.151`
+
+---
+
+## BUG-008
+
+**Título:** Incoherencia entre State Engine y Policy Engine para estado FILTER
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+Durante la ejecución del Decay Engine se detectó que algunas IP quedan con `STATUS=NEW`, pero el Policy Engine devuelve `FILTER` como decisión para `LOW_RISK`.
+
+**Evidencia**
+
+```text
+SCORE=23->21 STATUS=NEW POLICY=FILTER REASON=LOW_RISK
+```
+
+**Validación**
+
+* Se corrigió `state_update()` para reconocer `FILTER`.
+* El Decay Engine ya no muestra incoherencias `STATUS=NEW POLICY=FILTER`.
+* Validado con `decay-apply`.
+
+---
+
+## BUG-009
+
+**Título:** `policy/apply.sh` no implementa la acción FILTER
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+El Policy Engine devuelve correctamente `FILTER` para IPs con riesgo bajo, pero `policy/apply.sh` no posee un bloque para procesar dicha acción.
+
+**Evidencia**
+
+```text
+Policy decision: FILTER (LOW_RISK)
+[APPLY] UNKNOWN ACTION: FILTER
+```
+
+**Validación**
+
+* Se agregó soporte para la acción `FILTER` en `policy/apply.sh`.
+* IPv4 utiliza `FILTER_SET4`.
+* IPv6 utiliza `FILTER_SET6`.
+* `BAN` y `TEMP_BAN` utilizan sus respectivos conjuntos de bloqueo.
+* Validado con IP `87.87.87.87`.
+* La IP fue incorporada correctamente a `are-filter`.
+* El evento `FILTER` quedó registrado.
+
+---
+
+## BUG-010
+
+**Título:** Ban Lifecycle no reconoce escalado permanente por salida multilínea
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Descripción**
+
+El Ban Lifecycle Engine devuelve `BAN|0|BAN_LEVEL_MAX`, pero `policy/apply.sh` no entra en la rama de escalado permanente.
+
+**Evidencia**
+
+```text
+[APPLY] Ban Lifecycle:
+BAN|0|BAN_LEVEL_MAX
+
+[APPLY] EXECUTE: TEMP BAN (0 sec)
+```
+
+**Validación**
+
+* Se normalizó la salida de `ban_lifecycle_calculate()`.
+* `policy/apply.sh` reconoce correctamente `BAN|0|BAN_LEVEL_MAX`.
+* La escalada permanente se ejecuta correctamente.
 
 ---
 
 # TASKS
-
-## TASK-013
-
-**Título:** Consolidación y limpieza de documentación técnica
-
-**Estado:** En progreso
-
-**Prioridad:** Alta
-
-**Objetivo**
-
-Revisar y normalizar la documentación oficial de ARE para garantizar que refleje el estado real del proyecto y conserve la trazabilidad técnica de su evolución.
-
-**Alcance**
-
-* corregir estados históricos;
-* eliminar contradicciones entre documentos;
-* conservar decisiones y validaciones relevantes;
-* sincronizar versiones;
-* separar trabajo histórico de trabajo pendiente;
-* mantener la documentación técnica de las fases de implementación;
-* evitar pérdida de información durante futuras reorganizaciones documentales.
-
-**Documentos relacionados**
-
-* `docs/PHILOSOPHY.md`
-* `docs/PROJECT.md`
-* `docs/ROADMAP.md`
-* `docs/SECURITY.md`
-* `docs/TODO.md`
-* `docs/CHANGELOG.md`
-
----
-
-# FEATURES
-
-## FEAT-001
-
-**Título:** Sensor Fail2Ban
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Implementado**
-
-* Evento `FOUND`.
-* Sensor Fail2Ban.
-* Cursor persistente.
-* Modo `--dry-run`.
-* Modo `--execute`.
-* Ejecución automática mediante systemd timer.
-* Registro en SQLite.
-* Integración con Policy Engine.
-* Validación en producción.
-
-**Evolución**
-
-El sensor fue incorporado como primera implementación del Sensor Framework.
-
-El procesamiento utiliza un offset persistente para evitar reprocesar eventos ya procesados.
-
-El framework permite incorporar nuevos sensores sin modificar el núcleo de ARE.
-
-**Pendiente histórico**
-
-Quedan registradas como parte de la evolución del sensor las tareas de limpieza y normalización de configuración que fueron identificadas durante su desarrollo. Estas tareas deberán considerarse únicamente si todavía existen dependencias en la implementación actual.
-
----
-
-## FEAT-003
-
-**Título:** Mostrar TOP JAILS en `stats`
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Objetivo**
-
-Mostrar en el dashboard estadístico cuáles jails generan mayor actividad.
-
-**Fuente de datos**
-
-Tabla `events`.
-
-**Implementación**
-
-* `stats` muestra TOP JAILS.
-* Se excluyen eventos internos como `fail2ban` y `policy_apply`.
-* La información se obtiene desde `events`.
-
-**Salida esperada**
-
-```text
-TOP JAILS:
-modsec-protocol ........ 132
-modsec-bruteforce ...... 78
-modsec-rce ............. 34
-sshd ................... 15
-recidive ............... 6
-```
-
----
-
-## FEAT-004
-
-**Título:** Reputation Decay Engine
-
-**Estado:** ✔ Resuelto — recuperación controlada inicial
-
-**Versión:** v1.1.0
-
-**Prioridad:** Alta
-
-**Objetivo**
-
-Implementar un mecanismo de reducción gradual del score de reputación para IPs sin actividad reciente.
-
-**Reglas iniciales**
-
-* Aplicar decay únicamente a IPs sin actividad durante al menos 24 horas.
-* Utilizar un factor inicial de reducción de `0.95`.
-* Recalcular `total_score` después de aplicar decay.
-* Reevaluar la IP mediante el State Engine.
-* Reevaluar la IP mediante el Policy Engine.
-* No eliminar la reputación de forma inmediata.
-
-**Parámetros iniciales**
-
-```text
-DECAY_MIN_AGE=86400
-DECAY_FACTOR=0.95
-```
-
-**Modos**
-
-`decay-dry-run`:
-
-* muestra IPs candidatas;
-* calcula el score estimado;
-* no modifica datos.
-
-`decay-apply`:
-
-* aplica la reducción real;
-* actualiza `last_decay`;
-* reevalúa State Engine;
-* reevalúa Policy Engine;
-* no ejecuta directamente cambios sobre firewall.
-
-**Control de frecuencia**
-
-Se incorporó:
-
-```text
-last_decay
-```
-
-en la tabla `reputation`.
-
-Su finalidad es impedir que una misma IP reciba múltiples reducciones dentro de la misma ventana de recuperación.
-
-**Validación**
-
-* Score reducido correctamente.
-* State Engine actualizado.
-* Policy Engine evaluado.
-* `decay-dry-run` muestra candidatas.
-* `decay-dry-run` calcula score estimado.
-* `decay-apply` reduce score real.
-* `decay-apply` actualiza `last_decay`.
-* Se evita aplicar decay múltiples veces dentro de la misma ventana.
-* Se validó el procesamiento de 487 IPs.
-* Una segunda ejecución sin transcurrir la ventana no genera nuevas candidatas.
-
-**Recuperación controlada**
-
-La recuperación se encuentra vinculada a la decisión del Policy Engine.
-
-* `ALLOW` puede generar liberación.
-* `WATCH` no libera automáticamente.
-* `FILTER` no libera automáticamente.
-* `TEMP_BAN` no libera automáticamente.
-* `BAN` no libera automáticamente.
-
-**Siguiente etapa**
-
-Evaluar la activación controlada de las decisiones generadas por el Decay Engine sobre el estado del firewall, manteniendo separadas la recuperación de reputación y la decisión de aplicación.
-
----
-
-# HISTORIAL DE TASKS RESUELTAS
-
+###### ########################################
 ## TASK-001
 
 **Título:** Reorganizar reglas del Policy Engine
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Descripción**
 
-Las reglas fueron reorganizadas dentro de:
+Las reglas fueron movidas al módulo:
 
-```text
+```
 policy/rules/
 ```
-
-La reorganización permitió separar las reglas de decisión de la implementación general del Policy Engine.
 
 ---
 
@@ -251,15 +244,20 @@ La reorganización permitió separar las reglas de decisión de la implementaci�
 
 **Título:** Cursor persistente para sensores
 
-**Estado:** ✔ Resuelto
+**Estado:** OPEN
 
-**Versión:** v1.1.0
+**Prioridad:** Alta
 
 **Descripción**
 
-Implementación de un mecanismo persistente de offset para evitar reprocesar eventos ya leídos desde los logs.
+Implementar un mecanismo persistente de offset para evitar reprocesar eventos ya leídos desde los logs.
 
-El mecanismo quedó integrado en el Sensor Fail2Ban.
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Resuelto / integrado
+
+El cursor persistente fue implementado posteriormente dentro del Sensor Framework de ARE. El estado histórico `OPEN` se conserva arriba como parte de la trazabilidad original.
 
 ---
 
@@ -269,13 +267,18 @@ El mecanismo quedó integrado en el Sensor Fail2Ban.
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Descripción**
 
-Se creó un servicio y un timer de systemd para ejecutar automáticamente el sensor Fail2Ban.
+Se creó un `systemd service` y un `systemd timer` para ejecutar automáticamente el sensor Fail2Ban FOUND cada minuto.
 
-La ejecución periódica permite procesar nuevos eventos sin intervención manual.
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Resuelto / integrado
+
+El cursor persistente quedó incorporado al Sensor Framework de ARE y forma parte del procesamiento operativo de eventos. Se conserva el estado histórico `OPEN` de este TODO para mantener la trazabilidad de cómo evolucionó la tarea.
 
 ---
 
@@ -283,15 +286,28 @@ La ejecución periódica permite procesar nuevos eventos sin intervención manua
 
 **Título:** Agregar estadísticas por jail
 
-**Estado:** ✔ Resuelto
+**Estado:** OPEN
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Descripción**
 
-Se incorporó la sección TOP JAILS al comando `stats`.
+Evaluar una sección adicional en `stats` para mostrar actividad por jail, por ejemplo:
 
-La información se obtiene desde la tabla `events`, permitiendo distinguir actividad por jail sin depender de la tabla `reputation`.
+* recidive
+* sshd
+* modsec-rce
+* modsec-protocol
+* modsec-bruteforce
+
+Esto debe calcularse desde la tabla `events`, no desde `reputation`
+
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Resuelto
+
+La capacidad fue implementada posteriormente como `TOP JAILS` dentro de `stats`, utilizando `events` como fuente. El estado histórico `OPEN` se conserva arriba sin modificar.
 
 ---
 
@@ -301,7 +317,7 @@ La información se obtiene desde la tabla `events`, permitiendo distinguir activ
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Prioridad:** Alta
 
@@ -309,34 +325,33 @@ La información se obtiene desde la tabla `events`, permitiendo distinguir activ
 
 Expandir el modelo de reputación para soportar categorías adicionales de amenazas.
 
-**Categorías incorporadas**
+**Categorías objetivo**
 
 * ANOMALY
 * MALWARE
 * DOS
 * SOCIAL
 
-**Implementación**
+**Alcance inicial**
+
+Implementar primero `ANOMALY` de punta a punta:
 
 * Base de datos.
 * `database.sh`.
 * `dashboard/stats.sh`.
 * `dashboard/score.sh`.
-* cálculo de `total_score`.
 
 **Validación**
 
 * Nuevas columnas agregadas a `reputation`.
-* Todas las categorías integradas al modelo.
-* `stats` muestra las categorías.
-* `score <ip>` muestra las categorías.
-* `total_score` incluye las categorías.
+* `ANOMALY`, `MALWARE`, `DOS` y `SOCIAL` integradas al modelo.
+* `stats` muestra todas las categorías.
+* `score <ip>` muestra todas las categorías.
+* `total_score` incluye todas las categorías.
 
-**Regla**
+**Nota**
 
-Los jails continúan mapeándose mediante `jail_profile` hacia una categoría de reputación.
-
-No se crean columnas específicas por jail.
+Los jails seguirán mapeándose mediante `jail_profile` hacia una categoría de reputación. No se crearán columnas específicas por jail.
 
 ---
 
@@ -346,19 +361,33 @@ No se crean columnas específicas por jail.
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Prioridad:** Alta
 
+**Descripción**
+
+Agregar perfiles de reputación para jails críticos que actualmente pueden ser observados por ARE pero no poseen una valoración específica dentro del modelo de riesgo.
+
+**Jails objetivo**
+
+* sshd
+* telnet
+* recidive
+
 **Objetivo**
 
-Asignar perfiles de reputación a jails críticos.
+Permitir que ARE asigne score a eventos relacionados con accesos reiterados, intentos contra servicios remotos y reincidencia.
 
-**Jails**
+**Categorías propuestas**
 
-* `sshd` → `CREDENTIAL`
-* `telnet` → `CREDENTIAL`
-* `recidive` → `EXPLOIT`
+* sshd → CREDENTIAL
+* telnet → CREDENTIAL
+* recidive → EXPLOIT
+
+**Nota**
+
+Esta tarea no implementa todavía decisiones autónomas de ban temporal, ban permanente ni descenso de score. Esos puntos permanecen separados como RFC.
 
 **Validación**
 
@@ -377,23 +406,28 @@ Asignar perfiles de reputación a jails críticos.
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Prioridad:** Media
 
 **Objetivo**
 
-Mejorar la salida de `score <IP>` para mostrar información temporal comprensible.
+Mejorar la salida del comando `score` para mostrar información temporal legible sobre la reputación de una IP.
 
-**Implementación**
+**Situación actual**
 
-Se reemplazó la presentación directa del timestamp Unix por información temporal legible para administración.
+El dashboard muestra `updated` como timestamp Unix:
+
+```text
+Última actualización.. 1783530687
+
+```
 
 **Validación**
 
 * `score` muestra fecha legible de última actividad.
 * `score` muestra antigüedad relativa.
-* Se eliminó la presentación del timestamp Unix como única información temporal.
+* Se reemplazó el timestamp Unix por información útil para administración.
 
 ---
 
@@ -403,33 +437,36 @@ Se reemplazó la presentación directa del timestamp Unix por información tempo
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Prioridad:** Alta
 
-**Problema**
+**Descripción**
 
-`updated` representa la última actividad o modificación de reputación, pero no la última ejecución del decay.
+Actualmente `decay-apply` utiliza `updated` para identificar IPs sin actividad reciente. Sin embargo, `updated` representa la última actividad maliciosa y no la última ejecución de decay.
 
-Utilizarlo directamente para controlar ejecuciones podía provocar múltiples reducciones dentro de una misma ventana.
+Esto permite que, si `decay-apply` se ejecuta varias veces en el mismo período, una IP pueda recibir múltiples reducciones de score sin que haya transcurrido una nueva ventana de recuperación.
 
-**Solución**
+**Objetivo**
 
-Se agregó:
+Evitar aplicar decay más de una vez dentro del mismo intervalo definido.
+
+**Solución propuesta**
+
+Agregar un campo independiente para controlar la última ejecución de decay:
 
 ```text
 last_decay
 ```
 
-a `reputation`.
-
 **Validación**
 
+* Se agregó `last_decay` a la tabla `reputation`.
 * `db_init()` crea `last_decay` en instalaciones nuevas.
 * `decay-dry-run` respeta `last_decay`.
 * `decay-apply` actualiza `last_decay`.
 * Se evita aplicar decay múltiples veces dentro de la misma ventana.
-* Validado con 487 IPs procesadas.
+* Validado con 487 IPs procesadas y segunda ejecución sin candidatas.
 
 ---
 
@@ -437,27 +474,37 @@ a `reputation`.
 
 **Título:** Consolidar el módulo Policy
 
-**Estado:** ✔ Resuelto
+**Estado:** IN PROGRESS
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
+
+**Prioridad:** Media
 
 **Objetivo**
 
-Mover progresivamente los archivos `policy*.sh` desde la raíz hacia `policy/`, sin modificar la lógica funcional.
+Mover progresivamente los archivos `policy*.sh` ubicados en la raíz hacia el directorio `policy/`, sin modificar lógica funcional.
 
-### Fase 1 — `policy_apply.sh`
+**Fase actual**
 
-✔ Resuelta.
+Mover `policy_apply.sh` hacia `policy/apply.sh`.
 
-* Movido a `policy/apply.sh`.
+**Regla**
+
+Cada fase debe validar que ARE continúa funcionando antes de continuar con el siguiente archivo.
+
+**Fase 1:** ✔ Resuelta
+
+**Validación**
+
+* `policy_apply.sh` movido a `policy/apply.sh`.
 * `bootstrap.sh` actualizado.
 * Se agregó wrapper `apply_decision()` para mantener compatibilidad.
 * Validado con `top`.
 * Validado con `found modsec-protocol`.
 
-### Fase 2 — Context
+**Fase 2:** ✔ Resuelta
 
-✔ Resuelta.
+**Validación**
 
 * `policy_context.sh` movido a `policy/context.sh`.
 * `policy_context_api.sh` movido a `policy/context_api.sh`.
@@ -466,9 +513,9 @@ Mover progresivamente los archivos `policy*.sh` desde la raíz hacia `policy/`, 
 * Validado con `top`.
 * Validado con `found modsec-protocol`.
 
-### Fase 3 — Decision
+**Fase 3:** ✔ Resuelta
 
-✔ Resuelta.
+**Validación**
 
 * `policy_decision.sh` movido a `policy/decision.sh`.
 * `policy_decision_engine.sh` movido a `policy/decision_engine.sh`.
@@ -477,9 +524,11 @@ Mover progresivamente los archivos `policy*.sh` desde la raíz hacia `policy/`, 
 * Validado con `top`.
 * Validado con `found modsec-protocol`.
 
-### Fase 4 — Engine
+**Estado:** ✔ Resuelto
 
-✔ Resuelta.
+### Fase 4 ✔ Resuelta
+
+**Validación**
 
 * `policy_engine.sh` movido a `policy/engine.sh`.
 * `policy_risk.sh` movido a `policy/risk.sh`.
@@ -489,74 +538,120 @@ Mover progresivamente los archivos `policy*.sh` desde la raíz hacia `policy/`, 
 * Validado con `top`.
 * Validado con `found modsec-protocol`.
 
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Resuelto
+
+Las cuatro fases descritas en este registro quedaron completadas. La estructura `policy/` y sus referencias internas fueron validadas. Se conserva el historial de las fases y su estado original.
+
 ---
 
 ## TASK-010
 
 **Título:** Implementar Ban Lifecycle Engine
 
-**Estado:** ✔ Resuelto
+**Estado:** OPEN
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
 
 **Objetivo**
 
 Implementar un motor encargado de administrar el ciclo de vida de las sanciones aplicadas por ARE.
 
-El Ban Lifecycle Engine no determina si una IP es peligrosa. Esa decisión corresponde al Reputation Engine, State Engine y Policy Engine.
+**Alcance**
 
-Su responsabilidad consiste en determinar cómo evoluciona una sanción cuando ARE decide aplicar `TEMP_BAN` o `BAN`.
+El Ban Lifecycle Engine no decide si una IP es peligrosa. Esa decisión corresponde al Reputation Engine, State Engine y Policy Engine.
 
-### Persistencia
+Su responsabilidad será determinar cómo escalar una sanción cuando ARE decida aplicar `TEMP_BAN` o `BAN`.
 
-Se creó:
+**Responsabilidades**
+
+* Mantener el estado actual de sanción de una IP.
+* Registrar nivel de ban alcanzado.
+* Registrar cantidad de sanciones aplicadas.
+* Definir duración de bans temporales según nivel.
+* Escalar una IP hacia ban permanente cuando corresponda.
+* Permitir que el SysAdmin configure límites y tiempos de escalado.
+
+**Acciones relacionadas**
+
+* `TEMP_BAN`
+* `BAN`
+* `ALLOW` como recuperación controlada cuando corresponda.
+
+**No incluye**
+
+* Nuevos estados de Policy Engine.
+* Nuevos mecanismos como CAPTCHA, RATE_LIMIT, TARPIT o GEO_BLOCK.
+* Cambios en sensores.
+* Cambios en Decay Engine.
+
+**Modelo propuesto**
+
+Crear una estructura persistente para almacenar el estado actual de sanción:
 
 ```text
 sanction_state
 ```
 
-para almacenar el estado de sanción de cada IP.
+**Validación**
 
-**Información administrada**
+* Tabla `sanction_state` creada correctamente.
+* `db_init()` crea la tabla en instalaciones nuevas.
+* ARE continúa funcionando después de la incorporación.
+* Esquema validado en SQLite.
+* Funciones básicas de `sanction_state` implementadas.
+* `db_init_sanction()` crea el estado inicial.
+* `db_increment_ban_level()` incrementa nivel y contador.
+* `db_get_ban_level()` devuelve el nivel actual.
+* Persistencia validada con `sanction-test`.
+* Validado con IP `84.84.84.84`.
 
-* nivel de ban;
-* cantidad de sanciones;
-* duración;
-* finalización del ban;
-* estado permanente.
+### Fase 3
 
-### Funciones de persistencia
+**Título**
 
-* `db_init_sanction()`
-* `db_increment_ban_level()`
-* `db_get_ban_level()`
+Ban Lifecycle Engine (Simulation Mode)
 
-La persistencia fue validada con `sanction-test`.
+**Objetivo**
 
-IP utilizada durante la validación:
+Implementar un motor capaz de calcular la siguiente sanción que corresponde a una IP utilizando exclusivamente la información almacenada en `sanction_state`.
 
-```text
-84.84.84.84
-```
+Durante esta fase el motor no modifica firewall, ipset, reputation ni policy.
 
-### Simulation Mode
+Su única responsabilidad será calcular el resultado esperado.
 
-Se implementó el cálculo de la siguiente sanción sin modificar firewall, reputation, policy ni DB.
-
-**Entrada**
+**Entradas**
 
 * IP
-* `ban_level`
-* `ban_count`
-* `permanent`
+* ban_level
+* ban_count
+* permanent
 
 **Salida**
 
-```text
 ACTION|TIME|REASON
-```
 
-**Política inicial**
+Ejemplos:
+
+TEMP_BAN|3600|LEVEL_1
+
+TEMP_BAN|21600|LEVEL_2
+
+TEMP_BAN|86400|LEVEL_3
+
+TEMP_BAN|604800|LEVEL_4
+
+TEMP_BAN|1296000|LEVEL_5
+
+TEMP_BAN|2592000|LEVEL_6
+
+BAN|0|PERMANENT
+
+**Política inicial de escalado**
 
 * Nivel 1: 1 hora.
 * Nivel 2: 6 horas.
@@ -566,62 +661,102 @@ ACTION|TIME|REASON
 * Nivel 6: 30 días.
 * Nivel 7: permanente.
 
-El nivel máximo se controla mediante:
+El nivel máximo será configurable mediante `BAN_LEVEL_MAX`.
+
+`ban_level` quedará limitado al máximo configurado, mientras que `ban_count` continuará acumulando todas las sanciones históricas.
+
+### Fase 3 ✔ Resuelta
+
+**Validación**
+
+* `policy/ban_lifecycle.sh` creado.
+* `policy.conf` cargado desde `/etc/f2b-ipset/policy.conf`.
+* El motor calcula la siguiente sanción sin modificar DB ni firewall.
+* Una IP nueva devuelve:
 
 ```text
-BAN_LEVEL_MAX
+TEMP_BAN|3600|BAN_LEVEL_1
 ```
 
-`ban_level` queda limitado al máximo configurado, mientras `ban_count` continúa acumulando las sanciones históricas.
+### Fase 4
 
-### Integración con TEMP_BAN
+**Título:** Integrar Ban Lifecycle Engine con `TEMP_BAN`
 
-✔ Resuelta.
+**Estado:** IN PROGRESS
 
-Flujo implementado:
+**Objetivo**
+
+Integrar el cálculo del Ban Lifecycle Engine con las decisiones `TEMP_BAN` generadas por el Policy Engine.
+
+**Flujo esperado**
 
 ```text
-Policy Engine
-      ↓
-Ban Lifecycle Engine
-      ↓
-siguiente nivel
-      ↓
-ban_level / ban_count
-      ↓
-ban_until
-      ↓
-Backend
+Policy Engine devuelve TEMP_BAN
+        ↓
+Ban Lifecycle Engine calcula siguiente nivel
+        ↓
+Se incrementan ban_level y ban_count
+        ↓
+Se calcula ban_until
+        ↓
+El backend aplica la sanción temporal
 ```
 
-Validación:
+### Fase 4 ✔ Resuelta
 
-* `TEMP_BAN` integrado.
+**Validación**
+
+* `TEMP_BAN` integrado con Ban Lifecycle Engine.
 * Primera sanción calculada como `BAN_LEVEL_1`.
 * Duración aplicada: `3600` segundos.
 * `ban_level`, `ban_count` y `ban_until` actualizados.
 * Backend ejecutó el bloqueo temporal.
 
-### Escalado permanente
+### Fase 5
 
-✔ Resuelto.
+**Título:** Escalado a ban permanente
 
-Se implementó el escalado hasta ban permanente.
+**Estado:** IN PROGRESS
 
-Con el nivel previo al máximo:
+**Objetivo**
+
+Completar el ciclo de sanciones permitiendo que ARE escale una IP desde bans temporales progresivos hasta un ban permanente.
+
+**Flujo esperado**
+
+```text
+TEMP_BAN solicitado por Policy Engine
+        ↓
+Ban Lifecycle Engine calcula siguiente nivel
+        ↓
+Si el nivel es menor que BAN_LEVEL_MAX
+        ↓
+TEMP_BAN progresivo
+        ↓
+Si alcanza BAN_LEVEL_MAX
+        ↓
+BAN permanente
+```
+
+#### Fase 5.1 ✔ Resuelta
+
+**Validación**
+
+* `ban_lifecycle_calculate()` reconoce el nivel previo al máximo.
+* Con `ban_level = 6`, devuelve:
 
 ```text
 BAN|0|BAN_LEVEL_MAX
 ```
 
-se ejecuta el bloqueo permanente.
+#### Fase 5.2 ✔ Resuelta
 
-Validación:
+**Validación**
 
 * `policy/apply.sh` ejecuta escalado permanente.
 * La IP se elimina del conjunto `FILTER`.
 * La IP se incorpora al conjunto permanente.
-* `sanction_state` conserva:
+* `sanction_state` persiste:
 
 ```text
 ban_level = 7
@@ -629,6 +764,13 @@ ban_count = 7
 ban_until = 0
 permanent = 1
 ```
+
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Resuelto / integrado
+
+El Ban Lifecycle Engine quedó completado, incluyendo `sanction_state`, `TEMP_BAN`, escalado progresivo y escalado permanente. Las fases posteriores documentadas en este mismo registro muestran la validación de la integración y del nivel permanente. El estado histórico `OPEN` permanece como antecedente.
 
 ---
 
@@ -638,15 +780,15 @@ permanent = 1
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Prioridad:** Alta
 
 **Objetivo**
 
-Mostrar en `score <IP>` el estado almacenado en `sanction_state`.
+Ampliar la salida del comando `score <IP>` para mostrar el estado actual de sanción almacenado en `sanction_state`.
 
-**Datos**
+**Datos a mostrar**
 
 * Nivel actual de sanción.
 * Cantidad total de sanciones.
@@ -664,9 +806,9 @@ Mostrar en `score <IP>` el estado almacenado en `sanction_state`.
 
 **Validación**
 
-* Dashboard consulta `sanction_state`.
-* Muestra nivel actual.
-* Muestra cantidad total.
+* El dashboard consulta `sanction_state`.
+* Muestra nivel actual de sanción.
+* Muestra cantidad total de sanciones.
 * Distingue sanción temporal y permanente.
 * Muestra fecha de finalización cuando corresponde.
 * Muestra último ban y último unban.
@@ -680,13 +822,13 @@ Mostrar en `score <IP>` el estado almacenado en `sanction_state`.
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Prioridad:** Alta
 
 **Objetivo**
 
-Eliminar rutas estáticas del código fuente y centralizar las ubicaciones operativas mediante `config.conf`.
+Eliminar rutas estáticas del código fuente y centralizar las ubicaciones operativas de ARE en `config.conf`, preparando el proyecto para instalaciones personalizadas y una futura migración de nombre y directorios.
 
 **Alcance**
 
@@ -697,15 +839,15 @@ Eliminar rutas estáticas del código fuente y centralizar las ubicaciones opera
 * Ruta de logs.
 * Ruta de sensores.
 * Ruta de archivos temporales.
-* Ejecutable principal.
+* Ejecutable principal de ARE.
 
 **Regla**
 
-No renombrar directorios ni ejecutables hasta eliminar previamente las dependencias estáticas.
+La migración se realizará por fases. No se renombrarán directorios ni ejecutables hasta eliminar previamente todas las dependencias estáticas.
 
-### Inventario inicial
+### Fase 1 — Inventario
 
-Se encontraron referencias en:
+Se encontraron rutas estáticas en:
 
 * `dashboard.sh`
 * `bootstrap.sh`
@@ -719,37 +861,54 @@ Se encontraron referencias en:
 * `tmp/sync-f2b-are.sh`
 * `config.conf`
 
-También se detectaron referencias antiguas en `policy/env.sh` y `policy/policy.sh`.
+También se detectaron referencias antiguas en `policy/env.sh` y `policy/policy.sh` que no coinciden con la estructura actual.
 
 ### Exclusiones
 
-Inicialmente se excluyeron:
+No se modificarán inicialmente:
 
 * `docs/`
 * archivos `.save`
-* ejemplos históricos;
-* archivos temporales no utilizados en producción.
+* ejemplos históricos
+* archivos temporales no utilizados en producción
 
-Los directorios `testing/` y `tmp/` quedaron fuera del runtime de producción.
+### Fases siguientes
 
-### Implementación
+1. Definir variables oficiales en `config.conf`.
+2. Normalizar el arranque de `f2b-ipset.sh` y `bootstrap.sh`.
+3. Migrar módulos de producción.
+4. Migrar sensores.
+5. Migrar pruebas y herramientas temporales.
+6. Verificar ausencia de rutas estáticas.
+7. Evaluar posteriormente el cambio de nombre interno a ARE.
 
-* Variables oficiales definidas en `config.conf`.
-* `f2b-ipset.sh` localiza dinámicamente su configuración mediante `BASH_SOURCE`.
-* `bootstrap.sh` utiliza `ARE_HOME` y `ARE_POLICY_CONFIG`.
-* Módulos de producción consumen variables oficiales.
-* Sensor Fail2Ban resuelve dinámicamente la ubicación del proyecto.
-* Se eliminaron dependencias operativas de rutas fijas externas a la configuración.
+Se excluyen de esta tarea los directorios:
 
-### Validación
+* testing/
+* tmp/
 
-* Sensor obtiene su ubicación mediante `BASH_SOURCE`.
-* Usa `ARE_BIN` y `ARE_DATA`.
+por tratarse de herramientas de desarrollo y migración que no forman parte del runtime de ARE.
+
+**Validación**
+
+* El sensor obtiene su ubicación mediante `BASH_SOURCE`.
+* Calcula dinámicamente el directorio base de ARE.
+* Carga `config.conf` desde el proyecto.
+* Usa `ARE_BIN` y `ARE_DATA` definidos en configuración.
 * No depende de rutas estáticas en `/opt` ni `/var/lib`.
 * Validado mediante `are-fail2ban-found.service`.
-* Flujo `FOUND → Reputation → Policy → Apply` operativo.
-* Validado mediante `stats`.
-* Validado mediante servicio del sensor Fail2Ban.
+* El flujo `FOUND → Reputation → Policy → Apply` continúa operativo.
+
+**Validación final**
+
+* Las rutas operativas están centralizadas en `config.conf`.
+* `f2b-ipset.sh` localiza dinámicamente su configuración mediante `BASH_SOURCE`.
+* `bootstrap.sh` utiliza `ARE_HOME` y `ARE_POLICY_CONFIG`.
+* Los módulos de producción consumen las variables oficiales de configuración.
+* El sensor Fail2Ban resuelve dinámicamente la ubicación del proyecto.
+* El runtime ya no depende de rutas estáticas fuera de `config.conf`.
+* `testing/` y `tmp/` quedan excluidos por no formar parte del runtime.
+* Validado mediante `stats` y el servicio del sensor Fail2Ban.
 
 ---
 
@@ -757,15 +916,15 @@ Los directorios `testing/` y `tmp/` quedaron fuera del runtime de producción.
 
 **Título:** Crear instalador modular de ARE
 
-**Estado:** ✔ Resuelto
+**Estado:** IN PROGRESS
 
-**Versión:** v1.1.0
+**Versión:** v1.1-dev
 
 **Prioridad:** Alta
 
 **Objetivo**
 
-Crear un Installer Engine que implemente el procedimiento definido en `docs/INSTALL.md`.
+Crear un instalador que implemente el procedimiento definido en `docs/INSTALL.md`.
 
 **Principios**
 
@@ -776,7 +935,7 @@ Crear un Installer Engine que implemente el procedimiento definido en `docs/INST
 * Detener la instalación ante errores críticos.
 * Verificar cada etapa antes de continuar.
 
-**Funciones**
+**Funciones previstas**
 
 * `install_verify_root`
 * `install_verify_dependencies`
@@ -790,61 +949,298 @@ Crear un Installer Engine que implemente el procedimiento definido en `docs/INST
 * `install_validate`
 * `install_finish`
 
-### Upgrade desde paquete externo
+**Archivos relacionados**
 
-✔ Validado.
+* `install.sh`
+* `docs/INSTALL.md`
+* `config.conf`
+* `policy.conf`
+* servicios y timers de systemd
 
-* Installer Engine detecta instalación existente.
+### Upgrade desde paquete externo ✔ Validado
+
+* El Installer Engine detecta una instalación existente.
 * Copia únicamente `PRODUCT_DIRS` y `PRODUCT_FILES`.
 * Conserva configuración y datos persistentes.
 * Actualiza enlaces oficiales.
 * Actualiza unidades systemd.
-* Validación integral satisfactoria.
+* La validación integral finaliza correctamente.
 
-### Instalación segura de configuración
 
-✔ Validada.
+### Actualización posterior — ARE v2.0
 
-Se creó:
+**Estado actual:** ✔ Implementado en la evolución hacia v2.0
+
+La tarea evolucionó desde el instalador modular descrito aquí hacia el Installer Engine de ARE v2. El historial de `Upgrade desde paquete externo` queda conservado como evidencia de la transición.
+
+La implementación posterior se organiza alrededor del Product Manifest y de la separación entre producto, configuración y datos persistentes.
+
+---
+
+
+## TASK-015
+
+**Título:** Product Manifest de ARE v2
+
+**Estado:** ✔ Resuelto / validado
+
+**Versión:** v2.0-dev
+
+**Descripción**
+
+Centralizar en un único manifest la definición de los componentes administrados por ARE.
+
+**Alcance validado**
+
+* Identidad y versión del producto.
+* Directorios y archivos administrados.
+* Configuración.
+* Datos persistentes.
+* Unidades systemd.
+* Enlaces ejecutables.
+* Logrotate.
+* Exclusiones.
+
+**Criterio**
+
+El Installer Engine utiliza el Product Manifest como referencia de los componentes que administra.
+
+---
+
+## TASK-016
+
+**Título:** Installer Engine de ARE v2
+
+**Estado:** ✔ Implementado / validado en v2.0-dev
+
+**Versión:** v2.0-dev
+
+**Descripción**
+
+Evolucionar el instalador modular histórico hacia un Installer Engine capaz de administrar el ciclo de vida del producto ARE.
+
+**Operaciones**
 
 ```text
-templates/config/
+install
+upgrade
+repair
+verify
+uninstall
 ```
 
-como origen oficial de configuración.
+**Principios conservados**
 
-Los archivos administrados se obtienen mediante:
+* No sobrescribir configuración existente innecesariamente.
+* No destruir datos persistentes durante las operaciones de mantenimiento.
+* Administrar los componentes definidos por el Product Manifest.
+* Verificar las etapas críticas antes de continuar.
+
+**Validación registrada**
+
+* Detección de instalación existente.
+* Upgrade conservando configuración y datos persistentes.
+* Actualización de enlaces oficiales.
+* Actualización de unidades systemd.
+* Reparación de componentes administrados.
+
+---
+
+## TASK-017
+
+**Título:** Separación de producto, configuración y datos en ARE v2
+
+**Estado:** ✔ Implementado / validado
+
+**Versión:** v2.0-dev
+
+**Descripción**
+
+Consolidar la separación operativa:
 
 ```text
-PRODUCT_CONFIG_FILES
+PRODUCT
+CONFIG
+DATA
 ```
 
-`install_install_configs()`:
+**Estructura v2**
 
-* crea enlaces únicamente cuando el destino no existe;
-* conserva archivos físicos personalizados;
-* reconoce enlaces correctos;
-* conserva e informa enlaces rotos;
-* conserva e informa enlaces válidos con destino diferente;
-* detiene la instalación cuando falta una plantilla obligatoria.
+```text
+/opt/are
+/opt/are/config
+/var/lib/are
+/var/log/are
+/usr/local/sbin
+```
 
-La implementación fue validada en laboratorio aislado y la instalación activa de producción no fue modificada durante esa validación.
+La migración no elimina la referencia histórica a las rutas `f2b-ipset`; esas referencias permanecen en este TODO como parte de la historia del proyecto.
+
+---
+
+# FEATURES
+###### ########################################
+## FEAT-001
+
+**Estado:** ✔ Operativo en producción
+
+**Implementado**
+
+* Evento FOUND.
+* Sensor Fail2Ban.
+* Cursor persistente.
+* Modo `--dry-run`.
+* Modo `--execute`.
+* Ejecución automática mediante systemd timer.
+* Registro en SQLite.
+* Integración con Policy Engine.
+* Validación en producción.
+
+**Pendiente**
+
+* Limpieza final del sensor.
+* Mover configuración fija a `config.conf`.
+
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Integrado / validado
+
+Los pendientes históricos de limpieza del sensor y centralización de configuración fueron absorbidos por la evolución posterior del Sensor Framework y la configuración de ARE v2. No se elimina el apartado histórico ni se reescribe su estado original.
+
+---
+
+## FEAT-003
+
+**Título:** Mostrar TOP JAILS en `stats`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v1.1-dev
+
+**Validación**
+
+* `stats` muestra TOP JAILS.
+* Se excluyen eventos internos como `fail2ban` y `policy_apply`.
+* La información se obtiene desde la tabla `events`.
+
+**Prioridad:** Media
+
+**Objetivo**
+
+Mostrar en el dashboard estadístico cuáles jails generan mayor actividad.
+
+**Fuente de datos**
+
+Tabla `events`.
+
+**Salida esperada**
+
+```text
+TOP JAILS:
+modsec-protocol ........ 132
+modsec-bruteforce ...... 78
+modsec-rce ............. 34
+sshd ................... 15
+recidive ............... 6
+```
+
+---
+
+## FEAT-004
+
+**Título:** Reputation Decay Engine
+
+**Estado:** ✔ Resuelto - Recuperación controlada inicial
+
+**Versión:** v1.1-dev
+
+**Prioridad:** Alta
+
+**Objetivo**
+
+Implementar un mecanismo de reducción gradual del score de reputación para IPs sin actividad reciente.
+
+**Reglas iniciales**
+
+* Aplicar decay solo a IPs sin actividad durante al menos 24 horas.
+* Usar un factor inicial de reducción de `0.95`.
+* Recalcular `total_score` después de aplicar decay.
+* Reevaluar la IP mediante el Policy Engine.
+* No borrar reputación de golpe.
+
+**Parámetros iniciales**
+
+* `DECAY_MIN_AGE=86400`
+* `DECAY_FACTOR=0.95`
+
+* `decay-dry-run`: muestra IPs candidatas y score estimado.
+* `decay-apply`: aplica reducción real de score y simula la decisión del Policy Engine.
+* El Decay Engine todavía no ejecuta cambios sobre firewall.
+
+**Validación actual**
+
+* Score reducido correctamente.
+* State Engine actualizado.
+* Policy Engine evaluado.
+* No se ejecuta `apply_decision()` desde decay.
+* `stats` muestra cantidad de IPs candidatas a decay.
+* `decay-dry-run` muestra IPs candidatas.
+* `decay-dry-run` calcula score estimado.
+* `decay-apply` reduce score real.
+* `decay-apply` actualiza `last_decay`.
+* `decay-apply` reevalúa State Engine.
+* `decay-apply` simula Policy Engine.
+* No ejecuta cambios sobre firewall.
+* Se evita aplicar decay múltiples veces dentro de la misma ventana.
+* Validado en producción con 487 IPs procesadas.
+* La recuperación por decay solo ejecuta liberación cuando el Policy Engine devuelve `ALLOW`.
+* `WATCH`, `FILTER`, `TEMP_BAN` y `BAN` no generan liberación automática.
+
+**Siguiente etapa**
+
+Activar aplicación controlada de decisiones generadas por el Decay Engine.
+
+Cuando una IP reduzca su score y el Policy Engine determine `ALLOW`, `WATCH` o `FILTER`, ARE podrá removerla de `are-blacklist` si ya no corresponde mantener bloqueo activo.
+
+Esta etapa completa el ciclo inicial de recuperación de reputación y permite que ARE controle tanto el bloqueo como la liberación de una IP.
+
+**Validación final**
+
+* `decay-dry-run` muestra candidatas sin modificar datos.
+* `decay-apply` reduce score real.
+* `last_decay` evita múltiples reducciones dentro de la misma ventana.
+* Se reevalúa State Engine después del decay.
+* Se reevalúa Policy Engine después del decay.
+* Solo `ALLOW` ejecuta recuperación/liberación.
+* `WATCH`, `FILTER`, `TEMP_BAN` y `BAN` no liberan IP automáticamente.
+* Validado en producción.
+
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Integrado / validado
+
+La evolución posterior completó el ciclo operativo del Decay Engine, incluyendo `last_decay`, reevaluación mediante State/Policy Engine y ejecución programada mediante systemd. El registro histórico de la recuperación controlada inicial permanece intacto.
 
 ---
 
 # RFC
-
+###### ########################################
 ## RFC-001
 
 **Título:** Renombrar CLI oficial a `are`
 
 **Estado:** Draft
 
-**Objetivo**
+**Versión objetivo:** v1.1
 
-Establecer `are` como CLI oficial del proyecto.
 
-La decisión deberá contemplar compatibilidad con el nombre histórico utilizado por las instalaciones existentes.
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Implementado
+
+La identidad CLI `are` forma parte de la estructura operativa de ARE v2. El estado histórico `Draft` se conserva como registro de la decisión original.
 
 ---
 
@@ -854,17 +1250,20 @@ La decisión deberá contemplar compatibilidad con el nombre histórico utilizad
 
 **Estado:** Accepted
 
-**Versión:** v1.1.0
+**Versión objetivo:** v1.1
 
 **Descripción**
 
 ARE incorpora una capa de sensores encargada de transformar eventos externos en eventos internos procesables por el motor de reputación.
 
-El primer sensor oficial corresponde a Fail2Ban.
+El primer sensor implementado corresponde a Fail2Ban para el procesamiento de eventos FOUND.
 
-**Resultado**
 
-El Sensor Framework quedó incorporado en v1.1 y el sensor Fail2Ban constituye su primera implementación oficial.
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Implementado / integrado
+
+El Sensor Framework pasó de RFC aceptado a componente operativo. Fail2Ban quedó integrado como fuente de eventos del motor ARE.
 
 ---
 
@@ -874,26 +1273,17 @@ El Sensor Framework quedó incorporado en v1.1 y el sensor Fail2Ban constituye s
 
 **Estado:** Draft
 
-**Versión objetivo:** Posterior a v1.1
+**Versión objetivo:** v1.1
 
 **Descripción**
 
-Evaluar la transición desde la identidad histórica `f2b-ipset` hacia el nombre oficial del proyecto:
-
-**ARE — Abuse Reputation Engine**
+Completar la transición desde la identidad histórica `f2b-ipset` hacia el nombre oficial del proyecto: **ARE (Abuse Reputation Engine)**.
 
 **Objetivo**
 
-Alinear progresivamente:
+Alinear nombres de comandos, rutas, servicios, configuración y documentación con la identidad oficial del proyecto.
 
-* comandos;
-* rutas;
-* servicios;
-* configuración;
-* documentación;
-* identidad del paquete.
-
-**Alcance propuesto**
+**Alcance inicial**
 
 * Crear CLI oficial `are`.
 * Mantener compatibilidad temporal con `f2b-ipset.sh`.
@@ -902,9 +1292,35 @@ Alinear progresivamente:
 * Evaluar migración futura de base de datos hacia rutas ARE.
 * Actualizar documentación afectada.
 
-**Regla**
+**Nota**
 
-La migración deberá realizarse gradualmente para no romper instalaciones existentes.
+Esta migración debe realizarse de forma gradual para no romper instalaciones existentes.
+
+**Estado:** ✔ Validado en producción
+
+**Implementado**
+
+* Evento FOUND.
+* Procesamiento desde Sensor Fail2Ban.
+* Cursor persistente.
+* Modo `--dry-run`.
+* Modo `--execute`.
+* Registro en SQLite.
+* Integración con Policy Engine.
+* Pruebas manuales y producción real satisfactorias.
+
+**Pendiente**
+
+* Ejecución continua.
+* Limpieza final del sensor.
+* Definir política de ejecución automática.
+
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Implementado en la evolución hacia v2
+
+La migración de identidad dejó de ser una evaluación futura. ARE v2 utiliza la identidad `ARE` y la nueva estructura de instalación. Las referencias históricas a `f2b-ipset` se conservan en este documento precisamente por trazabilidad.
 
 ---
 
@@ -914,472 +1330,159 @@ La migración deberá realizarse gradualmente para no romper instalaciones exist
 
 **Estado:** Draft
 
+**Versión objetivo:** v1.1
+
 **Descripción**
 
-Evaluar la transición del modelo actual hacia un modelo donde Fail2Ban actúe principalmente como fuente de eventos y ARE asuma la autoridad sobre las decisiones de bloqueo, filtrado, liberación y escalado.
+Evaluar la transición del modelo actual, donde Fail2Ban ejecuta decisiones de `BAN` y `UNBAN`, hacia un modelo donde Fail2Ban actúa únicamente como fuente de eventos y ARE asume la autoridad principal sobre las decisiones de bloqueo, filtrado, liberación y escalado.
 
 **Objetivo**
 
-Permitir que ARE determine la respuesta final utilizando:
-
-* reputación;
-* score;
-* historial;
-* reincidencia;
-* estado de la IP;
-* política configurada.
-
-El objetivo es evitar que una acción externa de Fail2Ban contradiga una decisión de ARE.
+Permitir que ARE decida la respuesta final según reputación, score, historial, reincidencia y estado de la IP, evitando que un `UNBAN` externo contradiga una decisión tomada por el Policy Engine.
 
 **Impacto esperado**
 
 * Mayor autonomía de ARE.
-* Mayor coherencia entre reputación y firewall.
+* Mejor coherencia entre reputación y firewall.
 * Control centralizado del ciclo de vida de una IP.
-* Fail2Ban como sensor y no como autoridad final.
+* Fail2Ban pasa a actuar como sensor, no como autoridad de decisión.
 
 **Puntos a definir**
 
-* Tratamiento de eventos `BAN`.
-* Tratamiento de eventos `UNBAN`.
-* Condiciones para liberar una IP.
-* Integración con Ban Lifecycle.
+* Cómo tratar eventos `BAN` de Fail2Ban.
+* Cómo tratar eventos `UNBAN` de Fail2Ban.
+* Cuándo ARE debe liberar una IP.
+* Cómo calcular escalado por reincidencia.
+* Tiempo máximo de bloqueo temporal.
 * Condiciones para bloqueo permanente.
-* Relación entre decisiones de ARE y acciones externas.
 
 **Validación inicial**
 
-Se implementó y validó manualmente:
+Se implementó y validó manualmente el comando:
 
 ```bash
 ./f2b-ipset.sh external-unban <IP> <JAIL>
 ```
 
-Esta validación no implica que la RFC haya sido aceptada.
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Implementado / integrado
+
+El modelo descrito en este RFC quedó materializado en el Sensor Framework, Policy Engine y ciclo de sanciones. Los eventos externos no sustituyen la decisión de ARE; vuelven a pasar por la evaluación de política cuando corresponde.
 
 ---
 
 ## RFC-005
 
-**Título:** Ciclo autónomo de recuperación y sanción
+**Título:** Reputation Decay y ciclo autónomo de ban/unban
 
 **Estado:** Draft
 
+**Versión objetivo:** v1.1 / evaluación
+
 **Descripción**
 
-Definir la evolución futura del ciclo completo de una IP cuando ARE controle de forma autónoma la relación entre reputación, estado, sanciones y recuperación.
+Diseñar un mecanismo para que ARE pueda reducir gradualmente el score de reputación de una IP cuando no exista actividad reciente, permitiendo que la reputación se recupere con el tiempo.
 
-La parte correspondiente al cálculo básico de Reputation Decay ya fue implementada en v1.1 y no debe considerarse pendiente dentro de esta RFC.
+**Objetivo**
 
-**Objetivo futuro**
+Permitir que ARE controle de forma autónoma el ciclo completo de una IP:
 
-Evaluar un ciclo compuesto por:
-
-```text
-observación
-    ↓
-reputación
-    ↓
-decisión
-    ↓
-sanción
-    ↓
-escalado
-    ↓
-recuperación
-    ↓
-reevaluación
-    ↓
-liberación
-```
+* observación;
+* score;
+* decisión;
+* ban temporal;
+* escalado por reincidencia;
+* recuperación progresiva;
+* unban decidido por ARE;
+* ban permanente en casos críticos.
 
 **Principios**
 
 * Una IP deja de ser peligrosa gradualmente.
-* La reputación no se elimina de golpe.
-* La liberación debe ser consecuencia de una decisión de ARE.
-* Fail2Ban actúa como fuente de información.
-* Los límites de escalado deben ser configurables.
+* La reputación no se borra de golpe.
+* El `UNBAN` debe ser consecuencia de una decisión de ARE.
+* Fail2Ban actúa como sensor, no como autoridad de decisión.
+* Los límites de escalado deben ser configurables por el SysAdmin.
 
-**Puntos pendientes de definición**
+**Puntos a definir**
 
-* Frecuencia definitiva del Decay Engine.
-* Fórmula definitiva de recuperación.
-* Umbral de liberación.
-* Relación entre score y estado de sanción.
-* Condiciones para liberar un `TEMP_BAN`.
-* Condiciones para conservar un bloqueo aunque el score disminuya.
-* Relación entre reincidencia y Ban Lifecycle.
-* Condición definitiva para `BAN` permanente.
-* Tratamiento de `EXTERNAL_UNBAN`.
+* Frecuencia del Decay Engine.
+* Fórmula de reducción del score.
+* Umbral para liberar una IP.
+* Ban inicial.
+* Multiplicador por reincidencia.
+* Máximo de días para ban temporal.
+* Condición para ban permanente.
+* Relación entre `state`, `score` y `last_event`.
+
+**Validación inicial**
+
+Se verificó que la tabla `reputation` mantiene el campo `updated`, el cual representa la última modificación real de reputación de una IP.
+
+Este valor permite calcular el tiempo sin actividad reciente y puede utilizarse como base para un futuro Decay Engine.
+
+Ejemplo:
+
+```text
+ip | total_score | status | updated
+5.5.5.5 | 1675 | BANNED | 2026-07-02
+```
+
+
+### Actualización posterior — ARE v2.0
+
+**Estado actual:** ✔ Implementado / integrado
+
+El Reputation Decay y el ciclo de recuperación evolucionaron desde esta propuesta hasta una capacidad operativa de ARE, incluyendo control de frecuencia mediante `last_decay`, reevaluación de estado/policy y recuperación condicionada por la decisión resultante.
 
 ---
 
 # IDEAS
-
+###### ########################################
 ## IDEA-001
 
-**Título:** Exportación de métricas
-
-Evaluar mecanismos para exportar métricas de ARE hacia sistemas externos.
+Exportación de métricas.
 
 ---
 
 ## IDEA-002
 
-**Título:** API REST
-
-Evaluar una API para consulta e integración externa.
+API REST.
 
 ---
 
 ## IDEA-003
 
-**Título:** Backend Manager
-
-Evaluar una capa de administración de múltiples backends de firewall.
+Backend Manager.
 
 ---
 
 ## IDEA-004
 
-**Título:** Dashboard avanzado
-
-Evaluar ampliaciones del dashboard, incluyendo:
-
-* métricas históricas;
-* gráficos;
-* consultas avanzadas;
-* análisis temporal;
-* evolución de reputación.
+Reputation Decay Engine.
 
 ---
 
-# HISTORIAL DE BUGS RESUELTOS
+## IDEA-005
 
-Las siguientes incidencias forman parte del historial técnico de ARE y se conservan para trazabilidad.
-
-## BUG-001
-
-**Título:** Implementar `handle_unban()`
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.0.1
-
-**Corrección**
-
-Se incorporó `handle_unban()` para completar el flujo de liberación de direcciones IP.
-
----
-
-## BUG-005
-
-**Título:** Inicialización duplicada del backend
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Corrección**
-
-Se eliminó la doble inicialización de IPSet y Firewall centralizando el proceso en:
-
-```text
-backend/init.sh
-```
-
----
-
-## BUG-006
-
-**Título:** La categoría ANOMALY no se refleja en las estadísticas
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Prioridad:** Media
-
-**Problema**
-
-La categoría `ANOMALY` era utilizada por el Policy Engine y los perfiles de jail, pero no formaba parte inicialmente del modelo de reputación persistente.
-
-**Impacto**
-
-* Dashboard incompleto.
-* Estadísticas inconsistentes.
-* Categorías del motor y Dashboard no coincidentes.
-
-**Corrección**
-
-Se incorporó `ANOMALY` al modelo persistente junto con:
-
-* `MALWARE`
-* `DOS`
-* `SOCIAL`
-
-**Validación**
-
-* `stats` muestra `Anomaly`.
-* `score <ip>` muestra `Anomaly`.
-* `FOUND modsec-anomaly` incrementa correctamente el total.
-
----
-
-## BUG-007
-
-**Título:** ARE no procesa correctamente eventos BAN/UNBAN provenientes de Fail2Ban
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Prioridad:** Alta
-
-**Problema**
-
-ARE procesaba eventos `FOUND`, pero determinados eventos `BAN` y `UNBAN` generados por Fail2Ban no quedaban registrados correctamente en el historial.
-
-**Evidencia inicial**
-
-Fail2Ban registraba eventos `Unban`, pero la consulta:
-
-```text
-events <IP>
-```
-
-no mostraba la actividad correspondiente.
-
-**Impacto**
-
-* El ciclo `FOUND → BAN → UNBAN` podía quedar incompleto.
-* El historial podía no representar la actividad real.
-* ARE dependía parcialmente de la acción directa de Fail2Ban.
-
-**Corrección**
-
-El sensor Fail2Ban unificado incorporó el procesamiento de:
-
-* `FOUND`
-* `UNBAN`
-
-Los eventos externos de liberación se registran como:
-
-```text
-EXTERNAL_UNBAN
-```
-
-`EXTERNAL_UNBAN` no libera directamente la IP.
-
-ARE reevalúa la IP mediante el Policy Engine.
-
-**Archivos relacionados**
-
-* `sensors/fail2ban_found.sh`
-* `/etc/fail2ban/action.d/ipset-smart.conf`
-* `f2b-ipset.sh`
-* `database.sh`
-
-**Validación**
-
-Validado en producción con:
-
-```text
-103.59.161.151
-```
-
----
-
-## BUG-008
-
-**Título:** Incoherencia entre State Engine y Policy Engine para estado FILTER
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Prioridad:** Alta
-
-**Problema**
-
-Durante la ejecución del Decay Engine se detectaron IPs con:
-
-```text
-STATUS=NEW
-```
-
-mientras el Policy Engine devolvía:
-
-```text
-FILTER
-```
-
-para:
-
-```text
-LOW_RISK
-```
-
-**Evidencia**
-
-```text
-SCORE=23->21 STATUS=NEW POLICY=FILTER REASON=LOW_RISK
-```
-
-**Corrección**
-
-Se modificó `state_update()` para reconocer `FILTER`.
-
-**Validación**
-
-El Decay Engine dejó de producir la incoherencia:
-
-```text
-STATUS=NEW POLICY=FILTER
-```
-
-Validado mediante:
-
-```text
-decay-apply
-```
-
----
-
-## BUG-009
-
-**Título:** `policy/apply.sh` no implementa la acción FILTER
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Prioridad:** Alta
-
-**Problema**
-
-El Policy Engine devolvía correctamente `FILTER`, pero `policy/apply.sh` no tenía una rama para ejecutar dicha acción.
-
-**Evidencia**
-
-```text
-Policy decision: FILTER (LOW_RISK)
-[APPLY] UNKNOWN ACTION: FILTER
-```
-
-**Corrección**
-
-Se agregó soporte para:
-
-```text
-FILTER
-```
-
-IPv4 utiliza:
-
-```text
-FILTER_SET4
-```
-
-IPv6 utiliza:
-
-```text
-FILTER_SET6
-```
-
-`BAN` y `TEMP_BAN` utilizan sus conjuntos correspondientes.
-
-**Validación**
-
-Validado con:
-
-```text
-87.87.87.87
-```
-
-La IP fue incorporada correctamente a:
-
-```text
-are-filter
-```
-
-y el evento `FILTER` quedó registrado.
-
----
-
-## BUG-010
-
-**Título:** Ban Lifecycle no reconoce escalado permanente por salida multilínea
-
-**Estado:** ✔ Resuelto
-
-**Versión:** v1.1.0
-
-**Prioridad:** Alta
-
-**Problema**
-
-Ban Lifecycle devolvía:
-
-```text
-BAN|0|BAN_LEVEL_MAX
-```
-
-pero `policy/apply.sh` interpretaba incorrectamente el resultado como un ban temporal.
-
-**Evidencia**
-
-```text
-[APPLY] Ban Lifecycle:
-BAN|0|BAN_LEVEL_MAX
-
-[APPLY] EXECUTE: TEMP BAN (0 sec)
-```
-
-**Corrección**
-
-Se normalizó la salida de:
-
-```text
-ban_lifecycle_calculate()
-```
-
-y `policy/apply.sh` reconoce correctamente:
-
-```text
-BAN|0|BAN_LEVEL_MAX
-```
-
-**Validación**
-
-El escalado permanente se ejecuta correctamente.
+Dashboard avanzado.
 
 ---
 
 # OBSERVACIONES
+###### ########################################
+La rama **v1.1-dev** se utiliza para el desarrollo activo de nuevas funcionalidades.
 
-La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
+Las versiones **1.0.x** permanecen destinadas exclusivamente a mantenimiento y corrección de errores.
 
-Las entradas históricas resueltas se conservan cuando aportan:
+## Actualización del proyecto — ARE v2.0
 
-* contexto;
-* decisiones arquitectónicas;
-* fases de implementación;
-* evidencias;
-* validaciones;
-* información necesaria para comprender la evolución del sistema.
+La observación anterior pertenece al momento histórico en que `v1.1-dev` era la rama activa. Se conserva sin modificación.
 
-Las funcionalidades ya incorporadas en una versión estable no deberán reaparecer como trabajo pendiente.
+La evolución posterior abrió `v2.0-dev` como nueva línea de desarrollo de la arquitectura ARE. La apertura de v2 no convierte automáticamente en cerradas las tareas históricas: cada estado debe seguir la evidencia de implementación y validación correspondiente.
 
-Las RFC representan propuestas sujetas a decisión y no deben confundirse con funcionalidades implementadas.
+La historia de v1.x permanece dentro de este TODO. Las implementaciones posteriores de v2 se agregan mediante actualizaciones y nuevas tareas, sin borrar ni sustituir los registros originales.
 
-Las ideas no constituyen compromisos de implementación.
-
-La versión estable documentada actualmente es:
-
-```text
-v1.1.0
-```
-
-El trabajo futuro deberá incorporarse al Roadmap antes de convertirse en una línea formal de desarrollo.
+**Estado de referencia de la rama:** `v2.0-dev`.

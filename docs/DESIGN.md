@@ -1,269 +1,541 @@
 # ARE Design
 
-## Introducción
+## 1. Propósito
 
-Este documento define los principios de diseño utilizados durante el desarrollo de ARE (Abuse Reputation Engine).
+Este documento define los principios y decisiones de diseño que guían la implementación de ARE (Abuse Reputation Engine).
 
-Su propósito es garantizar que todas las decisiones de implementación mantengan una arquitectura coherente y modular.
+`ARCHITECTURE.md` describe cómo está compuesto el sistema.
 
-Las decisiones de diseño complementan la arquitectura del proyecto y sirven como referencia para el desarrollo de nuevas funcionalidades.
+`DESIGN.md` describe por qué el sistema está diseñado de esa manera.
 
----
-
-# Filosofía del proyecto
-
-ARE fue diseñado bajo un principio fundamental:
-
-> **Comprender antes de responder.**
-
-Las decisiones de seguridad no deben depender de un único evento sino del comportamiento histórico observado.
-
-La arquitectura separa:
-
-* observación;
-* evaluación;
-* decisión;
-* ejecución.
-
-Esta separación permite que cada componente mantenga una responsabilidad definida.
+Las decisiones documentadas aquí corresponden al diseño implementado y validado. Las propuestas futuras pertenecen al Roadmap o a las RFC correspondientes.
 
 ---
 
-# Principios de diseño
+# 2. Principios de diseño
 
-## Responsabilidad única
+## 2.1 Responsabilidad única
 
-Cada componente implementa una responsabilidad claramente definida.
+Cada componente de ARE debe mantener una responsabilidad claramente definida.
 
-Ejemplos:
+La observación, reputación, estado, decisión, sanción, aplicación y administración del producto no deben mezclarse innecesariamente.
 
-* Sensor Framework observa.
-* Reputation Engine gestiona la reputación.
-* State Engine determina estados.
-* Policy Engine decide.
-* Firewall Backend ejecuta las acciones sobre el sistema.
-* Installer Engine administra el ciclo de vida del producto.
+La separación permite:
 
----
-
-## Modularidad
-
-ARE está compuesto por módulos independientes.
-
-La incorporación de nuevos componentes debe minimizar las modificaciones sobre el resto del sistema.
+* reducir acoplamiento;
+* facilitar pruebas;
+* aislar cambios;
+* evitar duplicación de lógica;
+* facilitar la evolución del sistema.
 
 ---
 
-## Bajo acoplamiento
+## 2.2 Separación entre observación y decisión
 
-Los motores dependen de interfaces y funciones claramente definidas.
+Los sistemas externos producen eventos.
 
-La implementación interna de un componente debe mantenerse separada de las responsabilidades de los demás.
+Los sensores transforman esos eventos en información procesable por ARE.
 
----
+Los sensores no determinan la respuesta de seguridad.
 
-## Alta cohesión
+La decisión corresponde al núcleo de ARE.
 
-Cada módulo agrupa únicamente funciones relacionadas con una misma responsabilidad.
-
----
-
-## Simplicidad
-
-Se priorizan soluciones simples antes que implementaciones innecesariamente complejas.
-
-Las funciones pequeñas y reutilizables tienen preferencia sobre bloques monolíticos.
-
----
-
-## Configuración desacoplada
-
-La configuración del entorno reside fuera del Core.
-
-Ubicación oficial:
+El flujo conceptual es:
 
 ```text
-/etc/f2b-ipset
+fuente externa
+      |
+      v
+    sensor
+      |
+      v
+    evento
+      |
+      v
+ARE interpreta
+      |
+      v
+ARE decide
 ```
 
-El código distribuido no debe contener parámetros específicos del entorno.
+Esta separación fue establecida durante v1.1 mediante el Sensor Framework y se mantiene en v2.0.
 
 ---
 
-## Persistencia
+## 2.3 Separación entre decisión y ejecución
 
-ARE mantiene de forma persistente la información necesaria para gestionar la reputación, los estados y los eventos.
+El Policy Engine determina la acción.
 
-Se diferencian:
+El mecanismo encargado de aplicar la decisión ejecuta la acción mediante el Firewall Backend.
 
+Por lo tanto:
+
+```text
+Policy Engine
+      |
+      | qué hacer
+      v
+Apply
+      |
+      | cómo aplicarlo
+      v
+Firewall Backend
+```
+
+El motor de decisión no debe contener lógica específica innecesaria de un backend concreto.
+
+---
+
+## 2.4 Persistencia del conocimiento
+
+ARE no debe depender exclusivamente del estado momentáneo del sistema externo.
+
+El conocimiento acumulado debe mantenerse de forma persistente.
+
+El modelo distingue entre:
+
+```text
+events
+    |
+    +-- actividad observada
+
+reputation
+    |
+    +-- conocimiento acumulado
+
+sanction_state
+    |
+    +-- estado de sanción
+```
+
+Esta separación permite reconstruir el estado operativo sin confundir el historial de eventos con la reputación o con el ciclo de sanciones.
+
+---
+
+# 3. Modelo de reputación
+
+## 3.1 Reputación acumulada
+
+La reputación representa el comportamiento observado de una dirección IP.
+
+Un evento individual puede modificar la reputación, pero la decisión no debe depender exclusivamente del último evento.
+
+La información histórica es parte fundamental del modelo de ARE.
+
+---
+
+## 3.2 Categorías
+
+Las categorías de reputación permiten clasificar diferentes tipos de comportamiento.
+
+El modelo fue ampliado durante v1.1 y constituye la base utilizada por v2.0.
+
+Los jails no se convierten en columnas independientes de la tabla `reputation`.
+
+La relación entre un jail y una categoría se mantiene mediante `jail_profile`.
+
+Esto permite agregar o modificar perfiles sin modificar la estructura principal de reputación.
+
+---
+
+# 4. Modelo de decisión basado en riesgo
+
+ARE utiliza la reputación acumulada, el estado y la política para determinar la respuesta.
+
+El modelo evita tratar el tiempo de bloqueo como la única fuente de decisión.
+
+Conceptualmente:
+
+```text
+eventos
+   |
+   v
+reputación
+   |
+   v
+estado
+   |
+   v
+política
+   |
+   v
+decisión
+```
+
+La respuesta puede evolucionar según el comportamiento acumulado de la IP.
+
+Esto permite diferenciar entre:
+
+* actividad mínima;
+* observación;
+* filtrado;
+* bloqueo temporal;
+* bloqueo permanente.
+
+---
+
+# 5. Ciclo de vida de una IP
+
+Una dirección IP observada por ARE mantiene información durante todo su ciclo de vida.
+
+El ciclo general es:
+
+```text
+observación
+     |
+     v
+reputación
+     |
+     v
+estado
+     |
+     v
+decisión
+     |
+     v
+sanción
+     |
+     v
+recuperación
+     |
+     v
+reevaluación
+```
+
+El objetivo es evitar que una IP pierda inmediatamente todo su historial por la desaparición temporal de actividad.
+
+---
+
+# 6. Decay y recuperación
+
+## 6.1 Principio
+
+La reputación puede disminuir gradualmente cuando cesa la actividad relevante.
+
+La recuperación no equivale a eliminar la reputación.
+
+El mecanismo reduce progresivamente el score y permite que ARE vuelva a evaluar el estado y la política.
+
+---
+
+## 6.2 Control de frecuencia
+
+El control de ejecución se separa de la actividad general de la IP.
+
+Para ello se utiliza:
+
+```text
+last_decay
+```
+
+en `reputation`.
+
+Esto evita utilizar la fecha de última actividad como si fuera la fecha de última ejecución del decay.
+
+El diseño permite distinguir:
+
+```text
+última actividad
+```
+
+de:
+
+```text
+último decay aplicado
+```
+
+---
+
+## 6.3 Separación entre recuperación y aplicación
+
+El Decay Engine modifica la reputación y provoca una reevaluación.
+
+No debe confundirse la recuperación de reputación con una orden directa de modificación del firewall.
+
+El flujo es:
+
+```text
+Decay
+  |
+  v
+Reputation
+  |
+  v
+State Engine
+  |
+  v
+Policy Engine
+  |
+  v
+decisión
+```
+
+La aplicación de esa decisión permanece bajo las responsabilidades correspondientes del sistema.
+
+---
+
+# 7. Ban Lifecycle
+
+## 7.1 Separación de responsabilidades
+
+El Ban Lifecycle Engine no determina si una IP es peligrosa.
+
+Esa decisión pertenece a:
+
+* Reputation Engine;
+* State Engine;
+* Policy Engine.
+
+Ban Lifecycle determina cómo evoluciona una sanción una vez que la política decide aplicar una acción de sanción.
+
+---
+
+## 7.2 Persistencia
+
+El estado de sanción se mantiene en:
+
+```text
+sanction_state
+```
+
+La información persistida permite distinguir:
+
+* nivel de sanción;
+* cantidad histórica;
+* duración;
+* finalización;
+* permanencia.
+
+Esto permite que la reincidencia tenga consecuencias acumulativas.
+
+---
+
+## 7.3 Escalado
+
+Las sanciones pueden evolucionar progresivamente.
+
+El diseño contempla:
+
+```text
+TEMP_BAN
+    |
+    v
+mayor nivel
+    |
+    v
+mayor duración
+    |
+    v
+BAN permanente
+```
+
+El escalado se mantiene separado de la determinación inicial del riesgo.
+
+---
+
+# 8. Sensores
+
+Los sensores son adaptadores de entrada.
+
+Su responsabilidad es transformar información externa en eventos que ARE pueda procesar.
+
+Un sensor no debe:
+
+* decidir la política;
+* modificar directamente la reputación sin pasar por el flujo definido;
+* sustituir al Policy Engine;
+* asumir responsabilidades del Firewall Backend.
+
+El Sensor Framework permite incorporar nuevas fuentes sin modificar innecesariamente el núcleo.
+
+La primera implementación oficial es el sensor Fail2Ban.
+
+Actualmente procesa:
+
+```text
+FOUND
+EXTERNAL_UNBAN
+```
+
+y utiliza un offset persistente para evitar reprocesamiento.
+
+---
+
+# 9. Fail2Ban como fuente de eventos
+
+Fail2Ban no constituye la autoridad final de decisión de ARE.
+
+Su función dentro del modelo es proporcionar información sobre actividad observada.
+
+El flujo es:
+
+```text
+Fail2Ban
+    |
+    v
+Sensor
+    |
+    v
+ARE
+    |
+    v
+Reputation
+    |
+    v
+Policy
+```
+
+Esto permite que ARE conserve una visión acumulada de la IP en lugar de depender exclusivamente de una acción individual de Fail2Ban.
+
+---
+
+# 10. Configuración desacoplada
+
+La configuración no debe estar embebida innecesariamente dentro de los motores.
+
+La configuración operativa se mantiene separada del código del producto.
+
+En v2.0 la estructura oficial utiliza:
+
+```text
+/opt/are
+/opt/are/config
+/var/lib/are
+/var/log/are
+```
+
+El Product Manifest define qué componentes forman parte del producto y cómo son administrados.
+
+La configuración distribuida con el producto y la configuración activa de una instalación son conceptos diferentes.
+
+El Installer administra esta relación.
+
+---
+
+# 11. Product Manifest
+
+`manifest/product.sh` constituye la definición estructural del producto.
+
+El Manifest centraliza:
+
+* identidad del producto;
+* versión;
+* directorios;
+* archivos;
 * configuración;
-* reputación;
-* estados;
-* eventos;
-* información asociada al ciclo de sanciones.
+* datos persistentes;
+* ejecutables;
+* enlaces;
+* systemd;
+* logrotate;
+* exclusiones.
+
+El Manifest no contiene la lógica de los motores.
+
+Su función es proporcionar una fuente única para que el Installer conozca qué debe administrar.
 
 ---
 
-# Sensor Framework
+# 12. Installer Engine
 
-Los sensores constituyen la capa de observación del sistema.
+El Installer Engine administra el ciclo de vida de la instalación.
 
-Su responsabilidad consiste en transformar eventos externos al formato interno utilizado por ARE.
+Las operaciones son:
 
-El sensor de Fail2Ban actualmente implementado procesa:
+```text
+install
+upgrade
+repair
+verify
+uninstall
+```
 
-* `FOUND`;
-* `EXTERNAL_UNBAN`.
+El diseño mantiene separadas:
 
-El procesamiento del sensor puede ejecutarse en modo de simulación (`--dry-run`) o ejecución (`--execute`).
+```text
+producto
+configuración
+datos persistentes
+logs
+servicios
+enlaces
+```
 
-La arquitectura permite incorporar nuevos sensores sin modificar el núcleo de ARE.
+Un `upgrade` puede actualizar componentes del producto sin destruir los datos persistentes.
 
----
+Un `repair` puede reconstruir componentes faltantes de una instalación incompleta.
 
-# Modelo de decisión
+Un `verify` comprueba que los componentes requeridos se encuentren presentes y operativos.
 
-ARE utiliza la reputación y el estado de una dirección IP como entradas para la evaluación de políticas.
-
-El flujo principal considera:
-
-* reputación acumulada;
-* estado actual;
-* política configurada.
-
-El resultado de la evaluación determina la acción que será aplicada.
-
-Las decisiones implementadas incluyen:
-
-* `ALLOW`;
-* `WATCH`;
-* `FILTER`;
-* `TEMP_BAN`;
-* `BAN`.
+Un `uninstall` elimina el producto sin convertir automáticamente los datos persistentes en parte del contenido eliminado.
 
 ---
 
-# Ciclo de vida de una dirección IP
+# 13. Compatibilidad y evolución
 
-## 1. Observación
+v2.0 no se diseña como una ruptura conceptual respecto de v1.1.
 
-Los sensores reciben eventos desde sistemas externos.
+La versión estable v1.1 proporciona la base funcional sobre la que se desarrolla v2.0.
 
-El Sensor Framework transforma los eventos admitidos al flujo interno de ARE.
+La evolución actual afecta principalmente:
 
-Actualmente se encuentra implementado el sensor de Fail2Ban.
-
----
-
-## 2. Reputación
-
-Cada evento `FOUND` procesado por el flujo de ARE puede generar una modificación de la reputación de la dirección IP.
-
-El perfil asociado al jail determina:
-
-* peso;
-* confianza;
-* categoría.
-
-La puntuación resultante se incorpora a la reputación persistente de la dirección IP.
-
----
-
-## 3. Estado
-
-El State Engine determina el estado operativo de la dirección IP en función de su puntuación.
-
-Estados implementados:
-
-* `NEW`;
-* `WATCH`;
-* `FILTER`;
-* `BANNED`.
-
----
-
-## 4. Evaluación
-
-El Policy Engine recibe:
-
-* puntuación total;
-* estado actual.
-
-A partir de estos valores genera una decisión.
-
----
-
-## 5. Respuesta
-
-Las decisiones implementadas son:
-
-* `ALLOW`;
-* `WATCH`;
-* `FILTER`;
-* `TEMP_BAN`;
-* `BAN`.
-
-La aplicación de estas decisiones corresponde al flujo de Policy Apply y al Backend utilizado por ARE.
-
----
-
-## 6. Sanciones temporales
-
-Cuando la decisión es `TEMP_BAN`, el flujo de aplicación consulta el Ban Lifecycle Engine.
-
-El Ban Lifecycle Engine determina el nivel de sanción siguiente y la duración correspondiente según la configuración disponible.
-
-La información del ciclo de sanción se almacena de forma persistente.
-
----
-
-## 7. Persistencia
-
-La reputación, los estados y los eventos permanecen registrados en SQLite.
-
-La aplicación de una sanción no elimina automáticamente la reputación histórica de la dirección IP.
-
----
-
-# Installer Engine
-
-El Installer Engine constituye un componente independiente de la arquitectura.
-
-Sus operaciones comprenden:
-
+* identidad del producto;
+* estructura operativa;
 * instalación;
-* actualización;
-* reparación;
-* validación;
-* desinstalación.
+* persistencia;
+* mantenimiento;
+* integración del ciclo de recuperación;
+* organización de componentes.
 
-El Installer Engine utiliza el Manifest del producto como referencia de los componentes administrados por el instalador.
-
----
-
-# Evolución
-
-Toda nueva funcionalidad deberá respetar los principios definidos en este documento.
-
-La evolución del proyecto deberá favorecer:
-
-* extensión antes que modificación;
-* reutilización antes que duplicación;
-* estabilidad antes que complejidad.
+Las capacidades futuras que todavía no hayan sido implementadas y validadas no deben incorporarse como decisiones de diseño ya realizadas.
 
 ---
 
-# Principios finales
+# 14. Diseño basado en evidencia
 
-Las decisiones de diseño de ARE se resumen en los siguientes principios:
+Las decisiones de diseño de ARE deben surgir de:
 
-1. Una responsabilidad por componente.
-2. Arquitectura antes que implementación.
-3. Configuración desacoplada.
-4. Persistencia del conocimiento.
-5. Separación entre decisión y ejecución.
-6. Reutilización del código.
-7. Evolución incremental.
-8. Estabilidad como prioridad.
-9. Documentación sincronizada con el código.
-10. Ausencia de lógica duplicada.
+1. necesidad identificada;
+2. análisis;
+3. implementación;
+4. prueba;
+5. validación;
+6. documentación.
+
+La documentación no debe utilizarse para definir retrospectivamente un comportamiento que el sistema todavía no implementa.
+
+El comportamiento real y validado del sistema es la referencia principal para actualizar este documento.
+
+---
+
+# 15. Evolución incremental
+
+ARE debe evolucionar sin introducir cambios innecesarios.
+
+Una modificación debe integrarse en el componente responsable antes que duplicar una capacidad existente.
+
+Cuando una modificación afecta la arquitectura, debe quedar reflejada en la documentación correspondiente.
+
+Las propuestas que todavía no hayan sido implementadas pertenecen al Roadmap o a las RFC y no forman parte del diseño operativo actual.
+
+---
+
+# 16. Estado del diseño
+
+El diseño actual de v2.0 conserva los principios establecidos durante v1.1 y los adapta a la estructura operativa actual de ARE.
+
+Las decisiones principales consolidadas para v2.0 son:
+
+* separación entre sensores y decisión;
+* separación entre decisión y ejecución;
+* persistencia independiente de eventos, reputación y sanciones;
+* Ban Lifecycle como componente independiente;
+* recuperación mediante Decay;
+* configuración desacoplada;
+* Product Manifest como definición estructural del producto;
+* Installer Engine como administrador del ciclo de vida de instalación;
+* estructura operativa propia de ARE;
+* evolución incremental sobre la base estable de v1.1.
+
+La versión v2.0 continúa siendo objeto de desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+

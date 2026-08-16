@@ -11,20 +11,23 @@
 
 PRODUCT_NAME="ARE"
 PRODUCT_DESCRIPTION="Abuse Reputation Engine"
-PRODUCT_VERSION="1.1.0"
+PRODUCT_VERSION="2.0.0"
 PRODUCT_LICENSE="GPL-3.0"
 
 ##################################################
 # Installation Layout
 ##################################################
 
-PRODUCT_HOME="/opt/are-install-target/opt/are"
+PRODUCT_ROOT="${ARE_INSTALL_ROOT:-}"
+PRODUCT_ROOT="${PRODUCT_ROOT%/}"
+
+PRODUCT_HOME="${PRODUCT_ROOT}/opt/are"
 PRODUCT_CONFIG="$PRODUCT_HOME/config"
-PRODUCT_DATA="/opt/are-install-target/var/lib/are"
-PRODUCT_SYSTEMD="/opt/are-install-target/etc/systemd/system"
-PRODUCT_BIN="/opt/are-install-target/usr/local/sbin"
-PRODUCT_LOG="/opt/are-install-target/var/log/are"
-PRODUCT_LOGROTATE="/opt/are-install-target/etc/logrotate.d"
+PRODUCT_DATA="${PRODUCT_ROOT}/var/lib/are"
+PRODUCT_SYSTEMD="${PRODUCT_ROOT}/etc/systemd/system"
+PRODUCT_BIN="${PRODUCT_ROOT}/usr/local/sbin"
+PRODUCT_LOG="${PRODUCT_ROOT}/var/log/are"
+PRODUCT_LOGROTATE="${PRODUCT_ROOT}/etc/logrotate.d"
 
 ##################################################
 # Core Directories
@@ -98,7 +101,7 @@ PRODUCT_EXECUTABLE_LINKS=(
 ##################################################
 
 PRODUCT_DATA_FILES=(
-    f2b.db
+    are.db
 )
 
 ##################################################

@@ -1,310 +1,707 @@
-ARE Architecture
-Introducción
+# ARE Architecture
 
-ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para desacoplar la detección de amenazas de la aplicación de contramedidas.
+## Introducción
 
-La arquitectura está basada en componentes con responsabilidades diferenciadas, donde los eventos son procesados mediante reputación, estado y política antes de aplicar una contramedida.
+ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para transformar eventos de seguridad en decisiones basadas en evidencia.
 
-Esta separación permite incorporar nuevas fuentes de eventos y evolucionar las políticas manteniendo separado el procesamiento de eventos de la aplicación de acciones sobre el sistema.
+La arquitectura separa la observación de los eventos, la construcción de reputación, la evaluación del estado, la decisión de política y la ejecución de las acciones.
 
-Arquitectura general
-                 +----------------------+
-                 |  External Systems    |
-                 +----------+-----------+
-                            |
-                            v
+ARE v2.0 continúa esta arquitectura a partir de la base funcional y establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones.
+
+La versión v1.1 constituye la última versión estable liberada. v2.0 se encuentra en desarrollo y validación sobre esa base.
+
+---
+
+# Arquitectura general
+
+La arquitectura actual puede representarse mediante el siguiente flujo:
+
+```text
+                         FUENTES EXTERNAS
+                               |
+             +-----------------+-----------------+
+             |                                   |
+             v                                   v
+        Fail2Ban                         Otras fuentes
+             |                         (arquitectura extensible)
+             v
+       Sensor Framework
+             |
+             | eventos internos
+             v
+      +-------------------+
+      | Reputation Engine |
+      +---------+---------+
+                |
+                v
+         +-------------+
+         | State Engine|
+         +------+------+
+                |
+                v
+         +-------------+
+         | Policy      |
+         | Engine      |
+         +------+------+
+                |
+                v
+      +-------------------+
+      | Ban Lifecycle     |
+      | Engine            |
+      +---------+---------+
+                |
+                v
+      +-------------------+
+      | Apply Engine      |
+      +---------+---------+
+                |
+                v
+      +-------------------+
+      | Firewall Backend  |
+      +---------+---------+
+                |
+                v
+          IPSet / Firewall
 
 
-                    Sensor Framework
-                            |
-                            v
-                  +-------------------+
-                  | Reputation Engine |
-                  +---------+---------+
-                            |
-                            v
-                    +---------------+
-                    |  State Engine |
-                    +-------+-------+
-                            |
-                            v
-                    +---------------+
-                    | Policy Engine  |
-                    +-------+-------+
-                            |
-                            v
-                    +---------------+
-                    | Policy Apply   |
-                    +-------+-------+
-                            |
-          +-----------------+------------------+
-          |                 |                  |
-          v                 v                  v
-        ALLOW            WATCH              FILTER
-                            |
-                            |
-                            v
-                          BAN
-                            |
-                            |
-                       TEMP_BAN
-                            |
-                            v
-                  Ban Lifecycle Engine
-                            |
-                            v
-                   Firewall Backend
-                            |
-                            v
-                    Operating System
-Componentes
-Sensor Framework
+       Reputation Decay
+              |
+              v
+      Reputation Engine
+              |
+              v
+        State Engine
+              |
+              v
+        Policy Engine
+```
 
-El Sensor Framework constituye la capa de observación de ARE.
+El flujo representa la arquitectura funcional actual. Los componentes externos generan información; ARE procesa esa información y determina la respuesta; el backend ejecuta la acción correspondiente.
 
-Su responsabilidad consiste en procesar eventos provenientes de sistemas externos y convertirlos en acciones internas que ARE pueda procesar.
+---
 
-En la versión 1.1 se encuentra implementado el sensor de Fail2Ban.
+# Relación entre v1.1 y v2.0
 
-El sensor procesa actualmente:
+v2.0 no constituye un sistema independiente de v1.1.
 
+La nueva versión se construye sobre las capacidades desarrolladas, probadas y estabilizadas durante v1.1.
+
+Entre los elementos heredados se encuentran:
+
+* Reputation Engine.
+* State Engine.
+* Policy Engine.
+* Sensor Framework.
+* Sensor Fail2Ban.
+* Firewall Backend.
+* SQLite.
+* Dashboard.
+* Ban Lifecycle Engine.
+* Installer Engine.
+
+La evolución hacia v2.0 incorpora principalmente una reorganización de identidad, estructura operativa, instalación y mantenimiento, junto con la integración de capacidades desarrolladas durante la evolución posterior de v1.1.
+
+La arquitectura v2 mantiene como principio que las nuevas capacidades deben integrarse sin duplicar responsabilidades existentes.
+
+---
+
+# Capas de ARE
+
+## Sensor Framework
+
+El Sensor Framework constituye la capa de observación.
+
+Su responsabilidad es recibir información generada por sistemas externos y transformarla en eventos que puedan ser procesados por ARE.
+
+Los sensores no determinan la política de seguridad.
+
+### Sensor Fail2Ban
+
+El sensor Fail2Ban es la primera implementación oficial del Sensor Framework.
+
+Actualmente procesa:
+
+```text
 FOUND
 EXTERNAL_UNBAN
+```
 
-Los eventos FOUND son enviados a ARE mediante:
+El sensor utiliza un offset persistente para evitar reprocesar eventos ya procesados.
 
-f2b-ipset.sh found <IP> <JAIL>
+El flujo general es:
 
-Los eventos EXTERNAL_UNBAN son enviados mediante:
+```text
+Fail2Ban
+    |
+    v
+Sensor Fail2Ban
+    |
+    v
+Evento ARE
+```
 
-f2b-ipset.sh external-unban <IP> <JAIL>
+La arquitectura permite incorporar otros sensores sin modificar la responsabilidad del núcleo de reputación.
 
-El sensor de Fail2Ban admite los siguientes perfiles de jail:
+---
 
-modsec-*
-recidive
-sshd
-telnet
+# Reputation Engine
 
-El procesamiento puede ejecutarse en modo de observación (--dry-run) o ejecución (--execute).
+El Reputation Engine mantiene el conocimiento acumulado sobre las direcciones IP.
 
-La arquitectura permite incorporar nuevas fuentes de eventos sin modificar el mecanismo central de procesamiento.
+Los eventos procesados producen cambios en las categorías de reputación correspondientes y en el `total_score`.
 
-Reputation Engine
+La reputación se mantiene de forma persistente en SQLite.
 
-El Reputation Engine mantiene la reputación acumulada de cada dirección IP.
+El modelo de reputación utilizado por ARE se construyó y amplió durante v1.1 y forma parte de la base sobre la que continúa desarrollándose v2.0.
 
-La reputación se almacena persistentemente en SQLite.
+La reputación representa comportamiento acumulado y no solamente el último evento recibido.
 
-ARE v1.1 utiliza las siguientes categorías:
+---
 
-RECON
-EXPLOIT
-CREDENTIAL
-PROTOCOL
-BOT
-ANOMALY
-MALWARE
-DOS
-SOCIAL
+# State Engine
 
-Cada evento puede incrementar la puntuación correspondiente a su categoría según el perfil de reputación asociado al jail.
+El State Engine determina el estado operativo de una dirección IP a partir de la información disponible en ARE.
 
-El total_score representa la suma de las puntuaciones de todas las categorías de reputación.
+Su función es representar la situación actual de la IP dentro del ciclo de decisión.
 
-State Engine
+Los estados definidos por el modelo actual incluyen:
 
-El State Engine determina el estado operativo de una dirección IP a partir de su puntuación total.
-
-Estados utilizados por ARE v1.1:
-
+```text
 NEW
 WATCH
 FILTER
-BANNED_TEMP
 BANNED
+```
 
-La actualización normal del estado mediante state_update() utiliza los siguientes umbrales:
+El State Engine es independiente del mecanismo utilizado posteriormente para ejecutar una acción.
 
-Puntuación	Estado
-0	NEW
-1–19	WATCH
-20–49	FILTER
-50–79	WATCH
-≥80	BANNED
+La evolución de v1.1 demostró además la necesidad de mantener sincronizados State Engine y Policy Engine, evitando estados incompatibles con las decisiones generadas por la política.
 
-BANNED_TEMP forma parte del ciclo de sanción temporal y de las transiciones de estado, pero no es asignado directamente por state_update().
+---
 
+# Policy Engine
+
+El Policy Engine transforma la información de reputación y estado en una decisión.
+
+Las decisiones disponibles incluyen:
+
+```text
+ALLOW
+WATCH
+FILTER
+TEMP_BAN
+BAN
+```
+
+El Policy Engine no ejecuta directamente las modificaciones del firewall.
+
+Su responsabilidad termina en la generación de una decisión coherente con la información disponible.
+
+La ejecución corresponde a las capas posteriores.
+
+---
+
+# Ban Lifecycle Engine
+
+El Ban Lifecycle Engine administra la evolución de las sanciones.
+
+No determina si una IP representa riesgo. Esa responsabilidad corresponde a Reputation Engine, State Engine y Policy Engine.
+
+Su responsabilidad comienza cuando ARE determina una acción de sanción.
+
+El estado de sanción se mantiene de forma persistente mediante:
+
+```text
+sanction_state
+```
+
+La información administrada incluye:
+
+* nivel de sanción;
+* cantidad acumulada de sanciones;
+* duración;
+* finalización de sanciones temporales;
+* estado permanente.
+
+El mecanismo permite escalar progresivamente las sanciones hasta un bloqueo permanente cuando la política correspondiente lo determina.
+
+El Ban Lifecycle Engine fue implementado y validado durante la evolución de v1.1 y forma parte de la arquitectura sobre la que continúa v2.0.
+
+---
+
+# Apply Engine
+
+El Apply Engine recibe la decisión generada por el Policy Engine y coordina su aplicación.
+
+Su responsabilidad es separar la decisión lógica de la ejecución concreta sobre el sistema operativo.
+
+El flujo es:
+
+```text
 Policy Engine
-
-El Policy Engine evalúa la puntuación de reputación y el estado actual para producir una decisión.
-
-Las decisiones utilizadas por ARE v1.1 son:
-
-ALLOW
-WATCH
-FILTER
-TEMP_BAN
-BAN
-
-La política aplica un bloqueo inmediato cuando el estado actual es BANNED.
-
-Los umbrales efectivos de la política son:
-
-Condición	Decisión
-Estado BANNED	BAN
-Score ≥ 200	TEMP_BAN
-Score ≥ 150	BAN
-Score ≥ 100	WATCH
-Score < 100	ALLOW
-
-La decisión producida por el Policy Engine es posteriormente entregada al mecanismo de aplicación de políticas.
-
-Policy Apply
-
-Policy Apply ejecuta la decisión producida por el Policy Engine.
-
-Las acciones soportadas son:
-
-ALLOW
-WATCH
-FILTER
-TEMP_BAN
-BAN
-
-ALLOW y WATCH no aplican un bloqueo de firewall.
-
-FILTER incorpora la dirección IP al conjunto de filtrado.
-
-BAN incorpora la dirección IP al conjunto de bloqueo permanente y establece el estado BANNED.
-
-TEMP_BAN delega el cálculo de la sanción en el Ban Lifecycle Engine antes de aplicar el bloqueo correspondiente.
-
-Ban Lifecycle Engine
-
-El Ban Lifecycle Engine administra la duración y escalamiento de las sanciones temporales.
-
-Se utiliza cuando Policy Apply recibe una decisión TEMP_BAN.
-
-El motor determina si corresponde:
-
-aplicar una sanción temporal;
-escalar la sanción a un bloqueo permanente.
-
-Cuando corresponde una sanción temporal, se calcula el momento de finalización y se aplica el timeout correspondiente al conjunto de bloqueo.
-
-Cuando corresponde una escalada permanente, la dirección IP pasa a un bloqueo permanente.
-
+      |
+      | decisión
+      v
+Apply Engine
+      |
+      v
 Firewall Backend
+```
 
-El Firewall Backend constituye la capa encargada de aplicar las contramedidas de red sobre el sistema operativo.
+Esta separación permite que el motor de decisión no dependa directamente de la implementación concreta del firewall.
 
-ARE v1.1 utiliza:
+El Apply Engine procesa acciones como:
 
-IPSet para almacenar las direcciones IP;
-iptables para las reglas IPv4;
-ip6tables para las reglas IPv6.
-
-Se utilizan conjuntos independientes para:
-
+```text
+ALLOW
+WATCH
 FILTER
+TEMP_BAN
 BAN
+```
 
-El backend instala reglas de firewall que bloquean las direcciones contenidas en dichos conjuntos.
+y coordina las operaciones necesarias para materializar la decisión mediante el backend.
 
-SQLite
+---
 
-SQLite proporciona la persistencia de ARE.
+# Firewall Backend
 
-La base de datos almacena información relacionada con:
+El Firewall Backend es la capa encargada de aplicar las decisiones sobre el sistema operativo.
 
-reputación;
-estados;
-eventos;
-perfiles de jail;
-configuración;
-información relacionada con sanciones.
-Installer Engine
+La implementación actual continúa utilizando IPSet junto con las reglas de firewall correspondientes.
 
-El Installer Engine administra las operaciones de instalación y mantenimiento del sistema ARE.
+La arquitectura mantiene separado el backend del Policy Engine.
 
-Las operaciones contempladas por el instalador son:
+Actualmente se utilizan conjuntos diferenciados para las funciones de filtrado y bloqueo, incluyendo soporte IPv4 e IPv6.
 
+El objetivo arquitectónico es que una decisión de ARE no dependa de una implementación específica del mecanismo de firewall.
+
+La incorporación de otros backends pertenece a la evolución futura del proyecto y no debe considerarse una capacidad implementada de v2.0 mientras no haya sido desarrollada y validada.
+
+---
+
+# Reputation Decay Engine
+
+El Reputation Decay Engine permite reducir gradualmente la reputación de direcciones IP que no presentan actividad reciente.
+
+El mecanismo fue desarrollado durante la evolución de v1.1 y continúa formando parte del ciclo operativo de v2.0.
+
+El proceso utiliza:
+
+```text
+decay-dry-run
+decay-apply
+```
+
+`decay-dry-run` permite identificar candidatas y calcular el resultado esperado sin modificar los datos.
+
+`decay-apply` aplica la reducción de reputación y actualiza el estado correspondiente.
+
+La tabla `reputation` mantiene:
+
+```text
+last_decay
+```
+
+para controlar la frecuencia de aplicación del decay.
+
+Después de una reducción se reevalúan:
+
+```text
+Reputation
+     |
+     v
+State Engine
+     |
+     v
+Policy Engine
+```
+
+La ejecución periódica se integra mediante systemd.
+
+Las unidades actuales son:
+
+```text
+are-fail2ban-decay.service
+are-fail2ban-decay.timer
+```
+
+El Decay Engine mantiene separada la recuperación de reputación de la ejecución directa sobre el firewall.
+
+---
+
+# Persistencia
+
+ARE utiliza SQLite como mecanismo de persistencia.
+
+En v2.0 la base de datos principal se encuentra en:
+
+```text
+/var/lib/are/are.db
+```
+
+La estructura persistente incluye, entre otras, las siguientes tablas:
+
+```text
+config
+hosts
+events
+jails
+jail_profile
+reputation
+sanction_state
+```
+
+La persistencia mantiene separadas distintas clases de información:
+
+```text
+Eventos
+   |
+   +---- actividad observada
+
+Reputation
+   |
+   +---- conocimiento acumulado
+
+sanction_state
+   |
+   +---- estado del ciclo de sanciones
+```
+
+Esta separación permite que el historial de eventos, la reputación y el estado de sanción evolucionen de manera independiente.
+
+---
+
+# Estructura operativa de v2.0
+
+La identidad y estructura operativa del producto fueron reorganizadas en v2.0.
+
+La estructura principal es:
+
+```text
+/opt/are
+    |
+    +---- producto ARE
+
+/var/lib/are
+    |
+    +---- datos persistentes
+
+/var/log/are
+    |
+    +---- logs
+
+/usr/local/sbin
+    |
+    +---- enlaces ejecutables oficiales
+
+/etc/systemd/system
+    |
+    +---- unidades systemd
+
+/etc/logrotate.d
+    |
+    +---- configuración logrotate
+```
+
+La estructura del producto está definida centralmente mediante:
+
+```text
+manifest/product.sh
+```
+
+El Product Manifest no implementa lógica de negocio. Define los componentes que forman parte del producto y que deben ser administrados por el Installer Engine.
+
+---
+
+# Installer Engine
+
+El Installer Engine administra el ciclo de vida de la instalación de ARE.
+
+Las operaciones oficiales son:
+
+```text
 install
 upgrade
 repair
 verify
 uninstall
-Flujo de procesamiento
-Evento Fail2Ban
-      |
-      v
-Sensor Framework
-      |
-      v
-FOUND / EXTERNAL_UNBAN
-      |
-      v
-ARE
-      |
-      +----------------------+
-      |                      |
-      v                      v
-Reputation Engine      External Unban
-      |
-      v
+```
+
+El Installer utiliza el Product Manifest como fuente de definición de los componentes administrados.
+
+El ciclo general es:
+
+```text
+Product Manifest
+       |
+       v
+Installer Engine
+       |
+       +---- install
+       +---- upgrade
+       +---- repair
+       +---- verify
+       +---- uninstall
+```
+
+El Installer mantiene separadas:
+
+```text
+Core del producto
+Configuración
+Datos persistentes
+Logs
+Componentes systemd
+Enlaces ejecutables
+```
+
+`upgrade` actualiza los componentes administrados sin sustituir los datos persistentes.
+
+`repair` permite reconstruir una instalación incompleta.
+
+`verify` comprueba la integridad y los componentes operativos definidos para la instalación.
+
+`uninstall` elimina el producto y conserva los elementos persistentes que forman parte de la política de conservación establecida por ARE.
+
+---
+
+# Product Manifest
+
+El Product Manifest constituye la definición estructural del producto.
+
+Se encuentra en:
+
+```text
+manifest/product.sh
+```
+
+Centraliza información como:
+
+* nombre del producto;
+* versión;
+* directorios administrados;
+* archivos administrados;
+* configuración;
+* datos persistentes;
+* ejecutables;
+* enlaces oficiales;
+* unidades systemd;
+* logrotate.
+
+El Manifest permite que el Installer opere sobre una definición única de la estructura del producto.
+
+No contiene la lógica de los motores de ARE.
+
+---
+
+# Comandos oficiales
+
+v2.0 establece los comandos oficiales:
+
+```text
+are
+are-installer
+are-fail2ban-sensor
+```
+
+El comando principal se expone mediante:
+
+```text
+/usr/local/sbin/are
+```
+
+apuntando al ejecutable principal del producto:
+
+```text
+/opt/are/are.sh
+```
+
+Los enlaces forman parte de los componentes administrados por el Product Manifest.
+
+---
+
+# Systemd
+
+ARE utiliza systemd para la ejecución de procesos periódicos que forman parte del ciclo operativo.
+
+Entre los componentes actualmente administrados se encuentran:
+
+```text
+Fail2Ban Sensor
+Reputation Decay
+```
+
+El uso de systemd permite separar la lógica de ejecución de la lógica de los motores.
+
+Los servicios y timers forman parte de la estructura administrada por el Installer Engine.
+
+---
+
+# Flujo completo de procesamiento
+
+El flujo principal de una señal de seguridad es:
+
+```text
+Sistema externo
+       |
+       v
+Sensor
+       |
+       v
+Evento interno ARE
+       |
+       v
+Reputation Engine
+       |
+       v
 State Engine
-      |
-      v
+       |
+       v
 Policy Engine
-      |
-      v
-Policy Apply
-      |
-      +---------+---------+---------+---------+
-      |         |         |         |         |
-      v         v         v         v         v
-    ALLOW     WATCH     FILTER     BAN    TEMP_BAN
-                                      |         |
-                                      |         v
-                                      |   Ban Lifecycle
-                                      |      Engine
-                                      |         |
-                                      +---------+
-                                            |
-                                            v
-                                     Firewall Backend
-                                            |
-                                            v
-                                      Operating System
-Principios arquitectónicos
-Separación entre detección y aplicación de contramedidas.
-Responsabilidades diferenciadas entre sensores, reputación, estado y política.
-Separación entre decisión y ejecución.
-Persistencia de la reputación y del estado.
-Aplicación centralizada de las decisiones.
-Uso de SQLite como persistencia local.
-Uso de IPSet como mecanismo de almacenamiento de direcciones bloqueadas o filtradas.
-Aplicación de reglas mediante iptables e ip6tables.
-Compatibilidad
+       |
+       v
+Ban Lifecycle Engine
+       |
+       v
+Apply Engine
+       |
+       v
+Firewall Backend
+       |
+       v
+Sistema operativo
+```
 
-ARE v1.1 está diseñado para ejecutarse sobre:
+La información generada durante el procesamiento queda registrada en la persistencia correspondiente.
 
-Linux
-Bash
-SQLite
-Fail2Ban
-IPSet
-iptables
-ip6tables
-systemd
+El flujo de recuperación mediante Decay utiliza una trayectoria diferente:
 
-La integración de eventos implementada en esta versión utiliza Fail2Ban como fuente de eventos.
+```text
+Reputation Decay
+       |
+       v
+Reputation
+       |
+       v
+State Engine
+       |
+       v
+Policy Engine
+```
 
-Evolución
+La decisión resultante se mantiene separada de la ejecución directa del firewall según el estado actual del mecanismo de recuperación.
 
-ARE v1.1 constituye la versión operativa documentada en este release.
+---
 
-Las futuras ampliaciones del producto deben incorporarse mediante cambios explícitos de arquitectura y documentación en versiones posteriores.
+# Separación de responsabilidades
 
-You have not enough Humanizer words left. Upgrade your Surfer plan.
+La arquitectura mantiene las siguientes responsabilidades:
+
+| Componente           | Responsabilidad                        |
+| -------------------- | -------------------------------------- |
+| Sensor Framework     | Observación y normalización de eventos |
+| Reputation Engine    | Construcción de reputación             |
+| State Engine         | Determinación del estado               |
+| Policy Engine        | Generación de decisiones               |
+| Ban Lifecycle Engine | Evolución de sanciones                 |
+| Apply Engine         | Coordinación de aplicación             |
+| Firewall Backend     | Ejecución sobre el sistema operativo   |
+| Reputation Decay     | Recuperación gradual de reputación     |
+| Installer Engine     | Ciclo de vida del producto             |
+| Product Manifest     | Definición estructural del producto    |
+| SQLite               | Persistencia                           |
+
+Ningún componente debe asumir responsabilidades pertenecientes a otra capa.
+
+---
+
+# Principios arquitectónicos
+
+## Separación entre observación y decisión
+
+Los sistemas externos generan información.
+
+ARE interpreta esa información y construye conocimiento.
+
+Los sensores no sustituyen al motor de decisión.
+
+---
+
+## Separación entre decisión y ejecución
+
+ARE determina qué acción corresponde.
+
+El backend determina cómo ejecutar dicha acción sobre el sistema operativo.
+
+---
+
+## Persistencia del conocimiento
+
+La reputación, los eventos y el estado de sanción deben conservarse de forma independiente.
+
+La pérdida de uno de estos elementos no debe convertir automáticamente los demás en información inválida.
+
+---
+
+## Una responsabilidad por componente
+
+Cada motor debe mantener una responsabilidad claramente definida.
+
+La ampliación de capacidades debe realizarse mediante componentes o extensiones apropiadas antes que mediante duplicación de lógica.
+
+---
+
+## Configuración desacoplada
+
+Los parámetros operativos deben mantenerse fuera de la lógica de los motores.
+
+La estructura de configuración es administrada por el producto y su Installer.
+
+Las plantillas distribuidas con el producto se diferencian de la configuración operativa utilizada por una instalación.
+
+---
+
+## Evolución incremental
+
+v2.0 continúa la arquitectura desarrollada en v1.1.
+
+Las modificaciones deben realizarse de forma incremental:
+
+```text
+analizar
+   ↓
+desarrollar
+   ↓
+probar
+   ↓
+validar
+   ↓
+documentar
+```
+
+La documentación debe reflejar el comportamiento validado del sistema y no anticipar funcionalidades que todavía no hayan sido implementadas.
+
+---
+
+# Estado arquitectónico
+
+La arquitectura base de v1.1 permanece como fundamento de v2.0.
+
+v2.0 introduce una evolución estructural y operativa que incluye:
+
+* identidad oficial ARE;
+* estructura de producto `/opt/are`;
+* datos persistentes en `/var/lib/are`;
+* logs en `/var/log/are`;
+* Product Manifest;
+* Installer Engine ampliado;
+* comandos oficiales ARE;
+* persistencia de `sanction_state`;
+* integración operativa del Reputation Decay;
+* administración de componentes mediante systemd.
+
+La arquitectura de v2.0 continúa en desarrollo y validación.
+
+Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.
+

@@ -50,6 +50,24 @@ install_verify_dependencies() {
 
     [ "$missing" -eq 0 ] || install_error "Faltan dependencias obligatorias."
 }
+install_configure_root_path() {
+
+    local profile="/root/.bash_profile"
+
+    if [ ! -f "$profile" ]; then
+        touch "$profile"
+        chmod 0644 "$profile"
+    fi
+
+    if ! grep -Eq "^PATH=.*/usr/local/sbin([:]|$)" "$profile"; then
+        if grep -q "^export PATH$" "$profile"; then
+            sed -i "/^export PATH$/i PATH=\$PATH:/usr/local/sbin" "$profile"
+        else
+            printf "\nPATH=\$PATH:/usr/local/sbin\nexport PATH\n" >> "$profile"
+        fi
+    fi
+
+}
 
 install_detect_state() {
 
@@ -176,7 +194,10 @@ install_install_configs() {
             install_error "Plantilla de configuración no encontrada: $source"
         fi
 
-        if [ ! -e "$target" ]; then
+        if [ "${1:-install}" = "upgrade" ]; then
+            install -m 0644 "$source" "$target"
+            install_log "Configuración actualizada: $target"
+        elif [ ! -e "$target" ]; then
             install -m 0644 "$source" "$target"
             install_log "Configuración instalada: $target"
         else
@@ -217,6 +238,7 @@ install_create_links() {
 
 install_permissions() {
 
+    install_load_runtime_config || return 1
     local file
     local path
 
@@ -244,8 +266,8 @@ install_permissions() {
         "$PRODUCT_CONFIG/policy.conf" \
         "$PRODUCT_CONFIG/whitelist.conf"
 
-    if [ -e "$INSTALL_DATA/f2b.db" ]; then
-        chmod 0644 "$INSTALL_DATA/f2b.db"
+    if [ -e "$DB_FILE" ]; then
+        chmod 0644 "$DB_FILE"
     fi
 
     install_log "Permisos asignados correctamente"
@@ -253,7 +275,7 @@ install_permissions() {
 
 install_database() {
 
-    local db_file="$INSTALL_DATA/f2b.db"
+    install_load_runtime_config || return 1
     local database_module="$INSTALL_HOME/database.sh"
 
     install_log "Inicializando base de datos"
@@ -265,7 +287,6 @@ install_database() {
     fi
 
     (
-        DB_FILE="$db_file"
         DB_TIMEOUT=5000
 
         INFO() {
@@ -281,14 +302,14 @@ install_database() {
         db_init
     ) || install_error "No se pudo inicializar la base de datos."
 
-    if [ ! -f "$db_file" ]; then
-        install_error "La base de datos no fue creada: $db_file"
+    if [ ! -f "$DB_FILE" ]; then
+        install_error "La base de datos no fue creada: $DB_FILE"
     fi
 
-    chown root:root "$db_file"
-    chmod 0644 "$db_file"
+    chown root:root "$DB_FILE"
+    chmod 0644 "$DB_FILE"
 
-    install_log "Base de datos inicializada: $db_file"
+    install_log "Base de datos inicializada: $DB_FILE"
 }
 
 install_systemd() {
@@ -390,6 +411,7 @@ installer_install() {
     install_verify_root
     install_verify_dependencies
 
+    install_configure_root_path
     state=$(install_detect_state)
 
     case "$state" in
@@ -443,6 +465,7 @@ installer_upgrade() {
     install_verify_root
     install_verify_dependencies
 
+    install_configure_root_path
     state=$(install_detect_state)
 
     case "$state" in
@@ -451,7 +474,7 @@ installer_upgrade() {
 	    install_log "Instalación existente detectada"
 
             install_copy_files
-            install_install_configs
+            install_install_configs upgrade
             install_create_links
             install_permissions
             install_database
@@ -481,6 +504,7 @@ installer_repair() {
     install_verify_root
     install_verify_dependencies
 
+    install_configure_root_path
     state=$(install_detect_state)
 
     case "$state" in
@@ -858,6 +882,7 @@ install_verify_links() {
 }
 
 install_verify_permissions() {
+    install_load_runtime_config || return 1
 
     local failed=0
 
@@ -884,8 +909,8 @@ install_verify_permissions() {
         failed=1
     fi
 
-    if [ ! -r "$INSTALL_DATA/f2b.db" ] ||
-       [ ! -w "$INSTALL_DATA/f2b.db" ]; then
+    if [ ! -r "$DB_FILE" ] ||
+       [ ! -w "$DB_FILE" ]; then
 
         install_log "La base de datos no posee permisos de lectura y escritura"
         failed=1
@@ -895,8 +920,8 @@ install_verify_permissions() {
 }
 
 install_verify_database() {
+    install_load_runtime_config || return 1
 
-    local DB_FILE="$INSTALL_DATA/f2b.db"
     local table
     local missing=0
 

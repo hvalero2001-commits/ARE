@@ -224,7 +224,9 @@ db_init() {
     ('modsec-protocol','PROTOCOL',1,0.50,0.90,'Protocol violation'),
     ('modsec-anomaly','ANOMALY',2,0.60,0.85,'Generic ModSecurity anomaly / heuristic trigger'),
     ('modsecurity-apache','ANOMALY',1,0.50,0.80,'Generic ModSecurity Apache rules triggered'),
-    ('modsec-bruteforce','CREDENTIAL',10,0.90,0.97,'Brute force login');
+    ('modsec-bruteforce','CREDENTIAL',10,0.90,0.97,'Brute force login'),
+      ('sshd','CREDENTIAL',10,0.95,0.97,'SSH authentication attacks'),
+      ('telnet','CREDENTIAL',15,0.98,0.97,'Telnet authentication attacks');
     "
 
     db_exec "

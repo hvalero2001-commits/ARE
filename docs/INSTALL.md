@@ -2,31 +2,27 @@
 
 ## Introducción
 
-Este documento describe el ciclo de vida de instalación de ARE (Abuse Reputation Engine) y el comportamiento implementado por `are-installer`.
+Este documento describe el ciclo de vida de instalación de ARE (Abuse Reputation Engine) en la versión 2.0.
 
-El Installer Engine forma parte del árbol del proyecto y utiliza `manifest/product.sh` como definición de los componentes administrados.
+ARE v2 consolida la identidad y estructura propias del producto, sustituyendo la estructura histórica utilizada por `f2b-ipset` en v1.1. La estructura de instalación, los componentes administrados y sus ubicaciones son definidos por `manifest/product.sh`.
 
-Las operaciones disponibles son:
+El Installer Engine administra las operaciones:
 
-* `install`
-* `upgrade`
-* `repair`
-* `verify`
-* `uninstall`
+```text
+install
+upgrade
+repair
+verify
+uninstall
+```
 
-El Installer trabaja directamente sobre un árbol fuente de ARE. El árbol fuente debe ser diferente del directorio de instalación activo.
+Estas operaciones mantienen separadas el Core del producto, la configuración y los datos persistentes.
 
 ---
 
 # Requisitos
 
-## Sistema operativo
-
-* Linux
-
-## Dependencias
-
-El Installer verifica la disponibilidad de:
+ARE requiere un sistema Linux con:
 
 * Bash
 * SQLite 3
@@ -34,98 +30,196 @@ El Installer verifica la disponibilidad de:
 * iptables
 * ip6tables
 * systemd
+* privilegios de `root`
 
-Las dependencias se verifican antes de las operaciones que requieren ejecutarlas.
-
----
-
-# Permisos
-
-Las operaciones del Installer requieren privilegios de `root`.
-
-El Installer rechaza la ejecución cuando el usuario efectivo no es `root`.
+Fail2Ban y ModSecurity son integraciones de ARE. No sustituyen las dependencias básicas verificadas directamente por el Installer.
 
 ---
 
 # Estructura de instalación
 
-La ubicación oficial definida por `manifest/product.sh` es:
+La estructura oficial de ARE v2 es:
 
 ```text
-/opt/f2b-ipset
-```
+/opt/are
+    Core y componentes del producto
 
-## Core
+/opt/are/config
+    Configuración del producto
 
-```text
-/opt/f2b-ipset
-```
+/var/lib/are
+    Datos persistentes
 
-Contiene el código y los componentes distribuidos de ARE.
+/var/lib/are/are.db
+    Base de datos de ARE
 
----
-
-## Configuración
-
-```text
-/etc/f2b-ipset
-```
-
-Contiene:
-
-```text
-config.conf
-policy.conf
-whitelist.conf
-```
-
-Estos archivos representan configuración persistente del administrador.
-
-Durante una instalación inicial se crean desde las plantillas presentes en el Core.
-
-Cuando ya existen, el Installer las conserva.
-
----
-
-## Datos persistentes
-
-```text
-/var/lib/f2b-ipset
-```
-
-Contiene:
-
-```text
-f2b.db
-```
-
-La base de datos contiene la información persistente utilizada por ARE.
-
----
-
-## Logs
-
-```text
 /var/log/are
+    Logs
+
+/usr/local/sbin
+    Enlaces ejecutables oficiales
+
+/etc/systemd/system
+    Unidades systemd
+
+/etc/logrotate.d
+    Configuración de logrotate
 ```
 
-Archivo principal:
+Esta estructura forma parte de la definición oficial de ARE v2.
+
+La base de datos persistente utilizada por ARE v2 es:
 
 ```text
-/var/log/are/are.log
+/var/lib/are/are.db
+```
+
+La estructura incluye, entre otras, las tablas:
+
+```text
+hosts
+events
+config
+jails
+reputation
+jail_profile
+sanction_state
+```
+
+Los datos históricos procedentes de la estructura anterior fueron incorporados a la nueva base persistente de ARE durante la evolución hacia v2.
+
+---
+
+# Product Manifest
+
+El archivo:
+
+```text
+manifest/product.sh
+```
+
+es la referencia oficial utilizada por el Installer para determinar los componentes administrados por ARE.
+
+El Manifest centraliza:
+
+* identidad y versión del producto;
+* estructura de instalación;
+* configuración;
+* datos persistentes;
+* unidades systemd;
+* enlaces ejecutables;
+* archivos ejecutables;
+* configuración de logrotate;
+* exclusiones.
+
+La versión correspondiente a esta estructura es:
+
+```text
+2.0.0
+```
+
+El Installer utiliza los valores definidos por el Manifest en lugar de mantener una segunda definición independiente de la estructura del producto.
+
+---
+
+# Árbol fuente
+
+Las operaciones de instalación, actualización y reparación utilizan el árbol fuente que contiene `are-installer`.
+
+El árbol fuente debe ser diferente del destino instalado.
+
+Esto permite que una actualización copie el Core de una versión fuente sobre una instalación existente sin utilizar la instalación activa como origen.
+
+Si el árbol fuente y el destino resuelven al mismo directorio, la operación debe finalizar con error.
+
+---
+
+# Instalación inicial
+
+La instalación se ejecuta mediante:
+
+```bash
+are-installer install
+```
+
+La operación corresponde a una instalación nueva.
+
+El flujo general es:
+
+```text
+Verificar root
+       |
+       v
+Verificar dependencias
+       |
+       v
+Preparar entorno
+       |
+       v
+Detectar estado
+       |
+       v
+Crear estructura
+       |
+       v
+Instalar Core
+       |
+       v
+Instalar configuración inicial
+       |
+       v
+Crear enlaces oficiales
+       |
+       v
+Aplicar permisos
+       |
+       v
+Inicializar base de datos
+       |
+       v
+Preparar logging
+       |
+       v
+Instalar systemd
+       |
+       v
+Instalar logrotate
+       |
+       v
+Validar instalación
+```
+
+La operación `install` solo corresponde a una instalación nueva.
+
+Si ARE ya está instalado, debe utilizarse:
+
+```bash
+are-installer upgrade
+```
+
+Si la instalación se encuentra incompleta, debe utilizarse:
+
+```bash
+are-installer repair
 ```
 
 ---
 
-## Ejecutables
+# Configuración inicial
 
-Los enlaces oficiales se crean en:
+La configuración forma parte del área administrada por el producto pero se mantiene separada del Core operativo.
 
-```text
-/usr/local/sbin
-```
+Durante una instalación inicial se crean los archivos de configuración definidos por el Manifest.
 
-Enlaces:
+Una configuración existente no debe ser reemplazada arbitrariamente durante las operaciones de mantenimiento.
+
+La separación entre Core, configuración y datos persistentes es uno de los principios establecidos para ARE v2.
+
+---
+
+# Enlaces ejecutables
+
+ARE v2 proporciona los siguientes comandos oficiales:
 
 ```text
 are
@@ -133,784 +227,216 @@ are-installer
 are-fail2ban-sensor
 ```
 
-Los destinos son:
+Los enlaces son administrados por el Product Manifest.
+
+El comando principal queda establecido como:
 
 ```text
-/opt/f2b-ipset/f2b-ipset.sh
-/opt/f2b-ipset/are-installer
-/opt/f2b-ipset/sensors/fail2ban.sh
+/usr/local/sbin/are -> /opt/are/are.sh
 ```
 
----
-
-## systemd
-
-Las unidades administradas por el Installer son:
-
-```text
-/etc/systemd/system/are-fail2ban-found.service
-/etc/systemd/system/are-fail2ban-found.timer
-```
-
-Durante la instalación se configura systemd mediante:
-
-```bash
-systemctl daemon-reload
-systemctl enable --now are-fail2ban-found.timer
-```
-
----
-
-## logrotate
-
-La configuración administrada se instala en:
-
-```text
-/etc/logrotate.d/are
-```
-
----
-
-# Manifest del producto
-
-La definición oficial de los componentes administrados por el Installer se encuentra en:
-
-```text
-manifest/product.sh
-```
-
-El Manifest define:
-
-* información del producto;
-* directorios;
-* archivos;
-* configuración;
-* unidades systemd;
-* enlaces ejecutables;
-* datos persistentes;
-* archivos ejecutables;
-* configuración de logrotate;
-* componentes excluidos.
-
-El Manifest constituye la referencia utilizada por el Installer para determinar qué componentes debe administrar.
-
----
-
-# Árbol fuente
-
-El Installer determina automáticamente el árbol fuente a partir de la ubicación real del propio `are-installer`.
-
-Internamente utiliza:
-
-```bash
-SOURCE_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-SOURCE_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
-```
-
-Por tanto, el árbol que contiene `are-installer` constituye la fuente utilizada para copiar los componentes del producto.
-
-El destino de instalación se obtiene del Manifest mediante:
-
-```text
-PRODUCT_HOME
-```
-
-Actualmente:
-
-```text
-/opt/f2b-ipset
-```
-
-El Installer verifica que el árbol fuente y el destino de instalación sean diferentes.
-
-No está permitido utilizar directamente:
-
-```text
-/opt/f2b-ipset
-```
-
-como fuente para actualizar o copiar sobre:
-
-```text
-/opt/f2b-ipset
-```
-
-Cuando ambos directorios resuelven al mismo árbol, la operación finaliza con error.
-
----
-
-# Detección del estado
-
-El Installer utiliza `install_detect_state()` para determinar el estado básico de la instalación.
-
-Los estados posibles son:
-
-## NEW
-
-Se determina cuando no existen:
-
-```text
-/opt/f2b-ipset
-/etc/f2b-ipset/config.conf
-/var/lib/f2b-ipset
-```
-
-En este estado se permite:
+El Installer también garantiza la disponibilidad de `/usr/local/sbin` en el `PATH` de `root` durante las operaciones:
 
 ```text
 install
+upgrade
+repair
 ```
+
+La modificación del `PATH` se realiza de forma idempotente.
 
 ---
 
-## INSTALLED
+# Actualización
 
-Se determina cuando existen:
-
-```text
-/opt/f2b-ipset
-/etc/f2b-ipset/config.conf
-/var/lib/f2b-ipset
-/opt/f2b-ipset/f2b-ipset.sh
-```
-
-En este estado se permiten las operaciones correspondientes a una instalación existente.
-
----
-
-## INCOMPLETE
-
-Cualquier combinación intermedia de las condiciones anteriores se considera:
-
-```text
-INCOMPLETE
-```
-
-Este estado indica que la instalación no satisface las condiciones mínimas utilizadas por `install_detect_state()`.
-
----
-
-# Operación install
-
-La operación se ejecuta mediante:
-
-```bash
-are-installer install
-```
-
-El Installer:
-
-```text
-Verifica root
-       │
-       ▼
-Verifica dependencias
-       │
-       ▼
-Detecta estado
-       │
-       ▼
-Crea directorios
-       │
-       ▼
-Copia Core
-       │
-       ▼
-Instala configuración
-       │
-       ▼
-Crea enlaces
-       │
-       ▼
-Asigna permisos
-       │
-       ▼
-Inicializa SQLite
-       │
-       ▼
-Prepara logging
-       │
-       ▼
-Instala systemd
-       │
-       ▼
-Instala logrotate
-       │
-       ▼
-Valida instalación
-```
-
-La operación solo procede cuando el estado detectado es:
-
-```text
-NEW
-```
-
-Si ARE ya está instalado, el Installer indica utilizar:
+La actualización se ejecuta mediante:
 
 ```bash
 are-installer upgrade
 ```
 
-Si la instalación está incompleta, indica utilizar:
+La operación requiere una instalación existente.
+
+El árbol fuente utilizado para la actualización debe corresponder a la versión que se desea instalar y debe ser diferente del árbol instalado.
+
+El proceso actualiza los componentes administrados por el Manifest y conserva los datos persistentes.
+
+El objetivo de `upgrade` es actualizar el Core sin sustituir arbitrariamente:
+
+```text
+configuración
+base de datos
+reputación histórica
+estado persistente
+```
+
+ARE v2 define explícitamente `upgrade` como la operación destinada a actualizar una instalación existente manteniendo los datos persistentes.
+
+---
+
+# Reparación
+
+La reparación se ejecuta mediante:
 
 ```bash
 are-installer repair
 ```
 
----
+Está destinada a una instalación existente que no satisface las condiciones requeridas para considerarse completa.
 
-# Operación upgrade
+El objetivo es reconstruir los componentes administrados que sean necesarios para recuperar una instalación funcional.
 
-La operación se ejecuta mediante:
+La reparación conserva la información persistente del sistema.
 
-```bash
-are-installer upgrade
-```
-
-La operación requiere que el estado sea:
-
-```text
-INSTALLED
-```
-
-El flujo implementado es:
-
-```text
-Verificar root
-       │
-       ▼
-Verificar dependencias
-       │
-       ▼
-Detectar instalación
-       │
-       ▼
-Copiar Core desde SOURCE_DIR
-       │
-       ▼
-Instalar configuración
-       │
-       ▼
-Crear enlaces
-       │
-       ▼
-Asignar permisos
-       │
-       ▼
-Inicializar/completar SQLite
-       │
-       ▼
-Preparar logging
-       │
-       ▼
-Instalar systemd
-       │
-       ▼
-Instalar logrotate
-       │
-       ▼
-Validar instalación
-```
-
-El Core se copia desde el árbol fuente determinado por la ubicación de `are-installer`.
-
-La configuración existente se conserva.
-
-Los datos persistentes se mantienen en:
-
-```text
-/var/lib/f2b-ipset
-```
-
-Para ejecutar una actualización, `are-installer` debe ejecutarse desde un árbol fuente diferente de:
-
-```text
-/opt/f2b-ipset
-```
+No debe utilizarse `repair` como sustituto de `upgrade` cuando existe una instalación completa.
 
 ---
 
-# Operación repair
+# Verificación
 
-La operación se ejecuta mediante:
-
-```bash
-are-installer repair
-```
-
-La operación requiere que el estado sea:
-
-```text
-INCOMPLETE
-```
-
-El flujo implementado es:
-
-```text
-Verificar root
-       │
-       ▼
-Verificar dependencias
-       │
-       ▼
-Detectar instalación incompleta
-       │
-       ▼
-Crear directorios
-       │
-       ▼
-Copiar Core desde SOURCE_DIR
-       │
-       ▼
-Instalar configuración
-       │
-       ▼
-Crear enlaces
-       │
-       ▼
-Asignar permisos
-       │
-       ▼
-Inicializar/completar SQLite
-       │
-       ▼
-Preparar logging
-       │
-       ▼
-Instalar systemd
-       │
-       ▼
-Instalar logrotate
-       │
-       ▼
-Validar instalación
-```
-
-La operación utiliza el mismo mecanismo de copia del Core que `install` y `upgrade`.
-
-La configuración existente se conserva.
-
-Los datos persistentes no forman parte del Core reemplazable.
-
----
-
-# Operación verify
-
-La operación se ejecuta mediante:
+La verificación se ejecuta mediante:
 
 ```bash
 are-installer verify
 ```
 
-`verify` determina primero el estado de instalación.
+La operación determina primero el estado de la instalación.
 
-Si el estado es:
+Una instalación válida debe disponer de los componentes requeridos por el Product Manifest y de los elementos necesarios para su funcionamiento.
 
-```text
-NEW
-```
+La verificación comprueba, según corresponda:
 
-la operación informa que ARE no está instalado.
+* integridad de componentes;
+* enlaces oficiales;
+* comandos ejecutables;
+* permisos;
+* base de datos;
+* conjuntos IPSet;
+* reglas de firewall;
+* unidades systemd;
+* configuración de logrotate;
+* ejecución funcional del runtime.
 
-Si el estado es:
-
-```text
-INCOMPLETE
-```
-
-la operación informa que la instalación está incompleta.
-
-Si el estado es:
-
-```text
-INSTALLED
-```
-
-realiza las verificaciones adicionales implementadas por el Installer.
+La validación de una instalación no modifica deliberadamente su configuración ni sus datos persistentes.
 
 ---
 
-## Verificación de integridad
+# Systemd
 
-Se comprueban los componentes declarados mediante:
+ARE v2 utiliza systemd para integrar componentes operativos del producto.
+
+El mecanismo de Reputation Decay forma parte del ciclo operativo de v2 mediante:
 
 ```text
-PRODUCT_DIRS
-PRODUCT_FILES
-PRODUCT_CONFIG_FILES
-PRODUCT_DATA_FILES
+are-fail2ban-decay.service
+are-fail2ban-decay.timer
 ```
+
+El servicio ejecuta las fases:
+
+```text
+dry-run
+apply
+```
+
+La ejecución mediante systemd fue verificada durante la consolidación de v2.
+
+El Installer administra las unidades declaradas por el Product Manifest.
 
 ---
 
-## Verificación de enlaces
+# Fail2Ban
 
-Se verifican:
+ARE mantiene el Sensor Framework para la integración con Fail2Ban.
 
-* enlaces de configuración;
-* enlaces ejecutables;
-* existencia de los destinos;
-* ausencia de enlaces rotos;
-* correspondencia entre enlace y destino esperado.
+Los eventos procesados por el sensor son:
+
+```text
+FOUND
+EXTERNAL_UNBAN
+```
+
+El sensor utiliza un offset persistente para procesar nuevos eventos.
+
+La integración con Fail2Ban permite que los eventos externos sean incorporados al flujo operativo de ARE sin convertir Fail2Ban en el mecanismo central de reputación del producto.
 
 ---
 
-## Verificación de comandos oficiales
+# Desinstalación
 
-Se verifica la existencia y ejecución de:
-
-```text
-/usr/local/sbin/are
-/usr/local/sbin/are-installer
-/usr/local/sbin/are-fail2ban-sensor
-```
-
----
-
-## Verificación de permisos
-
-Se comprueba la existencia y accesibilidad de:
-
-```text
-f2b-ipset.sh
-are-installer
-sensors/fail2ban.sh
-```
-
-También se verifican los archivos de configuración y la base de datos.
-
----
-
-## Verificación de base de datos
-
-Se verifica la existencia de:
-
-```text
-/var/lib/f2b-ipset/f2b.db
-```
-
-y de las tablas requeridas:
-
-```text
-config
-hosts
-jails
-events
-jail_profile
-reputation
-sanction_state
-```
-
----
-
-## Verificación de IPSet
-
-Se carga la configuración runtime y se verifica la existencia de los conjuntos:
-
-```text
-FILTER_SET4
-FILTER_SET6
-BAN_SET4
-BAN_SET6
-```
-
----
-
-## Verificación de firewall
-
-Se comprueba la existencia de las reglas correspondientes en:
-
-```text
-iptables
-ip6tables
-```
-
-para los conjuntos IPv4 e IPv6 configurados.
-
----
-
-## Verificación de systemd
-
-Se verifica la existencia de las unidades declaradas en:
-
-```text
-PRODUCT_SYSTEMD_UNITS
-```
-
-Cuando el entorno corresponde al sistema real:
-
-```text
-/etc/systemd/system
-```
-
-también se verifica el estado de los timers.
-
----
-
-## Verificación de logrotate
-
-Se verifica la existencia de los archivos declarados mediante:
-
-```text
-PRODUCT_LOGROTATE_FILES
-```
-
----
-
-## Verificación de runtime
-
-Finalmente se ejecuta:
-
-```bash
-/opt/f2b-ipset/f2b-ipset.sh stats
-```
-
-La ejecución debe finalizar correctamente.
-
----
-
-# Operación uninstall
-
-La operación se ejecuta mediante:
+La desinstalación se ejecuta mediante:
 
 ```bash
 are-installer uninstall
 ```
 
-Puede ejecutarse cuando el estado es:
+Su objetivo es retirar los componentes administrados por ARE del sistema.
+
+La operación elimina los componentes del Core, enlaces ejecutables, unidades systemd y configuración de logrotate administrados por el producto.
+
+Los datos persistentes no forman parte de la eliminación normal del Core.
+
+Por tanto, la desinstalación conserva separadamente:
 
 ```text
-INSTALLED
+configuración
+datos persistentes
+base de datos
+reputación histórica
+logs
 ```
 
-o:
-
-```text
-INCOMPLETE
-```
-
-El Installer elimina los componentes administrados por el producto.
+La separación entre software instalado y datos persistentes permite retirar ARE sin eliminar automáticamente información histórica del sistema.
 
 ---
 
-## Componentes eliminados
+# Evolución desde v1.1
 
-Se eliminan:
+ARE v2 nace sobre la base funcional desarrollada en la rama v1.1.
 
-```text
-/opt/f2b-ipset
-```
+La rama v1.1 incorporó el Sensor Framework inicial para Fail2Ban y consolidó el modelo de reputación que posteriormente continúa en v2.
 
-Los enlaces oficiales:
+La evolución hacia v2 cambia principalmente la identidad y estructura operativa del producto:
 
 ```text
-/usr/local/sbin/are
-/usr/local/sbin/are-installer
-/usr/local/sbin/are-fail2ban-sensor
+ARE v1.1
+    |
+    | estructura histórica f2b-ipset
+    v
+ARE v2.0
+    |
+    +-- /opt/are
+    +-- /opt/are/config
+    +-- /var/lib/are
+    +-- /var/log/are
+    +-- Product Manifest
+    +-- Installer Engine
+    +-- Reputation Decay
 ```
 
-Las unidades systemd declaradas.
-
-La configuración de:
-
-```text
-/etc/logrotate.d/are
-```
-
----
-
-## Componentes conservados
-
-La operación no elimina:
-
-```text
-/etc/f2b-ipset
-/var/lib/f2b-ipset
-/var/log/are
-```
-
-Por tanto, se conservan:
-
-* configuración;
-* base de datos;
-* reputación;
-* eventos;
-* logs.
-
-La eliminación de estos datos no forma parte de `uninstall` y permanece bajo control del administrador.
-
----
-
-# Protección de configuración
-
-La configuración instalada se administra mediante:
-
-```text
-/etc/f2b-ipset
-```
-
-Las plantillas originales se encuentran dentro del Core:
-
-```text
-/opt/f2b-ipset/templates/config
-```
-
-Durante una instalación inicial se copian desde las plantillas.
-
-Cuando un archivo de configuración ya existe como archivo regular, `install_install_configs()` lo conserva.
-
-Si existe como enlace simbólico válido, el Installer migra su contenido a un archivo regular persistente.
-
-La configuración administrativa no se reemplaza durante una actualización normal del Core.
-
----
-
-# Persistencia de datos
-
-La información persistente se encuentra en:
-
-```text
-/var/lib/f2b-ipset
-```
-
-La base de datos:
-
-```text
-/var/lib/f2b-ipset/f2b.db
-```
-
-forma parte de los datos persistentes de ARE.
-
-Las operaciones del Installer utilizan las funciones de base de datos para inicializar o completar la estructura necesaria sin sustituir arbitrariamente la base de datos existente.
-
----
-
-# Arquitectura del Installer
-
-El flujo general implementado es:
-
-```text
-                    are-installer
-                         │
-          ┌──────────────┼──────────────┐
-          │              │              │
-          ▼              ▼              ▼
-       install        upgrade        repair
-          │              │              │
-          └──────────────┼──────────────┘
-                         ▼
-                  Installer Core
-                         │
-          ┌──────────────┼──────────────┐
-          │              │              │
-          ▼              ▼              ▼
-       Manifest       Runtime       Persistence
-          │              │              │
-          ▼              ▼              ▼
-      Componentes     systemd        SQLite
-      del producto    firewall       datos
-                     IPSet
-```
-
-Las funciones principales implementadas por el Installer incluyen:
-
-```text
-install_verify_root()
-install_verify_dependencies()
-install_detect_state()
-install_create_directories()
-install_copy_files()
-install_install_configs()
-install_create_links()
-install_permissions()
-install_database()
-install_logging()
-install_systemd()
-install_logrotate()
-install_validate()
-
-install_verify_integrity()
-install_verify_links()
-install_verify_command_path()
-install_verify_permissions()
-install_verify_database()
-install_verify_ipset()
-install_verify_firewall()
-install_verify_systemd()
-install_verify_logrotate()
-install_verify_runtime()
-```
-
-Las operaciones de alto nivel son:
-
-```text
-installer_install()
-installer_upgrade()
-installer_repair()
-installer_verify()
-installer_uninstall()
-```
-
----
-
-# Estado funcional del Installer
-
-| Operación   | Estado       |
-| ----------- | ------------ |
-| `install`   | Implementada |
-| `upgrade`   | Implementada |
-| `repair`    | Implementada |
-| `verify`    | Implementada |
-| `uninstall` | Implementada |
-
-El Installer utiliza el árbol fuente desde el que se ejecuta `are-installer` y copia sus componentes hacia el destino definido por el Manifest.
-
-El árbol fuente y el destino deben ser diferentes.
-
----
-
-# Principios del Installer
-
-El Installer mantiene los siguientes principios:
-
-* utilizar el Manifest como referencia de componentes;
-* separar Core, configuración y datos persistentes;
-* preservar la configuración existente;
-* preservar los datos persistentes;
-* evitar eliminación accidental de información persistente;
-* reutilizar funciones comunes;
-* validar la instalación;
-* evitar lógica duplicada;
-* trabajar sobre una fuente de Core diferente del destino instalado.
+La versión 2.0 establece oficialmente `/opt/are` como Core del producto y `/var/lib/are` como ubicación de datos persistentes.
 
 ---
 
 # Uso
 
-## Verificar instalación
+## Instalar
 
-```bash
-are-installer verify
-```
-
-## Instalar ARE
-
-Desde un árbol fuente separado:
+Desde un árbol fuente independiente:
 
 ```bash
 are-installer install
 ```
 
-## Actualizar ARE
+## Actualizar
 
-Desde el árbol fuente que contiene la versión que se desea instalar:
+Desde el árbol fuente de la versión que se desea instalar:
 
 ```bash
 are-installer upgrade
 ```
 
-## Reparar una instalación incompleta
+## Reparar
 
 Desde un árbol fuente válido:
 
@@ -918,7 +444,13 @@ Desde un árbol fuente válido:
 are-installer repair
 ```
 
-## Desinstalar ARE
+## Verificar
+
+```bash
+are-installer verify
+```
+
+## Desinstalar
 
 ```bash
 are-installer uninstall
@@ -926,38 +458,21 @@ are-installer uninstall
 
 ---
 
-# Compatibilidad
+# Principio de mantenimiento
 
-La definición actual del Manifest establece:
+El Installer Engine mantiene separadas tres áreas:
 
 ```text
-PRODUCT_VERSION="1.1.0"
+Core del producto
+       |
+       +---- configuración
+       |
+       +---- datos persistentes
 ```
 
-La instalación utiliza:
+Las operaciones de mantenimiento deben actuar únicamente sobre los componentes correspondientes a la operación solicitada.
 
-* Linux;
-* Bash;
-* SQLite;
-* IPSet;
-* iptables;
-* ip6tables;
-* systemd;
-* Fail2Ban;
-* ModSecurity.
+El Product Manifest constituye la referencia única de los componentes administrados por el Installer, mientras que la información persistente permanece separada del Core.
 
-Fail2Ban y ModSecurity forman parte de las integraciones de ARE y no sustituyen las dependencias básicas verificadas directamente por el Installer.
+ARE v2 continúa así la evolución iniciada en v1.1 sin confundir la documentación del Installer con la documentación interna de implementación del script.
 
-La compatibilidad concreta depende de las características disponibles en el sistema donde ARE sea instalado.
-
----
-
-# Principio final
-
-La documentación del Installer debe reflejar las capacidades implementadas por el código.
-
-ARE separa el Core instalado de la configuración y los datos persistentes.
-
-Las operaciones de instalación, actualización y reparación utilizan un árbol fuente independiente del destino de instalación, mientras que `verify` comprueba el estado y los componentes instalados.
-
-La configuración, la base de datos y los logs permanecen fuera del Core y reciben un tratamiento diferenciado durante las operaciones de mantenimiento.

@@ -2,9 +2,9 @@
 
 ## Introducción
 
-Esta guía describe el uso operativo de ARE (Abuse Reputation Engine).
+Esta guía describe el uso operativo de ARE (Abuse Reputation Engine) v2.0.
 
-Está dirigida a administradores responsables de operar, supervisar y mantener una instalación de ARE v1.1.
+ARE procesa eventos de seguridad, mantiene información persistente de reputación y estado, evalúa las políticas configuradas y aplica las decisiones mediante el backend correspondiente.
 
 ---
 
@@ -18,17 +18,17 @@ Verificar la instalación mediante:
 are-installer verify
 ```
 
----
-
-# Interfaz de comandos
-
-La interfaz oficial de ARE se encuentra disponible mediante el comando:
+La interfaz oficial se encuentra disponible mediante:
 
 ```bash
 are
 ```
 
-Comandos operativos:
+---
+
+# Interfaz de comandos
+
+Los comandos operativos de ARE son:
 
 ```text
 are stats
@@ -44,13 +44,13 @@ are decay-dry-run
 are decay-apply
 ```
 
-El Installer Engine utiliza el comando:
+El Installer Engine utiliza:
 
 ```text
 are-installer
 ```
 
-con las siguientes operaciones:
+con las operaciones:
 
 ```text
 are-installer install
@@ -60,41 +60,33 @@ are-installer verify
 are-installer uninstall
 ```
 
+El punto de entrada oficial se instala mediante `/usr/local/sbin/are`, con el Core de ARE en `/opt/are`.
+
 ---
 
 # Estadísticas
 
-Mostrar información general del sistema:
+Consultar información general del sistema:
 
 ```bash
 are stats
 ```
 
-La información incluye:
+El comando `stats` proporciona información operacional del sistema.
 
-* IPs registradas;
-* IPs activas;
-* IPs baneadas;
-* eventos totales;
-* eventos del día;
-* score promedio;
-* IPs candidatas para decay;
-* actividad por categoría;
-* principales Jails.
+Entre la información incorporada al Dashboard se encuentra la actividad de los Jails.
 
-El comando es de consulta y no modifica la reputación.
+La sección `TOP JAILS` utiliza la tabla `events` como fuente de información y excluye eventos internos como `fail2ban` y `policy_apply`.
 
 ---
 
 # Top de amenazas
 
-Mostrar las principales IPs según su reputación:
+Consultar las principales direcciones según su reputación:
 
 ```bash
 are top
 ```
-
-La salida presenta las IPs con mayor score y parte de su composición de reputación.
 
 ---
 
@@ -112,19 +104,25 @@ Ejemplo:
 are score 192.168.1.10
 ```
 
-La información incluye:
+La información de reputación se mantiene en SQLite junto con los datos de hosts, eventos, Jails, perfiles de Jail y estado de sanciones.
 
-* reputación por categoría;
-* score total;
-* nivel de amenaza;
-* último evento;
-* última actividad;
-* antigüedad;
-* estado de sanción;
-* nivel de sanción;
-* cantidad de sanciones;
-* última sanción;
-* último unban.
+La estructura persistente de ARE v2 incluye:
+
+```text
+hosts
+events
+config
+jails
+reputation
+jail_profile
+sanction_state
+```
+
+La base de datos de la instalación v2 se encuentra en:
+
+```text
+/var/lib/are/are.db
+```
 
 ---
 
@@ -142,13 +140,13 @@ Ejemplo:
 are events 192.168.1.10
 ```
 
-Los eventos representan la actividad registrada por ARE para la dirección consultada.
+Los eventos constituyen el historial de actividad procesado por ARE y también son utilizados por las estadísticas de Jails.
 
 ---
 
 # Procesar un evento FOUND
 
-Procesar manualmente un evento procedente de un sensor:
+Procesar manualmente un evento `FOUND`:
 
 ```bash
 are found <IP> <JAIL>
@@ -160,16 +158,25 @@ Ejemplo:
 are found 192.168.1.10 modsec-protocol
 ```
 
-ARE:
+El flujo de procesamiento de un evento `FOUND` es:
 
-1. registra la evidencia;
-2. obtiene el perfil del Jail;
-3. calcula el score correspondiente;
-4. actualiza la reputación;
-5. recalcula el estado;
-6. evalúa la política;
-7. aplica la decisión;
-8. registra el evento.
+```text
+FOUND
+  │
+  ▼
+Reputation
+  │
+  ▼
+State
+  │
+  ▼
+Policy
+  │
+  ▼
+Apply
+```
+
+El procesamiento de `FOUND` mediante el Sensor Framework y su integración con el Policy Engine fueron validados durante la evolución del proyecto.
 
 ---
 
@@ -181,39 +188,43 @@ Procesar un evento de ban:
 are ban <IP> <JAIL>
 ```
 
-El Jail determina el perfil utilizado para calcular el score y la categoría de reputación.
+El Jail proporciona el contexto utilizado por ARE para procesar el evento.
 
-ARE actualiza la reputación, recalcula el estado, evalúa la política y aplica la decisión correspondiente.
+Las decisiones de aplicación incluyen `FILTER`, `TEMP_BAN` y `BAN`.
+
+El backend utiliza conjuntos separados para filtrado y bloqueo, tanto para IPv4 como para IPv6.
 
 ---
 
 # Unban
 
-Eliminar una sanción activa para una dirección IP:
+Eliminar una sanción activa:
 
 ```bash
 are unban <IP>
 ```
 
-ARE determina automáticamente el backend correspondiente para IPv4 o IPv6 y registra el evento `UNBAN`.
+El flujo `UNBAN` forma parte del ciclo de vida de las direcciones IP y del backend.
 
 ---
 
 # Unban externo
 
-Procesar un unban generado externamente:
+Procesar un evento `EXTERNAL_UNBAN`:
 
 ```bash
 are external-unban <IP> [JAIL]
 ```
 
-Si no se especifica un Jail, se utiliza:
+Los eventos `UNBAN` externos se registran como:
 
 ```text
-fail2ban
+EXTERNAL_UNBAN
 ```
 
-El evento se registra como `EXTERNAL_UNBAN` y ARE vuelve a evaluar el estado y la política de la dirección IP.
+El `EXTERNAL_UNBAN` no libera directamente la dirección IP.
+
+ARE vuelve a evaluar la dirección mediante el Policy Engine y aplica la decisión resultante. Este comportamiento fue validado en producción.
 
 ---
 
@@ -227,124 +238,191 @@ are autoban
 
 ---
 
-# Decay
+# Reputation Decay
 
-### Simulación
+ARE dispone de Reputation Decay para reducir progresivamente la reputación de direcciones IP sin actividad reciente.
 
-Consultar qué IPs son candidatas para decay sin aplicar modificaciones:
+Los parámetros documentados son:
+
+```text
+DECAY_MIN_AGE=86400
+DECAY_FACTOR=0.95
+```
+
+Esto corresponde a un mínimo de 24 horas sin actividad y un factor inicial de reducción de `0.95`.
+
+## Simulación
+
+Consultar las IPs candidatas sin modificar la reputación:
 
 ```bash
 are decay-dry-run
 ```
 
-### Aplicación
+La simulación muestra las candidatas y el score estimado.
 
-Aplicar el decay sobre las IPs que cumplen las condiciones configuradas:
+## Aplicación
+
+Aplicar el decay:
 
 ```bash
 are decay-apply
 ```
 
-El proceso reduce proporcionalmente los scores de reputación que cumplen los criterios de antigüedad establecidos.
+La operación:
 
-Después de aplicar el decay, ARE recalcula el estado y vuelve a evaluar la política.
+* reduce el score;
+* actualiza el estado;
+* reevalúa el Policy Engine;
+* actualiza `last_decay`;
+* evita aplicar múltiples reducciones dentro de la misma ventana.
 
----
+El Decay no ejecuta directamente cambios sobre el firewall. La liberación automática sólo se produce cuando la política devuelve `ALLOW`; `WATCH`, `FILTER`, `TEMP_BAN` y `BAN` no generan liberación automática.
 
-# Verificar la instalación
+El mecanismo se encuentra integrado con systemd mediante:
 
-Comprobar el estado de la instalación:
-
-```bash
-are-installer verify
+```text
+are-fail2ban-decay.service
+are-fail2ban-decay.timer
 ```
 
-La validación comprueba los componentes administrados por ARE, incluyendo:
-
-* integridad;
-* enlaces;
-* comandos;
-* permisos;
-* base de datos;
-* runtime;
-* firewall;
-* systemd;
-* logrotate.
-
-La operación es de verificación y no constituye una actualización del producto.
-
 ---
 
-# Reparar
+# Fail2Ban Sensor
 
-Reparar una instalación detectada como incompleta:
+ARE mantiene un Sensor Framework para Fail2Ban.
 
-```bash
-are-installer repair
+Los eventos procesados por el sensor son:
+
+```text
+FOUND
+EXTERNAL_UNBAN
 ```
 
-La operación reconstruye los componentes administrados por el Installer.
-
-La configuración persistente y los datos de la instalación no forman parte de los archivos distribuidos del Core.
+El sensor utiliza un cursor persistente para procesar nuevos eventos.
 
 ---
 
-# Actualizar
+# Installer Engine
 
-Actualizar una instalación existente:
+El Installer Engine administra el ciclo de vida de la instalación mediante:
 
 ```bash
+are-installer install
 are-installer upgrade
+are-installer repair
+are-installer verify
+are-installer uninstall
 ```
 
-El Installer reutiliza el mismo núcleo de instalación y conserva los componentes persistentes de la instalación, incluyendo la configuración y la base de datos.
+Las operaciones utilizan un único Installer Core y reutilizan sus módulos según la operación.
 
----
-
-# Instalar
-
-Instalar ARE desde un árbol fuente:
+## Instalar
 
 ```bash
 are-installer install
 ```
 
-La instalación debe ejecutarse desde un árbol fuente diferente de la instalación activa.
+La instalación crea la estructura requerida, instala el Core, la configuración, la base de datos, los enlaces, permisos, servicios, timers y logrotate, y realiza la validación final.
 
-La instalación crea los directorios, archivos, configuración, enlaces, base de datos, unidades systemd y configuración de logrotate definidos por el Manifest.
+La instalación no debe utilizar como origen y destino el mismo directorio.
 
----
+## Actualizar
 
-# Desinstalar
+```bash
+are-installer upgrade
+```
 
-Eliminar ARE:
+`upgrade` requiere una instalación existente.
+
+Actualiza el Core y los componentes administrados sin sobrescribir la configuración persistente existente. La operación conserva los datos persistentes y actualiza los enlaces, logging, systemd y logrotate.
+
+## Reparar
+
+```bash
+are-installer repair
+```
+
+`repair` actúa sobre una instalación incompleta.
+
+Restaura los componentes necesarios y vuelve a validar la instalación.
+
+## Verificar
+
+```bash
+are-installer verify
+```
+
+La verificación comprueba, entre otros elementos:
+
+* integridad de archivos y directorios;
+* enlaces;
+* permisos;
+* estructura SQLite;
+* runtime;
+* IPSet;
+* reglas de firewall;
+* systemd;
+* logrotate.
+
+Las comprobaciones de la instalación incluyen las tablas:
+
+```text
+config
+hosts
+jails
+events
+jail_profile
+reputation
+sanction_state
+```
+
+## Desinstalar
 
 ```bash
 are-installer uninstall
 ```
 
-La operación elimina los componentes administrados por el Installer según el modelo definido por el producto.
+La desinstalación elimina los componentes administrados del producto, incluyendo Core, unidades systemd, enlaces y configuración de logrotate.
+
+Los datos persistentes y la configuración se conservan:
+
+```text
+Configuración
+Datos
+Logs
+```
 
 ---
 
-# Ubicaciones importantes
+# Configuración
+
+ARE utiliza los siguientes archivos de configuración:
+
+```text
+config.conf
+policy.conf
+whitelist.conf
+```
+
+Estos archivos son tratados como configuración persistente por el Installer Engine y no se sobrescriben cuando ya existe configuración administrada por el administrador.
+
+Los enlaces de configuración forman parte de la instalación y son verificados por `are-installer verify`.
+
+---
+
+# Ubicaciones principales
 
 Core:
 
 ```text
-/opt/f2b-ipset
+/opt/are
 ```
 
-Configuración:
+Datos persistentes:
 
 ```text
-/etc/f2b-ipset
-```
-
-Datos:
-
-```text
-/var/lib/f2b-ipset
+/var/lib/are
 ```
 
 Logs:
@@ -353,34 +431,19 @@ Logs:
 /var/log/are
 ```
 
-Ejecutables:
+Enlaces ejecutables:
 
 ```text
 /usr/local/sbin
 ```
 
----
-
-# Whitelist
-
-ARE permite definir direcciones IP que no deben recibir sanciones.
-
-La whitelist se administra mediante:
-
-/etc/f2b-ipset/whitelist.conf
-
-El archivo utiliza una dirección IP por línea. Se admiten direcciones IPv4 e IPv6.
-
-Una IP incluida en la whitelist queda excluida de la aplicación de sanciones. ARE verifica la whitelist antes de procesar acciones que puedan generar un bloqueo.
-
-Las IPs whitelistadas pueden seguir apareciendo como fuente de eventos o ser consultadas mediante el dashboard. La whitelist no elimina información de reputación existente.
-
-Si una IP whitelistada no posee un registro de reputación, `are score <IP>` muestra:
+Unidades systemd:
 
 ```text
-Estado................ WHITELIST
-Reputación............ Sin datos
+/etc/systemd/system
 ```
+
+La estructura v2 fue validada sobre la instalación activa de `/opt/are`, incluyendo Product Manifest, enlaces oficiales, Installer Engine, base de datos y servicio de Reputation Decay.
 
 ---
 
@@ -392,66 +455,62 @@ El flujo general de ARE es:
 Evento
    │
    ▼
-Reputación
+Reputation
    │
    ▼
-Score
+State
    │
    ▼
-Estado
+Policy
    │
    ▼
-Policy Engine
+Decision
    │
    ▼
-Decisión
+Apply
    │
    ▼
 Firewall
 ```
 
-Las consultas operativas principales son:
+Fail2Ban actúa como fuente de eventos mediante el Sensor Framework.
 
-```bash
-are stats
-are top
-are score <IP>
-are events <IP>
-```
-
-Las operaciones de mantenimiento se realizan mediante:
-
-```bash
-are-installer verify
-are-installer repair
-are-installer upgrade
-are-installer uninstall
-```
+ARE mantiene la reputación y el estado, determina la decisión mediante el Policy Engine y ejecuta la acción correspondiente mediante el backend.
 
 ---
 
 # Buenas prácticas
 
-* Verificar la instalación después de cambios de mantenimiento.
-* Mantener copias de seguridad de la base de datos.
-* Mantener protegida la configuración de ARE.
-* Revisar periódicamente las estadísticas y eventos.
-* Supervisar los sensores y las decisiones aplicadas por ARE.
+* Verificar la instalación después de operaciones de mantenimiento.
+* Mantener protegida la configuración.
+* Mantener copias de seguridad de los datos persistentes.
+* Revisar periódicamente eventos y estadísticas.
+* Supervisar el estado de los sensores y las decisiones aplicadas.
 
 ---
 
 # Solución de problemas
 
-### Verificar instalación
+### Instalación incompleta
+
+Ejecutar:
 
 ```bash
 are-installer verify
 ```
 
-### Reparar instalación incompleta
+Si la instalación es detectada como incompleta:
 
 ```bash
 are-installer repair
+```
+
+### Instalación existente
+
+Para actualizar una instalación existente:
+
+```bash
+are-installer upgrade
 ```
 
 ### Consultar una IP
@@ -472,17 +531,23 @@ are events <IP>
 are stats
 ```
 
----
+### Consultar decay
 
-# Compatibilidad
-
-Versión:
-
-```text
-ARE v1.1
+```bash
+are decay-dry-run
 ```
 
-Esta guía corresponde a la versión 1.1 del producto.
+---
+
+# Versión
+
+Esta guía corresponde a:
+
+```text
+ARE v2.0
+```
+
+La estructura v2 utiliza `/opt/are` como Core y `/var/lib/are/are.db` como base persistente.
 
 ---
 
@@ -490,10 +555,15 @@ Esta guía corresponde a la versión 1.1 del producto.
 
 Para información adicional consultar:
 
-* `README.md`
-* `docs/ARCHITECTURE.md`
-* `docs/DESIGN.md`
-* `docs/INSTALL.md`
-* `docs/CHANGELOG.md`
+```text
+README.md
+docs/ARCHITECTURE.md
+docs/DESIGN.md
+docs/INSTALL.md
+docs/DEVELOPMENT.md
+docs/SECURITY.md
+docs/CHANGELOG.md
+```
 
-La documentación técnica complementa esta guía con información sobre arquitectura, diseño, instalación y evolución del proyecto.
+Esta guía contiene únicamente procedimientos y capacidades respaldados por la documentación y las implementaciones verificadas disponibles para ARE v2.0.
+

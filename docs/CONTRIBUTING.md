@@ -2,242 +2,283 @@
 
 ## Introducción
 
-Gracias por tu interés en contribuir a ARE (Abuse Reputation Engine).
+ARE (Abuse Reputation Engine) es un proyecto desarrollado bajo principios de simplicidad, modularidad, separación de responsabilidades y evolución controlada.
 
-ARE evoluciona mediante una metodología incremental basada en estabilidad, simplicidad y arquitectura modular.
+Toda contribución deberá respetar la arquitectura, las decisiones de diseño y la metodología oficial de desarrollo del proyecto.
 
-Toda contribución deberá respetar la arquitectura del proyecto, la filosofía de diseño y el proceso oficial de desarrollo.
+Antes de modificar el proyecto debe comprenderse el comportamiento existente y verificarse qué componentes están realmente involucrados en el cambio.
 
-Antes de realizar cualquier modificación se recomienda leer:
+Para comprender el proyecto se recomienda consultar:
 
-- README.md
-- PROJECT.md
-- PHILOSOPHY.md
-- ARCHITECTURE.md
-- DESIGN.md
-- DEVELOPMENT.md
+* `README.md`
+* `docs/PROJECT.md`
+* `docs/ARCHITECTURE.md`
+* `docs/DESIGN.md`
+* `docs/DEVELOPMENT.md`
 
 ---
 
 # Principios
 
-Toda contribución deberá respetar los siguientes principios.
+Toda contribución deberá seguir los siguientes principios:
 
-- Una única responsabilidad por cambio.
-- Arquitectura antes que implementación.
-- Estabilidad antes que nuevas funcionalidades.
-- Bajo acoplamiento.
-- Alta cohesión.
-- Compatibilidad hacia atrás cuando sea posible.
-- Documentación sincronizada con el código.
-- Código simple antes que código complejo.
+* Comprender antes de implementar.
+* Una responsabilidad por componente.
+* Modificar únicamente lo necesario.
+* Reutilizar componentes existentes antes de duplicar lógica.
+* Preservar el comportamiento no afectado.
+* Mantener la arquitectura desacoplada.
+* Verificar los cambios antes de considerarlos terminados.
+* Mantener la documentación sincronizada con el estado real del proyecto.
+* Mantener cada cambio trazable.
+
+La estabilidad del sistema tiene prioridad sobre la incorporación de cambios no necesarios.
 
 ---
 
 # Antes de comenzar
 
-Antes de implementar cualquier cambio deberá verificarse:
+Antes de implementar un cambio deberá verificarse:
 
-- que la funcionalidad no exista;
-- que no exista una tarea equivalente documentada;
-- que la propuesta corresponda a la versión objetivo;
-- que exista una justificación técnica.
+* qué comportamiento existe actualmente;
+* si la funcionalidad ya existe;
+* qué componente es responsable del comportamiento;
+* qué otros componentes dependen de él;
+* si el cambio corresponde al alcance de la versión en desarrollo;
+* si existe una tarea, bug o feature relacionado;
+* si el cambio modifica una relación arquitectónica existente.
 
-Si la modificación afecta la arquitectura deberá documentarse previamente mediante un RFC.
+No deberán modificarse archivos o componentes que no sean necesarios para resolver el objetivo definido.
+
+Si el cambio altera responsabilidades, interfaces o relaciones fundamentales entre componentes, deberá analizarse y documentarse como modificación arquitectónica antes de su implementación.
 
 ---
 
 # Clasificación de cambios
 
-Toda contribución deberá clasificarse antes de comenzar.
+Toda modificación deberá clasificarse según su naturaleza.
 
 ## BUG
 
-Corrección de un comportamiento incorrecto.
+Corrección de un comportamiento incorrecto existente.
 
----
+La corrección debe resolver el problema sin alterar comportamientos que no formen parte del bug.
 
 ## TASK
 
-Refactorización, reorganización o mantenimiento sin incorporar nuevas funcionalidades.
-
----
+Trabajo técnico, mantenimiento, reorganización o refactorización que no incorpora una nueva capacidad funcional.
 
 ## FEATURE
 
-Nueva funcionalidad compatible con la arquitectura existente.
-
----
+Incorporación de una nueva funcionalidad al proyecto.
 
 ## RFC
 
-Propuesta que modifica la arquitectura del proyecto.
+Propuesta de modificación arquitectónica o de una decisión que pueda alterar la estructura o responsabilidades fundamentales de ARE.
 
-Toda modificación arquitectónica deberá aprobarse antes de comenzar su implementación.
-
----
+Una RFC no representa una funcionalidad implementada hasta que su propuesta haya sido aprobada e implementada.
 
 ## IDEA
 
-Propuesta sin planificación para una versión específica.
+Propuesta que todavía no forma parte de una implementación definida.
 
-Las ideas no forman parte automáticamente del Roadmap.
+Una idea no representa una funcionalidad disponible ni comprometida.
 
 ---
 
 # Flujo de contribución
 
-Toda contribución seguirá el siguiente proceso.
+Toda modificación deberá seguir un proceso controlado:
 
 ```text
-Idea
- │
- ▼
-Análisis técnico
- │
- ▼
+Problema o necesidad
+        ↓
+Análisis del comportamiento actual
+        ↓
+Identificación del componente afectado
+        ↓
 Clasificación
- │
- ▼
-Documentación
- │
- ▼
-Diseño
- │
- ▼
+(BUG / TASK / FEATURE / RFC / IDEA)
+        ↓
+Definición del cambio
+        ↓
+Diseño, cuando corresponda
+        ↓
 Implementación
- │
- ▼
-Pruebas
- │
- ▼
-Actualización documental
- │
- ▼
+        ↓
+Verificación
+        ↓
+Actualización de documentación
+        ↓
+Revisión del repositorio
+        ↓
 Commit
- │
- ▼
-Pull Request
 ```
 
-Ninguna etapa deberá omitirse.
+Cada etapa deberá completarse antes de considerar terminado el cambio.
+
+Cuando durante la verificación aparezca un problema relacionado con el cambio, éste deberá resolverse y verificarse antes de continuar con cambios dependientes.
 
 ---
 
-# Una responsabilidad por cambio
+# Un cambio, una responsabilidad
 
-Cada cambio deberá resolver un único problema.
+Cada contribución deberá mantener un objetivo identificable.
 
-Ejemplos válidos:
+Ejemplos:
 
-- corregir un bug;
-- implementar una funcionalidad;
-- mejorar la documentación;
-- reorganizar un módulo;
-- optimizar un algoritmo.
+* corregir un bug;
+* incorporar una funcionalidad;
+* modificar un componente concreto;
+* reorganizar un módulo;
+* actualizar documentación relacionada con un cambio real.
 
-Se evitará mezclar responsabilidades diferentes dentro del mismo cambio.
+No deberán mezclarse cambios independientes únicamente para aprovechar una misma modificación.
 
 ---
 
-# Arquitectura
+# Arquitectura y componentes
 
-Toda modificación deberá respetar la separación entre:
+Las contribuciones deberán respetar la separación de responsabilidades existente en ARE.
 
-- Sensor Framework;
-- Reputation Engine;
-- State Engine;
-- Policy Engine;
-- Firewall Backend;
-- Installer Engine.
+Los cambios deberán realizarse dentro del componente correspondiente a su responsabilidad.
 
-No deberán introducirse dependencias innecesarias entre motores.
+Entre los componentes actualmente organizados en el proyecto se encuentran:
+
+* `sensors/`
+* `policy/`
+* `infrastructure/`
+* `manifest/`
+* `dashboard/`
+* `testing/`
+* `systemd/`
+* `templates/`
+
+La existencia de un componente no autoriza a trasladarle responsabilidades pertenecientes a otro.
+
+Cuando una modificación requiera cambiar la relación entre componentes, deberá verificarse el comportamiento de todos los componentes directamente afectados.
+
+---
+
+# Pruebas y verificación
+
+Toda modificación deberá verificarse antes de considerarse terminada.
+
+La verificación deberá basarse en resultados observables y deberá comprobar, según corresponda:
+
+* que el cambio funciona;
+* que el comportamiento esperado se mantiene;
+* que no se introducen regresiones;
+* que los componentes relacionados continúan funcionando;
+* que los datos persistentes no resultan afectados indebidamente;
+* que las operaciones modificadas del sistema continúan siendo coherentes.
+
+Las pruebas existentes en `testing/` deberán reutilizarse cuando correspondan al comportamiento modificado.
+
+No deberá considerarse suficiente una comprobación basada únicamente en que el código no produzca errores sintácticos.
 
 ---
 
 # Documentación
 
-La documentación forma parte del código fuente.
+La documentación forma parte del proyecto.
 
-Toda modificación relevante deberá actualizar la documentación correspondiente.
+Cuando una modificación cambie el comportamiento real de ARE, deberán actualizarse los documentos afectados.
 
-Según el cambio podrá ser necesario actualizar:
+Según el alcance del cambio podrán verse involucrados:
 
-- README.md
-- CHANGELOG.md
-- ROADMAP.md
-- ARCHITECTURE.md
-- DESIGN.md
-- DEVELOPMENT.md
-- SECURITY.md
-- INSTALL.md
-- USER_GUIDE.md
+* `README.md`
+* `docs/PROJECT.md`
+* `docs/ARCHITECTURE.md`
+* `docs/DESIGN.md`
+* `docs/INSTALL.md`
+* `docs/CHANGELOG.md`
+* `docs/ROADMAP.md`
+* `docs/DEVELOPMENT.md`
+* `docs/CONTRIBUTING.md`
+* `docs/GOVERNANCE.md`
+* `docs/SECURITY.md`
+* `docs/USER_GUIDE.md`
+* `docs/TODO.md`
 
-Una funcionalidad no se considera finalizada hasta que su documentación haya sido actualizada.
+Cada documento debe conservar su responsabilidad específica.
+
+No deberá trasladarse a un documento información que corresponda a otro únicamente para evitar actualizar el documento correcto.
+
+La documentación no debe describir como implementado aquello que únicamente está planificado.
 
 ---
 
-# Pruebas
+# Installer Engine
 
-Toda modificación deberá validarse antes de integrarse al proyecto.
+Los cambios relacionados con el Installer Engine deberán considerar las operaciones que actualmente administra:
 
-Las pruebas deberán demostrar:
+* `install`
+* `upgrade`
+* `repair`
+* `verify`
+* `uninstall`
 
-- funcionamiento correcto;
-- ausencia de regresiones;
-- compatibilidad con la arquitectura;
-- conservación de datos persistentes cuando corresponda.
+Las modificaciones deberán verificarse únicamente sobre las operaciones afectadas y sus dependencias directas.
 
-Las funcionalidades relacionadas con el Installer deberán validar:
+La estructura definida mediante el manifest deberá mantenerse como referencia de los componentes administrados por el ciclo de instalación y actualización.
 
-- install;
-- upgrade;
-- repair;
-- verify;
-- uninstall.
+No deberán introducirse archivos o componentes en el proceso de instalación sin determinar previamente su relación con la estructura administrada por el manifest.
 
 ---
 
 # Commits
 
-Los commits deberán representar una única responsabilidad.
+Cada commit deberá representar un cambio identificable y coherente.
+
+Los mensajes deberán ser:
+
+* claros;
+* específicos;
+* trazables;
+* representativos del contenido real del commit.
 
 Ejemplos:
 
 ```text
-BUG-006  Fix anomaly category
+BUG-008 Fix state and policy inconsistency
 
-TASK-008  Refactor installer manifest
+TASK-014 Update installer manifest
 
-FEAT-004  Add Installer Engine
+FEAT-005 Add sensor integration
 
-DOC-005  Update installation guide
+DOC-006 Update installation documentation
 ```
 
-Los mensajes deberán ser claros, específicos y trazables.
+Un commit no deberá utilizarse para ocultar modificaciones no relacionadas con su objetivo.
 
 ---
 
-# Pull Requests
+# Revisión antes de cerrar un cambio
 
-Antes de enviar un Pull Request deberá verificarse:
+Antes de cerrar una contribución deberá verificarse:
 
-- código funcional;
-- pruebas completadas;
-- documentación actualizada;
-- cumplimiento de la arquitectura;
-- cumplimiento de la metodología oficial.
+* objetivo definido;
+* componente correcto;
+* implementación limitada al alcance necesario;
+* pruebas realizadas;
+* comportamiento verificado;
+* ausencia de modificaciones innecesarias;
+* documentación afectada actualizada;
+* coherencia con la arquitectura;
+* estado del repositorio revisado.
 
-Las revisiones podrán solicitar cambios antes de aceptar la integración.
+El cambio sólo deberá considerarse terminado cuando estos puntos hayan sido comprobados según corresponda.
 
 ---
 
 # Filosofía
 
-ARE evoluciona mediante mejoras pequeñas, verificables y documentadas.
+ARE evoluciona mediante cambios incrementales.
 
-La incorporación de nuevas funcionalidades nunca deberá comprometer la estabilidad del núcleo.
+Cada modificación debe partir del comportamiento real existente, resolver un objetivo concreto y ser verificada antes de continuar con cambios posteriores.
 
-Cada versión deberá representar un estado consistente del proyecto.
+Las nuevas capacidades deben incorporarse sin romper las responsabilidades existentes ni introducir complejidad innecesaria.
 
-La prioridad de ARE es mantener una arquitectura sólida que permita evolucionar el sistema durante múltiples versiones sin introducir deuda técnica.
+La documentación debe evolucionar junto con el software y representar el estado real del proyecto.
+
