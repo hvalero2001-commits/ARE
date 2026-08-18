@@ -471,7 +471,104 @@ Un `uninstall` elimina el producto sin convertir automáticamente los datos pers
 
 ---
 
-# 13. Compatibilidad y evolución
+# 13. Interfaz de Administración (ARE ADMIN)
+
+## 13.1 Propósito
+
+ARE ADMIN es la interfaz de administración por línea de comandos de ARE.
+
+Su función es exponer, de forma organizada, las capacidades de consulta, configuración y operación de los componentes ya definidos en este documento.
+
+ARE ADMIN no introduce un nuevo motor ni una nueva autoridad de decisión. Es una capa de administración que se apoya sobre los componentes existentes: Reputation Engine, State Engine, Policy Engine, Sensor Framework, Decay Engine e Installer Engine.
+
+---
+
+## 13.2 Principio de diseño
+
+ARE ADMIN respeta la separación de responsabilidades establecida en la Sección 2.
+
+La CLI no decide, no aplica y no sanciona. La CLI consulta, administra y, cuando corresponde, invoca a los motores correspondientes respetando el flujo definido por cada uno de ellos.
+
+En consecuencia:
+
+* ARE ADMIN no modifica directamente la tabla `reputation`;
+* ARE ADMIN no modifica directamente el Firewall Backend;
+* ARE ADMIN no reemplaza al Policy Engine ni al Decay Engine;
+* ARE ADMIN administra `jail_profile`, la configuración desacoplada y el ciclo de vida de la instalación a través de las interfaces ya existentes de cada componente.
+
+---
+
+## 13.3 Estructura del menú
+
+El árbol de navegación de ARE ADMIN refleja directamente la composición de ARE descrita en las secciones anteriores. Cada rama corresponde a un componente ya definido en el diseño, y ninguna rama introduce responsabilidades nuevas fuera de las ya establecidas.
+
+```text
+ARE ADMIN
+│
+├── 1. Jails / Perfiles
+│   ├── Listar
+│   ├── Crear
+│   ├── Modificar
+│   ├── Eliminar
+│   └── Validar
+│
+├── 2. Categorías
+│   ├── Listar
+│   └── Ver puntuaciones
+│
+├── 3. Sensores
+│   ├── Estado
+│   └── Configuración
+│
+├── 4. Política
+│   ├── Ver configuración
+│   └── Validar
+│
+├── 5. Estado / Reputación
+│   ├── Consultar IP
+│   ├── Eventos
+│   └── Top
+│   └── Estadísticas
+│
+├── 6. Decay
+│   ├── Estado
+│   ├── Dry-run
+│   └── Ejecutar
+│
+├── 7. Configuración
+│   ├── Ver
+│   └── Validar
+│
+└── 0. Salir
+```
+
+---
+
+## 13.4 Correspondencia con los componentes del diseño
+
+Cada rama del menú se apoya en un componente ya definido, sin duplicar su lógica:
+
+* **Jails / Perfiles** administra `jail_profile` (Sección 3.2). Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12).
+* **Categorías** expone en modo de solo lectura el modelo de reputación (Sección 3), incluyendo las puntuaciones asociadas a cada categoría.
+* **Sensores** expone el estado y la configuración del Sensor Framework (Sección 8), sin permitir que la CLI decida política ni modifique reputación de forma directa.
+* **Política** permite inspeccionar y validar la configuración del Policy Engine (Sección 4), sin ejecutar directamente una decisión sobre una IP concreta.
+* **Estado / Reputación** permite consultar el conocimiento acumulado (Sección 2.4) y el historial de eventos de una IP, así como obtener un listado priorizado (Top) según reputación o nivel de sanción.
+* **Decay** expone el ciclo descrito en la Sección 6. *Estado* consulta `last_decay`; *Dry-run* simula el efecto del Decay Engine sin modificar `reputation` ni provocar una reevaluación real; *Ejecutar* invoca el flujo completo Decay → Reputation → State Engine → Policy Engine (Sección 6.3), delegando la aplicación efectiva de cualquier decisión resultante al mecanismo de Apply ya definido en la Sección 2.3.
+* **Configuración** permite ver y validar la configuración desacoplada (Sección 10), sin embeber dicha configuración en el código de los motores.
+
+---
+
+## 13.5 Alcance de las operaciones de escritura
+
+Las operaciones de escritura disponibles desde ARE ADMIN se limitan a los elementos de configuración y administración: perfiles de jail y configuración operativa.
+
+ARE ADMIN no ofrece una operación que module directamente `reputation` o `sanction_state`. Cualquier cambio sobre el conocimiento acumulado de una IP resulta exclusivamente de la operación normal de los motores (Sensor Framework, Decay Engine, Policy Engine), y no de una acción manual ejecutada desde la CLI.
+
+Esto preserva la integridad del modelo de reputación descrito en la Sección 3 y evita que la interfaz de administración se convierta en una vía paralela de decisión.
+
+---
+
+# 14. Compatibilidad y evolución
 
 v2.0 no se diseña como una ruptura conceptual respecto de v1.1.
 
@@ -485,13 +582,14 @@ La evolución actual afecta principalmente:
 * persistencia;
 * mantenimiento;
 * integración del ciclo de recuperación;
-* organización de componentes.
+* organización de componentes;
+* interfaz de administración.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no deben incorporarse como decisiones de diseño ya realizadas.
 
 ---
 
-# 14. Diseño basado en evidencia
+# 15. Diseño basado en evidencia
 
 Las decisiones de diseño de ARE deben surgir de:
 
@@ -508,7 +606,7 @@ El comportamiento real y validado del sistema es la referencia principal para ac
 
 ---
 
-# 15. Evolución incremental
+# 16. Evolución incremental
 
 ARE debe evolucionar sin introducir cambios innecesarios.
 
@@ -520,7 +618,7 @@ Las propuestas que todavía no hayan sido implementadas pertenecen al Roadmap o 
 
 ---
 
-# 16. Estado del diseño
+# 17. Estado del diseño
 
 El diseño actual de v2.0 conserva los principios establecidos durante v1.1 y los adapta a la estructura operativa actual de ARE.
 
@@ -534,8 +632,8 @@ Las decisiones principales consolidadas para v2.0 son:
 * configuración desacoplada;
 * Product Manifest como definición estructural del producto;
 * Installer Engine como administrador del ciclo de vida de instalación;
+* interfaz de administración ARE ADMIN como capa de consulta y administración sobre los componentes existentes, sin autoridad de decisión propia;
 * estructura operativa propia de ARE;
 * evolución incremental sobre la base estable de v1.1.
 
 La versión v2.0 continúa siendo objeto de desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
-

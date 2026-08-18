@@ -1,9 +1,9 @@
 #!/bin/bash
 #########################################################################
 #
-#  F2B-IPSET
+#  Abuse Reputation Engine (ARE)
 #
-#  Version : 1.1
+#  Main CLI
 #
 #########################################################################
 
@@ -310,6 +310,12 @@ score)
 ;;
 events)
     dashboard_events "$IP"
+;;
+help)
+    dashboard_help
+;;
+status)
+    dashboard_status
 ;;
 decay-dry-run)
     reputation_decay_dry_run

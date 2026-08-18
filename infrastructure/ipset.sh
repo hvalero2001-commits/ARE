@@ -73,12 +73,3 @@ unbanIP(){
 	ipset del "$SET" "$IP" -exist
 
 }
-
-existsSet() {
-
-    local SET="$1"
-
-    ipset list "$SET" >/dev/null 2>&1
-
-}
-

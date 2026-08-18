@@ -22,9 +22,3 @@ dashboard_events() {
 
     db_get_events "$IP"
 }
-
-    db_exec "
-        SELECT COUNT(*)
-        FROM events
-        WHERE date(fecha, 'unixepoch') = date('now');
-    "

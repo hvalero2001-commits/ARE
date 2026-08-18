@@ -12,15 +12,16 @@ policy_anomaly() {
     # ejemplos de heurística
     SCORE=$(get_modsec_anomaly_score "$IP")
 
+    if [ "$SCORE" -ge 10 ]; then
+        echo "BLOCK|$SCORE|$REASON"
+        return 0
+    fi
+
     if [ "$SCORE" -ge 5 ]; then
         echo "WATCH|$SCORE|$REASON"
         return 0
     fi
 
-    if [ "$SCORE" -ge 10 ]; then
-        echo "BLOCK|$SCORE|$REASON"
-        return 0
-    fi
 
     return 1
 }

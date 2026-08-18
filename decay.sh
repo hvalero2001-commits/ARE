@@ -12,6 +12,8 @@
 #
 # Exports
 #   reputation_decay_run()
+#   reputation_decay_apply()
+#   reputation_decay_status()
 #############################################################
 
 reputation_decay_dry_run() {
@@ -114,4 +116,42 @@ reputation_decay_apply() {
     done
 
     INFO "Decay apply finalizado. IPs procesadas=$COUNT"
+}
+
+reputation_decay_status() {
+    local NOW
+    local MIN_AGE="${DECAY_MIN_AGE:-86400}"
+    NOW=$(date +%s)
+    INFO "Decay status consultado MIN_AGE=$MIN_AGE"
+
+    local TOTAL_DECAYED
+    TOTAL_DECAYED=$(sqlite3 "$DB_FILE" "SELECT COUNT(*) FROM reputation WHERE last_decay > 0;")
+
+    local LAST_RUN
+    LAST_RUN=$(sqlite3 "$DB_FILE" "SELECT COALESCE(MAX(last_decay), 0) FROM reputation;")
+
+    local CANDIDATES
+    CANDIDATES=$(sqlite3 "$DB_FILE" "
+        SELECT COUNT(*)
+        FROM reputation
+        WHERE total_score > 0
+          AND updated IS NOT NULL
+          AND ($NOW - updated) >= $MIN_AGE
+          AND (
+                last_decay = 0
+                OR ($NOW - last_decay) >= $MIN_AGE
+              );
+    ")
+
+    echo "=================================================="
+    echo "DECAY ENGINE - ESTADO"
+    echo "=================================================="
+    echo "IPs con decay aplicado alguna vez... $TOTAL_DECAYED"
+    if [ "$LAST_RUN" -gt 0 ]; then
+        echo "Última ejecución registrada........ $(date -d "@$LAST_RUN" '+%Y-%m-%d %H:%M:%S')"
+    else
+        echo "Última ejecución registrada........ Nunca"
+    fi
+    echo "IPs candidatas actualmente.......... $CANDIDATES"
+    echo "=================================================="
 }
