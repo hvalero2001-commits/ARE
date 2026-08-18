@@ -40,6 +40,9 @@ dashboard_help() {
     echo "  status"
     echo "      Estado operativo de ARE."
     echo
+    echo "  admin"
+    echo "      Estructura de menú CLI para administración de ARE."
+    echo
     echo "EJEMPLOS:"
     echo
     echo "  are.sh score 8.8.8.8"
@@ -48,6 +51,7 @@ dashboard_help() {
     echo "  are.sh stats"
     echo "  are.sh help"
     echo "  are.sh status"
+    echo "  are.sh admin"
     echo
     echo "=================================================="
 }

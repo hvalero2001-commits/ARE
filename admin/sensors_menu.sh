@@ -29,20 +29,48 @@ sensors_menu() {
 }
 
 sensors_status() {
-    echo "  [Sensores] Estado"
-    # TODO: por cada sensor en sensors/*.sh, reportar:
-    #   - si el timer/systemd unit está activo
-    #   - último offset procesado
-    #   - último evento recibido
-    echo "  (stub) Estado de sensores registrados"
+    local offset_file="${ARE_DATA}/fail2ban.offset"
+    local timer_name="are-fail2ban-found.timer"
+
+    echo "=================================================="
+    echo "SENSORES - ESTADO"
+    echo "=================================================="
+    echo "Sensor: fail2ban"
+    echo ""
+
+    if [ -f "$offset_file" ]; then
+        echo "Offset actual (línea de log)... $(cat "$offset_file")"
+    else
+        echo "Offset actual (línea de log)... Sin ejecución previa"
+    fi
+
+    if command -v systemctl >/dev/null 2>&1; then
+        echo ""
+        echo "Timer systemd (${timer_name}):"
+        systemctl status "$timer_name" --no-pager 2>&1 | head -n 5
+    fi
+
+    echo ""
+    echo "Sensores no implementados aún: apache, crowdsec,"
+    echo "modsecurity, suricata, zeek (roadmap de próximas"
+    echo "versiones)."
+    echo "=================================================="
     admin_pause
 }
 
 sensors_config() {
-    echo "  [Sensores] Configuración"
-    # TODO: mostrar la configuración de sensores desde
-    # config/config.conf (solo lectura desde este submenú;
-    # la edición pertenece a la rama 7. Configuración).
-    echo "  (stub) Configuración actual de sensores"
+    echo "=================================================="
+    echo "SENSORES - CONFIGURACIÓN"
+    echo "=================================================="
+    echo "Directorio de sensores.... ${ARE_SENSOR_DIR}"
+    echo ""
+    echo "fail2ban:"
+    echo "  Log fuente............. /var/log/fail2ban.log"
+    echo "  Archivo de offset...... ${ARE_DATA}/fail2ban.offset"
+    echo "  Jails admitidos........ modsec-*, recidive, sshd, telnet"
+    echo ""
+    echo "NOTA: la ruta del log de fail2ban está fija dentro"
+    echo "de sensors/fail2ban.sh, no proviene de config.conf."
+    echo "=================================================="
     admin_pause
 }

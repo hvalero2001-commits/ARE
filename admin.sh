@@ -2,38 +2,31 @@
 # ============================================================
 # admin.sh
 # ------------------------------------------------------------
-# Entrypoint de ARE ADMIN.
+# Atajo directo a ARE ADMIN, equivalente a `are.sh admin`.
 #
-# Sigue el mismo patrón que dashboard.sh: resuelve su propia
-# ubicación mediante BASH_SOURCE, carga bootstrap.sh y delega
-# el control al dispatcher de admin/core.sh.
+# Sigue el mismo patrón de carga que are.sh: config.conf +
+# bootstrap.sh. bootstrap.sh ya se encarga de cargar admin/*.sh
+# (ver bloque #ADMIN agregado a bootstrap.sh), por lo que este
+# archivo no necesita cargar sus propios módulos.
 #
 # ARE ADMIN no decide, no aplica y no sanciona. Solo consulta
 # y administra configuración a través de los componentes ya
 # existentes (ver docs/DESIGN.md, Sección 13).
 # ============================================================
 
-set -euo pipefail
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+CONFIG="$SCRIPT_DIR/config/config.conf"
 
-ARE_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export ARE_HOME
+if [ ! -f "$CONFIG" ]; then
+    echo "ERROR: Configuración no encontrada: $CONFIG"
+    exit 1
+fi
 
-# ------------------------------------------------------------
-# TODO (integración pendiente):
-# Descomentar cuando se integre con el proyecto real.
-# El contexto "admin" le indica a bootstrap.sh que debe cargar
-# también los módulos de admin/ (ver propuesta de bootstrap.sh
-# más abajo en este mismo mensaje).
-#
-# export ARE_CONTEXT="admin"
-# source "${ARE_HOME}/bootstrap.sh"
-# ------------------------------------------------------------
+source "$CONFIG"
 
-# Mientras tanto, para poder probar el esqueleto de forma
-# aislada, se cargan directamente los módulos de admin/.
-for f in "${ARE_HOME}/admin/"*.sh; do
-    # shellcheck source=/dev/null
-    source "$f"
-done
+BASE="$ARE_HOME"
+
+source "$BASE/bootstrap.sh"
 
 admin_main "$@"

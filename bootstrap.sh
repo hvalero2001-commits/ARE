@@ -11,6 +11,11 @@ source "$BASE/decay.sh"
 #DASHBOARD
 source "$BASE/dashboard.sh"  >/dev/null 2>&1
 
+#ADMIN
+for f in "$BASE/admin/"*.sh; do
+    source "$f" >/dev/null 2>&1
+done
+
 # CONTEXT
 source "$BASE/policy/context.sh"
 source "$BASE/policy/context_api.sh"

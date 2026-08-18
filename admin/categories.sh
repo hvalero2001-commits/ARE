@@ -28,20 +28,56 @@ categories_menu() {
 }
 
 categories_list() {
-    echo "  [Categorías] Listar"
-    # TODO: listar categorías soportadas por el Reputation Engine.
-    # Fuente: constante compartida en database.sh (misma lista
-    # usada por dashboard/reputation.sh y dashboard/score.sh).
-    echo "  (stub) RECON, EXPLOIT, CREDENTIAL, PROTOCOL, BOT,"
-    echo "         ANOMALY, MALWARE, DOS, SOCIAL"
+    echo "=================================================="
+    echo "CATEGORÍAS - Catálogo"
+    echo "=================================================="
+
+    if [ -z "${REPUTATION_CATEGORIES:-}" ]; then
+        echo "  ERROR: REPUTATION_CATEGORIES no está definida en policy.conf"
+        admin_pause
+        return 1
+    fi
+
+    for cat in $REPUTATION_CATEGORIES; do
+        local threshold_var="${cat}_THRESHOLD"
+        local threshold="${!threshold_var:-N/D}"
+        printf "  %-12s umbral: %s\n" "$cat" "$threshold"
+    done
+
+    echo "=================================================="
     admin_pause
 }
 
 categories_scores() {
-    echo "  [Categorías] Ver puntuaciones"
     read -rp "  IP a consultar: " ip
-    # TODO: reutilizar dashboard/score.sh (misma función que
-    # ya usa `are score <ip>`), no reimplementar el cálculo.
-    echo "  (stub) Puntuaciones por categoría para ${ip}"
+
+    if [ -z "${REPUTATION_CATEGORIES:-}" ]; then
+        echo "  ERROR: REPUTATION_CATEGORIES no está definida en policy.conf"
+        admin_pause
+        return 1
+    fi
+
+    local REP
+    REP=$(db_get_reputation "$ip")
+
+    if [ -z "$REP" ]; then
+        echo "  IP sin datos: $ip"
+        admin_pause
+        return 0
+    fi
+
+    echo "=================================================="
+    echo "CATEGORÍAS - Puntuaciones de $ip"
+    echo "=================================================="
+
+    local i=1
+    for cat in $REPUTATION_CATEGORIES; do
+        local value
+        value=$(echo "$REP" | cut -d'|' -f"$i")
+        printf "  %-12s %s\n" "$cat" "$value"
+        i=$((i + 1))
+    done
+
+    echo "=================================================="
     admin_pause
 }

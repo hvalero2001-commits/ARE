@@ -34,26 +34,19 @@ decay_menu() {
 }
 
 decay_status() {
-    echo "  [Decay] Estado"
-    # TODO: consultar last_decay por IP o resumen general.
-    echo "  (stub) Estado del Decay Engine (last_decay)"
+    reputation_decay_status
     admin_pause
 }
 
 decay_dry_run() {
-    echo "  [Decay] Dry-run"
-    # TODO: invocar directamente ./decay.sh decay-dry-run
-    # No modifica `reputation` ni provoca reevaluación real.
-    echo "  (stub) Ejecutando decay-dry-run..."
+    reputation_decay_dry_run
     admin_pause
 }
 
 decay_execute() {
-    echo "  [Decay] Ejecutar"
     read -rp "  Confirma ejecución real de decay-apply (s/N): " confirm
     if [[ "$confirm" =~ ^[sS]$ ]]; then
-        # TODO: invocar directamente ./decay.sh decay-apply
-        echo "  (stub) Ejecutando decay-apply..."
+        reputation_decay_apply
     else
         echo "  Operación cancelada."
     fi

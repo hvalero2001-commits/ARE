@@ -317,6 +317,9 @@ help)
 status)
     dashboard_status
 ;;
+admin)
+    admin_main "${@:2}"
+;;
 decay-dry-run)
     reputation_decay_dry_run
 ;;

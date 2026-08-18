@@ -136,6 +136,11 @@ La relación entre un jail y una categoría se mantiene mediante `jail_profile`.
 
 Esto permite agregar o modificar perfiles sin modificar la estructura principal de reputación.
 
+El catálogo de categorías soportadas se mantiene explícitamente en
+`config/policy.conf` mediante `REPUTATION_CATEGORIES`, como fuente única
+de verdad consumida tanto por el modelo de reputación como por la
+interfaz de administración (ver Sección 13).
+
 ---
 
 # 4. Modelo de decisión basado en riesgo
@@ -481,6 +486,8 @@ Su función es exponer, de forma organizada, las capacidades de consulta, config
 
 ARE ADMIN no introduce un nuevo motor ni una nueva autoridad de decisión. Es una capa de administración que se apoya sobre los componentes existentes: Reputation Engine, State Engine, Policy Engine, Sensor Framework, Decay Engine e Installer Engine.
 
+Se accede mediante `are.sh admin`, o directamente mediante `admin.sh` como atajo equivalente. Ambos caminos cargan el mismo `bootstrap.sh` utilizado por el resto del sistema, por lo que ARE ADMIN opera siempre sobre los mismos componentes reales, sin duplicar lógica ni mantener un entorno de carga separado.
+
 ---
 
 ## 13.2 Principio de diseño
@@ -500,7 +507,9 @@ En consecuencia:
 
 ## 13.3 Estructura del menú
 
-El árbol de navegación de ARE ADMIN refleja directamente la composición de ARE descrita en las secciones anteriores. Cada rama corresponde a un componente ya definido en el diseño, y ninguna rama introduce responsabilidades nuevas fuera de las ya establecidas.
+El árbol de navegación de ARE ADMIN refleja directamente la composición de ARE descrita en las secciones anteriores. Cada rama corresponde a un componente ya definido en el diseño.
+
+Dos ramas incorporan, además de las capacidades de consulta originales, un ítem adicional de resumen/diagnóstico que reutiliza comandos ya existentes del Dashboard (`dashboard_stats`, `dashboard_status`), sin introducir lógica nueva:
 
 ```text
 ARE ADMIN
@@ -527,7 +536,7 @@ ARE ADMIN
 ├── 5. Estado / Reputación
 │   ├── Consultar IP
 │   ├── Eventos
-│   └── Top
+│   ├── Top
 │   └── Estadísticas
 │
 ├── 6. Decay
@@ -537,7 +546,8 @@ ARE ADMIN
 │
 ├── 7. Configuración
 │   ├── Ver
-│   └── Validar
+│   ├── Validar
+│   └── Estado del sistema
 │
 └── 0. Salir
 ```
@@ -548,13 +558,13 @@ ARE ADMIN
 
 Cada rama del menú se apoya en un componente ya definido, sin duplicar su lógica:
 
-* **Jails / Perfiles** administra `jail_profile` (Sección 3.2). Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12).
-* **Categorías** expone en modo de solo lectura el modelo de reputación (Sección 3), incluyendo las puntuaciones asociadas a cada categoría.
-* **Sensores** expone el estado y la configuración del Sensor Framework (Sección 8), sin permitir que la CLI decida política ni modifique reputación de forma directa.
-* **Política** permite inspeccionar y validar la configuración del Policy Engine (Sección 4), sin ejecutar directamente una decisión sobre una IP concreta.
-* **Estado / Reputación** permite consultar el conocimiento acumulado (Sección 2.4) y el historial de eventos de una IP, así como obtener un listado priorizado (Top) según reputación o nivel de sanción.
-* **Decay** expone el ciclo descrito en la Sección 6. *Estado* consulta `last_decay`; *Dry-run* simula el efecto del Decay Engine sin modificar `reputation` ni provocar una reevaluación real; *Ejecutar* invoca el flujo completo Decay → Reputation → State Engine → Policy Engine (Sección 6.3), delegando la aplicación efectiva de cualquier decisión resultante al mecanismo de Apply ya definido en la Sección 2.3.
-* **Configuración** permite ver y validar la configuración desacoplada (Sección 10), sin embeber dicha configuración en el código de los motores.
+* **Jails / Perfiles** administra `jail_profile` (Sección 3.2). Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12). Rama pendiente de implementación: requiere definir previamente el mecanismo de migración de perfiles desde Fail2Ban hacia `jail_profile`.
+* **Categorías** expone en modo de solo lectura el modelo de reputación (Sección 3), incluyendo las puntuaciones asociadas a cada categoría. El catálogo de categorías y sus umbrales se leen dinámicamente desde `REPUTATION_CATEGORIES` en `config/policy.conf` (Sección 3.2), evitando que el listado quede hardcodeado en la interfaz.
+* **Sensores** expone el estado y la configuración del Sensor Framework (Sección 8), sin permitir que la CLI decida política ni modifique reputación de forma directa. El estado incluye el offset persistente del sensor y el estado del timer de systemd asociado.
+* **Política** permite inspeccionar y validar la configuración del Policy Engine (Sección 4), sin ejecutar directamente una decisión sobre una IP concreta. Rama pendiente de implementación: existen definiciones concurrentes del motor de decisión en el código base cuya convivencia no está resuelta; la rama se habilitará una vez identificado el motor canónico (ver `docs/TODO.md`).
+* **Estado / Reputación** permite consultar el conocimiento acumulado (Sección 2.4) y el historial de eventos de una IP, obtener un listado priorizado (Top), y consultar un resumen agregado de actividad del sistema (Estadísticas), reutilizando `dashboard_score`, `dashboard_events`, `dashboard_top` y `dashboard_stats` respectivamente.
+* **Decay** expone el ciclo descrito en la Sección 6. *Estado* consulta `last_decay` y candidatas actuales; *Dry-run* simula el efecto del Decay Engine sin modificar `reputation` ni provocar una reevaluación real; *Ejecutar* invoca el flujo completo Decay → Reputation → State Engine → Policy Engine (Sección 6.3), delegando la aplicación efectiva de cualquier decisión resultante al mecanismo de Apply ya definido en la Sección 2.3. La operación de Ejecutar requiere confirmación explícita antes de invocarse.
+* **Configuración** permite ver y validar la configuración desacoplada (Sección 10), sin embeber dicha configuración en el código de los motores, y consultar el estado operativo general del sistema (base de datos, Decay, Firewall, IPSet) reutilizando `dashboard_status`.
 
 ---
 
@@ -565,6 +575,19 @@ Las operaciones de escritura disponibles desde ARE ADMIN se limitan a los elemen
 ARE ADMIN no ofrece una operación que module directamente `reputation` o `sanction_state`. Cualquier cambio sobre el conocimiento acumulado de una IP resulta exclusivamente de la operación normal de los motores (Sensor Framework, Decay Engine, Policy Engine), y no de una acción manual ejecutada desde la CLI.
 
 Esto preserva la integridad del modelo de reputación descrito en la Sección 3 y evita que la interfaz de administración se convierta en una vía paralela de decisión.
+
+---
+
+## 13.6 Estado de implementación
+
+De las siete ramas definidas en la Sección 13.3, cinco se encuentran implementadas, verificadas mediante pruebas aisladas y confirmadas operando en producción con datos reales: Categorías, Sensores, Estado/Reputación, Decay y Configuración.
+
+Dos ramas permanecen intencionalmente sin implementar, bloqueadas por decisiones de diseño pendientes documentadas en `docs/TODO.md`:
+
+* **Jails / Perfiles**, hasta definir el mecanismo de migración de perfiles desde Fail2Ban;
+* **Política**, hasta identificar cuál de las definiciones concurrentes del motor de decisión es la que efectivamente gobierna el sistema en producción.
+
+Esta sección debe actualizarse a medida que ambas ramas se desbloqueen e implementen.
 
 ---
 
@@ -632,7 +655,7 @@ Las decisiones principales consolidadas para v2.0 son:
 * configuración desacoplada;
 * Product Manifest como definición estructural del producto;
 * Installer Engine como administrador del ciclo de vida de instalación;
-* interfaz de administración ARE ADMIN como capa de consulta y administración sobre los componentes existentes, sin autoridad de decisión propia;
+* interfaz de administración ARE ADMIN como capa de consulta y administración sobre los componentes existentes, sin autoridad de decisión propia, integrada al punto de entrada oficial (`are.sh admin`) y operando sobre el mismo `bootstrap.sh` que el resto del sistema;
 * estructura operativa propia de ARE;
 * evolución incremental sobre la base estable de v1.1.
 
