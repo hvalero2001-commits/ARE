@@ -805,25 +805,6 @@ db_get_ban_level() {
     "
 }
 
-db_increment_ban_level() {
-
-    local IP="$1"
-    local NOW
-    NOW=$(date +%s)
-
-    db_init_sanction "$IP"
-
-    db_exec "
-        UPDATE sanction_state
-        SET
-            ban_level = ban_level + 1,
-            ban_count = ban_count + 1,
-            last_ban = $NOW,
-            updated = $NOW
-        WHERE ip='$IP';
-    "
-}
-
 db_set_ban_until() {
 
     local IP="$1"
