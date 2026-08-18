@@ -32,75 +32,6 @@ El objetivo es garantizar que la transición entre los eventos generados por Fai
 
 ---
 
-## BUG-012
-
-**Título:** Regla de política ANOMALY inalcanzable y desconectada del motor de decisión
-
-**Estado:** Pendiente
-
-**Prioridad:** Alta
-
-**Problema**
-
-`policy/rules/anomaly.sh` define `policy_anomaly()` con dos fallas:
-
-1. **Umbral de bloqueo inalcanzable.** La condición `SCORE -ge 5` hace
-   `return 0` antes de evaluar `SCORE -ge 10`, por lo que la rama `BLOCK`
-   nunca se ejecuta: cualquier score que cumpliría el umbral de bloqueo ya
-   fue capturado antes por el umbral de `WATCH`.
-
-2. **La regla no está conectada al motor.** El array `RULES` en
-   `policy/engine.sh` no incluye `anomaly`. Además, el nombre de la función
-   (`policy_anomaly`) no sigue el patrón `policy_rule_<nombre>` que usan el
-   resto de las reglas (`policy_rule_exploit`, `policy_rule_bot`, etc.), por
-   lo que aunque se agregara `anomaly` al array, tampoco engancharía sin
-   renombrar la función.
-
-**Impacto**
-
-La categoría `ANOMALY` acumula score en la tabla `reputation` (columna
-`anomaly_score`) pero ese score nunca es evaluado por el Policy Engine.
-Una IP puede tener actividad anómala significativa sin que eso module la
-decisión de bloqueo.
-
-**Evidencia**
-
-```bash
-cat policy/rules/anomaly.sh
-grep -n "RULES=" -A 6 policy/engine.sh
-```
-
-**Corrección propuesta**
-
-* Invertir el orden de las comparaciones (evaluar `-ge 10` antes que
-  `-ge 5`), o reestructurar con `elif`.
-* Renombrar `policy_anomaly()` a `policy_rule_anomaly()`, consistente con
-  el resto de las reglas.
-* Incorporar `"anomaly"` al array `RULES` de `policy/engine.sh`.
-
-**Nota**
-
-Investigación cerrada (ver RFC-009): se confirmó que `policy/engine.sh`,
-`policy/policy.sh` y `policy/rules/core.sh` son código muerto — ningún
-archivo del proyecto los carga mediante `source`. El motor que
-efectivamente decide en producción es `policy/decision_engine.sh`, que
-no evalúa reglas por categoría en absoluto (ni siquiera las que sí
-funcionan, como `exploit` o `bot`).
-
-Por lo tanto, esta corrección puntual de `anomaly.sh` **no tiene efecto
-por sí sola**: incluso corrigiendo el orden de las comparaciones y el
-nombre de la función, `anomaly.sh` seguiría sin ejecutarse nunca, porque
-todo el mecanismo de reglas por categoría (`policy/rules/*.sh`) está
-desconectado del flujo real. La corrección de este bug queda supeditada
-a la implementación de RFC-009.
-
-**Archivos relacionados**
-
-* `policy/rules/anomaly.sh`
-* `policy/engine.sh`
-
----
-
 # TASKS
 
 ## TASK-013
@@ -477,7 +408,7 @@ nueva autoridad de decisión (ver `docs/DESIGN.md`, Sección 13).
 | 1. Jails / Perfiles | ✔ Implementada y probada (RFC-007) |
 | 2. Categorías | ✔ Implementada y probada |
 | 3. Sensores | ✔ Implementada y probada |
-| 4. Política | Pausada — bloqueada por RFC-009 (rediseño del motor de decisión) |
+| 4. Política | Pausada — motor de decisión ya resuelto (RFC-009 implementada), falta exponerlo vía CLI |
 | 5. Estado / Reputación | ✔ Implementada y probada |
 | 6. Decay | ✔ Implementada y probada |
 | 7. Configuración | ✔ Implementada y probada |
@@ -1510,85 +1441,131 @@ aplicarse, no como cambio directo en caliente.
 
 ## RFC-009
 
-**Título:** Motor de decisión único: reactivar evaluación de riesgo por categoría
+**Título:** Motor de decisión único: evaluación de riesgo por categoría
 
-**Estado:** Draft — investigación completa, diseño pendiente de implementación
+**Estado:** ✔ Implementada y validada en producción (servidor canario)
 
 **Descripción**
 
 Se investigó cuál de las múltiples definiciones concurrentes del Policy
-Engine (ver histórico de esta investigación, originalmente registrada
-como BUG-013) gobierna efectivamente las decisiones en producción. La
-investigación se dio por cerrada con evidencia completa:
+Engine (originalmente registrada como BUG-013) gobernaba efectivamente
+las decisiones en producción. La investigación confirmó que
+`policy/decision_engine.sh::policy_decide()` era el único motor real —
+decidiendo exclusivamente por score total, sin distinguir categoría, sin
+leer umbrales de `policy.conf` — mientras que `policy/engine.sh`,
+`policy/policy.sh`, `policy/rules/core.sh` y `policy/decision.sh` eran
+código muerto, sin invocación en ningún punto alcanzable del flujo real.
 
-**Motor real confirmado:** `policy/decision_engine.sh::policy_decide()`.
-Confirmado por dos vías independientes: (1) es la única función de
-decisión invocada directamente desde `are.sh`, en las tres funciones que
-procesan eventos (`handle_found`, `handle_ban`,
-`handle_external_unban`); (2) su lógica de `HARD OVERRIDE` para
-`STATUS=BANNED` coincide exactamente con el `REASON=STATE_BANNED`
-observado en logs reales de producción (`decay-apply`, IP
-`138.2.102.66`).
+**Objetivo de diseño**
 
-**Código muerto confirmado, sin uso en ningún punto del flujo real:**
+Que la categoría que activa un evento module el riesgo asignado — una IP
+clasificada por `ANOMALY` no representa el mismo riesgo que un intento
+de `EXPLOIT` — evaluando cada categoría de forma independiente
+(principio de responsabilidad única: *"un módulo no decide, solo
+califica; un orquestador dirige"*), sin perder la protección de base que
+ya ofrecía el motor por score total.
 
-* `policy/policy.sh` (`policy_action()`, array `POLICY_RULES`)
-* `policy/engine.sh` (`policy_evaluate()`)
-* `policy/rules/core.sh` (segunda definición de `policy_evaluate()`)
-* `policy/decision.sh` (segunda definición de `policy_decide()`, cargada
-  únicamente por `policy/engine.sh`, que a su vez no es cargado por
-  nadie)
+**Implementación**
 
-Confirmado mediante búsqueda exhaustiva de invocaciones
-(`policy_evaluate`, `policy_rule_*`) fuera de sus propias definiciones:
-no existen.
+* **`policy/context.sh` / `policy/context_api.sh`** — extendidos de
+  `CTX_V1` (5 categorías) a `CTX_V2` (9 categorías completas +
+  eventos 24h).
+* **`policy/risk.sh`** — corregido: el multiplicador de reincidencia
+  (`RISK_MULT_WATCH`, `RISK_MULT_BANNED`) se calculaba pero nunca se
+  aplicaba al total; ahora se aplica realmente, con valores desde
+  `policy.conf` (no hardcodeados). Aritmética migrada a `awk` para
+  soportar decimales.
+* **`policy/decision_engine.sh`** — umbrales (`WATCH_SCORE`,
+  `TEMP_BAN_SCORE`, `PERMANENT_BAN_SCORE`) ahora leídos de
+  `policy.conf`; si un umbral no está definido, ese nivel se salta sin
+  romper, en vez de comparar contra un valor fijo o vacío.
+* **9 reglas nuevas en `policy/rules/`** (`exploit`, `bot`, `recon`,
+  `protocol`, `bruteforce`, `anomaly`, `malware`, `dos`, `social`),
+  todas con el mismo contrato único: leen su propio umbral de
+  `policy.conf`, aportan al acumulador de riesgo (`risk_add`) solo si lo
+  superan, y no conocen la existencia de las demás reglas ni de la
+  decisión final. Si una categoría no tiene umbral configurado, su regla
+  no evalúa (comportamiento explícito, no un error silencioso). Corrige
+  además BUG-012 de raíz (`anomaly.sh` reescrita con el nuevo contrato).
+* **`policy/engine.sh`** — reescrito como orquestador único
+  (`policy_evaluate()`), reemplazando a los tres dispatchers muertos.
+  Itera dinámicamente sobre `REPUTATION_CATEGORIES` (no un array
+  hardcodeado), por lo que una categoría nueva con su regla ya empieza a
+  evaluarse sin tocar el orquestador. Incluye:
+  - Chequeo de whitelist al inicio (ausente en el diseño original,
+    causaba errores de `bc` con IPs sin datos, ej. `::1`).
+  - Hard gate de `STATUS=BANNED`, igual que el motor anterior.
+  - **Piso de seguridad**: la decisión final usa
+    `MAX(riesgo_por_categoría, score_total_acumulado)` — el motor por
+    categoría puede ser más estricto que el anterior (detecta señales
+    que el score simple no distingue, como bruteforce), pero nunca
+    menos estricto. Sin este piso, una IP con riesgo repartido entre
+    categorías —cada una por debajo de su propio umbral— podía evadir
+    la detección aunque su score total fuera alto (caso real detectado:
+    `45.33.70.56`, reincidente conocida).
 
-**Hallazgo principal — el motor real no evalúa por categoría**
+**Herramienta de validación no invasiva**
 
-`policy_decide()` decide exclusivamente por umbrales fijos sobre el
-score total (`TOTAL -ge 80` → `BAN`, `-ge 50` → `TEMP_BAN`, `-ge 20` →
-`FILTER`, `-gt 0` → `WATCH`), sin distinguir entre categorías
-(`EXPLOIT`, `CREDENTIAL`, `ANOMALY`, etc.) y sin leer los umbrales
-configurados en `config/policy.conf`. El sistema de reglas modulares por
-categoría (`policy/rules/exploit.sh`, `bot.sh`, `bruteforce.sh`,
-`recon.sh`, `protocol.sh`, `anomaly.sh`), que sí contempla esa
-distinción, existe y está razonablemente bien escrito, pero nunca se
-ejecuta en el flujo real.
+Se agregó el comando `are.sh policy-compare <IP>`, que ejecuta ambos
+motores (el anterior y el nuevo) sobre la misma IP sin aplicar ninguna
+decisión, mostrando si coinciden o difieren. Usado para validar el
+comportamiento contra datos reales antes del corte a producción.
 
-**Objetivo de diseño (confirmado con el mantenedor del proyecto)**
+**Incidentes durante el despliegue (documentados por transparencia)**
 
-El comportamiento deseado es que la categoría que activa un evento
-module el score/riesgo asignado — una IP clasificada por actividad
-`ANOMALY` no debería representar el mismo riesgo que un intento de
-inyección SQL (`EXPLOIT`) — y que el motor evalúe ese riesgo por
-categoría antes de decidir la acción, aplicando el ciclo de sanción
-escalonada (Ban Lifecycle) cuando corresponda. Esta es precisamente la
-intención original detrás de `policy/engine.sh` y `policy/rules/*.sh`,
-que quedó parcialmente implementada y desconectada del flujo real.
+* Al construir `handle_policy_compare()`, se detectó que
+  `config/whitelist.conf` tenía un espacio final en la línea de la IP
+  real del VPS (`208.109.242.73`), lo que hacía fallar la coincidencia
+  exacta de `grep -Fqx` — la IP no estaba efectivamente protegida por la
+  whitelist en producción. Corregido con `sed 's/[ \t]*$//'` sobre el
+  archivo completo.
+* Durante el corte manual de `handle_found()`, `handle_ban()` y
+  `handle_external_unban()` (reemplazar las llamadas a `policy_decide()`
+  directo por `policy_evaluate()`), una edición a mano en
+  `handle_external_unban()` dejó la variable de resultado declarada en
+  minúscula (`local ... decision ...`) pero asignada en mayúscula
+  (`DECISION=$(policy_evaluate ...)`), causando que `action`/`reason`
+  quedaran vacíos y la acción resultante fuera `UNKNOWN ACTION` sin
+  aplicar nada. Detectado en el primer evento `EXTERNAL_UNBAN` real
+  post-corte, diagnosticado comparando `policy_decide` y
+  `policy_evaluate` de forma aislada (fuera de un subshell de pipe, que
+  había ocultado el error en el primer intento de diagnóstico), y
+  corregido con un cambio de una sola línea.
 
-**Alcance propuesto**
+**Validación en producción**
 
-* Decidir explícitamente: reactivar y completar el motor modular
-  (`engine.sh` + `rules/*.sh`), o rediseñar uno nuevo que preserve la
-  evaluación por categoría sin arrastrar el código ya abandonado.
-* Si se reactiva el existente: corregir BUG-012 (orden de comparación y
-  nombre de función en `anomaly.sh`), completar reglas faltantes para
-  `MALWARE`, `DOS`, `SOCIAL` (ver RFC-006), y conectar `policy_evaluate()`
-  al flujo real que hoy usa `policy_decide()`.
-* Definir la relación entre el resultado por categoría y los umbrales
-  globales de `policy.conf` (hoy sin uso real, ver TASK-017).
-* Eliminar el código confirmado como muerto (`policy.sh`, `engine.sh`
-  actual, `rules/core.sh`, `decision.sh`) una vez completada la
-  migración, no antes.
+Corte realizado en un único servidor (canario), sin replicar a otros
+nodos de la flota. Ventana de monitoreo con tráfico real de Fail2Ban:
 
-**Nota de riesgo operativo**
+```
+[POLICY] CATEGORY_RISK=23 RAW_TOTAL=25 EFFECTIVE=25 → FILTER (LOW_RISK)
+[POLICY] CATEGORY_RISK=22 RAW_TOTAL=25 EFFECTIVE=25 → FILTER (LOW_RISK)
+[POLICY] CATEGORY_RISK=0  RAW_TOTAL=2  EFFECTIVE=2  → WATCH (MINIMAL_RISK)
+[POLICY] CATEGORY_RISK=0  RAW_TOTAL=3  EFFECTIVE=3  → WATCH (MINIMAL_RISK)
+```
 
-Cambiar el motor de decisión activo afecta directamente el
-comportamiento de bloqueo en múltiples servidores de producción. Se
-recomienda: (1) implementar y probar en un entorno aislado; (2) aplicar
-primero en un único servidor "canario" antes de replicar al resto de la
-flota; (3) mantener capacidad de rollback inmediato (`decision_engine.sh`
-actual como fallback) durante el período de validación.
+En los dos primeros casos, `CATEGORY_RISK < RAW_TOTAL` y el piso de
+seguridad tomó el valor de `RAW_TOTAL` — confirmación en datos reales
+(no solo simulados) de que el mecanismo de seguridad funciona como fue
+diseñado. Cero errores, cero `WARN`, cero `UNKNOWN ACTION` tras la
+corrección del incidente de despliegue.
+
+**Pendiente**
+
+* Monitorear una ventana más amplia (recomendado: 24-48h) antes de
+  replicar el corte al resto de la flota de servidores.
+* Definir `ANOMALY_THRESHOLD`, `MALWARE_THRESHOLD`, `DOS_THRESHOLD`,
+  `SOCIAL_THRESHOLD` en `policy.conf` — sus reglas ya existen y están
+  activas en el orquestador, pero no evalúan hasta tener umbral
+  definido (ver RFC-006, TASK-018).
+* Eliminar el código confirmado como muerto (`policy/policy.sh`,
+  `policy/rules/core.sh`, `policy/decision.sh`) una vez que la
+  confianza en el motor nuevo sea suficiente en toda la flota — no se
+  eliminó todavía, por si hiciera falta un rollback rápido.
+* Rama "4. Política" de ARE ADMIN sigue sin implementar como interfaz
+  de administración — RFC-009 resolvió el motor de decisión en sí, no
+  la exposición de su configuración vía CLI (queda como tarea
+  independiente).
 
 ---
 
@@ -1990,6 +1967,80 @@ Confirmado en producción, respetando `BAN_LEVEL_MAX`.
 **Archivos relacionados**
 
 * `database.sh`
+
+---
+
+## BUG-012
+
+**Título:** Regla de política ANOMALY inalcanzable y desconectada del motor de decisión
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.0 (en desarrollo)
+
+**Corrección**
+
+Resuelta como parte de RFC-009: `anomaly.sh` reescrita con el contrato
+único de regla, conectada al orquestador real (`policy_evaluate()`).
+
+**Archivos relacionados**
+
+* `policy/rules/anomaly.sh`
+
+---
+
+## BUG-015
+
+**Título:** Variable `DECISION`/`decision` con case inconsistente en `handle_external_unban()`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.0 (en desarrollo)
+
+**Problema**
+
+Durante el cutover manual de RFC-009 (reemplazar las tres llamadas a
+`policy_decide()` por `policy_evaluate()` en `are.sh`), la edición de
+`handle_external_unban()` asignó el resultado a `DECISION` (mayúscula),
+mientras el resto de la función seguía leyendo `$decision` (minúscula,
+declarada en el `local`). El resultado real de `policy_evaluate()`
+quedaba en una variable que nadie consumía; `action` y `reason` quedaban
+vacíos.
+
+**Impacto**
+
+Cada evento `EXTERNAL_UNBAN` en producción resultaba en
+`[WARN] [APPLY] UNKNOWN ACTION:` — la IP no era re-evaluada
+correctamente tras un unban externo, sin aplicar ninguna acción.
+
+**Evidencia**
+
+```
+Policy decision after external unban:  ()
+[APPLY] ACTION.........
+[WARN ] [APPLY] UNKNOWN ACTION:
+```
+
+**Corrección**
+
+```bash
+sed -i '166s/DECISION=/decision=/' are.sh
+```
+
+**Validación**
+
+```bash
+./are.sh external-unban 185.202.158.215 modsec-lfi
+```
+
+Resultado tras el fix: `Policy decision after external unban: FILTER
+(LOW_RISK)`, con `[APPLY] EXECUTE: FILTER` ejecutando correctamente.
+Confirmado con una segunda IP real (`67.219.16.7`) sin recurrencia del
+problema.
+
+**Archivos relacionados**
+
+* `are.sh`
 
 ---
 

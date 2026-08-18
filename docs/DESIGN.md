@@ -179,6 +179,53 @@ Esto permite diferenciar entre:
 
 ---
 
+## 4.1 Evaluación de riesgo por categoría
+
+El Policy Engine evalúa el riesgo de una IP por categoría de forma
+independiente antes de emitir una decisión. Cada categoría de
+reputación (Sección 3.2) tiene una regla propia (`policy/rules/*.sh`)
+que conoce únicamente su propio umbral, configurado en `policy.conf`, y
+aporta al riesgo total solo si lo supera. Ninguna regla conoce a las
+demás ni decide una acción por sí misma — esa responsabilidad
+corresponde exclusivamente al orquestador (`policy_evaluate()`).
+
+```text
+IP
+ |
+ v
+contexto (score por categoría + actividad reciente)
+ |
+ v
+regla EXPLOIT --\
+regla BOT -------\
+regla RECON ------ >-- acumulador de riesgo
+regla PROTOCOL --/
+regla ...       -/
+ |
+ v
+riesgo por categoría
+ |
+ v
+MAX(riesgo por categoría, score total acumulado)  <- piso de seguridad
+ |
+ v
+decisión final
+```
+
+El **piso de seguridad** garantiza que el motor por categoría nunca sea
+menos estricto que una evaluación por score total simple: puede detectar
+más (por ejemplo, una señal de fuerza bruta que ninguna categoría
+individual refleja), pero nunca menos. Esto evita que una IP con riesgo
+repartido entre varias categorías —cada una por debajo de su propio
+umbral— evada la detección aunque su score acumulado total sea alto.
+
+Una categoría sin umbral configurado en `policy.conf` no evalúa —
+comportamiento explícito, no un error silencioso — lo que permite
+incorporar categorías nuevas de forma progresiva, sin necesidad de
+definir su criterio de riesgo de antemano.
+
+---
+
 # 5. Ciclo de vida de una IP
 
 Una dirección IP observada por ARE mantiene información durante todo su ciclo de vida.
