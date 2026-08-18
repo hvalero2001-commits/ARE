@@ -558,7 +558,7 @@ ARE ADMIN
 
 Cada rama del menú se apoya en un componente ya definido, sin duplicar su lógica:
 
-* **Jails / Perfiles** administra `jail_profile` (Sección 3.2). Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12). Rama pendiente de implementación: requiere definir previamente el mecanismo de migración de perfiles desde Fail2Ban hacia `jail_profile`.
+* **Jails / Perfiles** administra `jail_profile` (Sección 3.2) mediante un CRUD completo. Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. La categoría se restringe a `REPUTATION_CATEGORIES` mediante selección numerada, nunca texto libre. Crear y Modificar ofrecen asistencia de peso/confianza en dos niveles: referencia estadística calculada de perfiles reales existentes en la categoría, o una escala de niveles curada por el administrador (`config/jail_scale.conf`) cuando la categoría la define. Eliminar exige escribir el nombre exacto del jail como confirmación, no solo una respuesta s/N, por ser la única operación destructiva del CRUD. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12), comprobando categoría válida y rangos de peso/confianza.
 * **Categorías** expone en modo de solo lectura el modelo de reputación (Sección 3), incluyendo las puntuaciones asociadas a cada categoría. El catálogo de categorías y sus umbrales se leen dinámicamente desde `REPUTATION_CATEGORIES` en `config/policy.conf` (Sección 3.2), evitando que el listado quede hardcodeado en la interfaz.
 * **Sensores** expone el estado y la configuración del Sensor Framework (Sección 8), sin permitir que la CLI decida política ni modifique reputación de forma directa. El estado incluye el offset persistente del sensor y el estado del timer de systemd asociado.
 * **Política** permite inspeccionar y validar la configuración del Policy Engine (Sección 4), sin ejecutar directamente una decisión sobre una IP concreta. Rama pendiente de implementación: existen definiciones concurrentes del motor de decisión en el código base cuya convivencia no está resuelta; la rama se habilitará una vez identificado el motor canónico (ver `docs/TODO.md`).
@@ -580,14 +580,13 @@ Esto preserva la integridad del modelo de reputación descrito en la Sección 3 
 
 ## 13.6 Estado de implementación
 
-De las siete ramas definidas en la Sección 13.3, cinco se encuentran implementadas, verificadas mediante pruebas aisladas y confirmadas operando en producción con datos reales: Categorías, Sensores, Estado/Reputación, Decay y Configuración.
+De las siete ramas definidas en la Sección 13.3, seis se encuentran implementadas, verificadas mediante pruebas aisladas y confirmadas operando en producción con datos reales: Jails/Perfiles, Categorías, Sensores, Estado/Reputación, Decay y Configuración.
 
-Dos ramas permanecen intencionalmente sin implementar, bloqueadas por decisiones de diseño pendientes documentadas en `docs/TODO.md`:
+Una rama permanece intencionalmente sin implementar, bloqueada por una decisión de diseño pendiente documentada en `docs/TODO.md`:
 
-* **Jails / Perfiles**, hasta definir el mecanismo de migración de perfiles desde Fail2Ban;
-* **Política**, hasta identificar cuál de las definiciones concurrentes del motor de decisión es la que efectivamente gobierna el sistema en producción.
+* **Política**, hasta identificar cuál de las definiciones concurrentes del motor de decisión es la que efectivamente gobierna el sistema en producción (ver RFC-009).
 
-Esta sección debe actualizarse a medida que ambas ramas se desbloqueen e implementen.
+Esta sección debe actualizarse cuando la rama restante se desbloquee e implemente.
 
 ---
 

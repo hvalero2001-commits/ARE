@@ -474,7 +474,7 @@ nueva autoridad de decisión (ver `docs/DESIGN.md`, Sección 13).
 
 | Rama | Estado |
 |---|---|
-| 1. Jails / Perfiles | Pausada — requiere RFC-007 (migración desde Fail2Ban) antes de implementar |
+| 1. Jails / Perfiles | ✔ Implementada y probada (RFC-007) |
 | 2. Categorías | ✔ Implementada y probada |
 | 3. Sensores | ✔ Implementada y probada |
 | 4. Política | Pausada — bloqueada por RFC-009 (rediseño del motor de decisión) |
@@ -484,28 +484,22 @@ nueva autoridad de decisión (ver `docs/DESIGN.md`, Sección 13).
 
 **Validación**
 
-Cada función cableada fue probada de forma aislada con dependencias
-simuladas (funciones reales de `dashboard/*.sh`, `decay.sh`, `database.sh`
-reproducidas fielmente) antes de darse por cerrada. Validación en
-producción real pendiente hasta completar la integración con `are.sh` y
-`bootstrap.sh` (ver Pendiente).
+Todas las ramas implementadas fueron probadas de forma aislada con
+dependencias simuladas antes de cablearse, y posteriormente **confirmadas
+en producción real** tras la integración completa con `are.sh` (subcomando
+`admin`) y `bootstrap.sh` (carga de `admin/*.sh` junto al resto de
+módulos del sistema).
 
 **Pendiente**
 
-* Integración de `admin.sh` con `are.sh` (subcomando `admin`) y
-  `bootstrap.sh` (carga condicional vía `ARE_CONTEXT`). Hoy `admin.sh`
-  carga sus propios módulos de forma standalone para permitir pruebas
-  aisladas.
-* Ramas 1 y 4 quedan sin implementar hasta resolver sus bloqueos
-  respectivos (RFC-007, RFC-009).
-* `db_list_jail_profiles()`, `db_create_jail_profile()`,
-  `db_update_jail_profile()`, `db_delete_jail_profile()`,
-  `db_validate_jail_profiles()` — no implementadas, dependen del diseño
-  de RFC-007.
-* Agregar a `decay.sh`: función `reputation_decay_status()` (código
-  preparado, pendiente de aplicar en el archivo real).
-* Agregar a `config/policy.conf`: `REPUTATION_CATEGORIES` y los 4
-  umbrales de categoría todavía sin definir.
+* Rama 4 (Política) permanece sin implementar hasta resolver RFC-009.
+* `config/jail_scale.conf` — la escala curada de referencia está definida
+  solo para la categoría `BOT`. Otras categorías pueden agregarse con el
+  mismo formato cuando exista un caso de uso real (no se inventan
+  escalas sin evidencia).
+* Definir `ANOMALY_THRESHOLD`, `MALWARE_THRESHOLD`, `DOS_THRESHOLD`,
+  `SOCIAL_THRESHOLD` en `policy.conf` (ver TASK-018) — sigue pendiente,
+  no relacionado con el cierre de RFC-007.
 
 ---
 
@@ -1376,28 +1370,108 @@ siguiendo el mismo patrón que `policy/rules/exploit.sh`,
 
 ## RFC-007
 
-**Título:** Migración de perfiles de jail desde Fail2Ban hacia `jail_profile`
+**Título:** Administración genérica de perfiles de jail (CRUD sobre `jail_profile`)
 
-**Estado:** Draft
+**Estado:** ✔ Implementada
 
-**Descripción**
+**Versión:** v2.0 (en desarrollo)
+
+**Descripción original**
 
 El esquema actual de `jail_profile` fue definido para un conjunto acotado
-de jails. La necesidad actual es poder incorporar perfiles adicionales
-(por ejemplo, un jail de SMTP) a partir de reportes o configuración
-existente en Fail2Ban, sin duplicar trabajo manual jail por jail.
+de jails. La necesidad original planteada era poder incorporar perfiles
+adicionales (por ejemplo, un jail de SMTP) a partir de reportes o
+configuración existente en Fail2Ban, sin duplicar trabajo manual jail por
+jail.
 
-**Objetivo**
+**Redefinición del alcance durante el diseño**
 
-Definir un mecanismo de importación desde el formato de configuración de
-Fail2Ban hacia `jail_profile`, incluyendo la asignación de categoría, peso
-y confianza para los perfiles nuevos.
+Al auditar `handle_ban()`/`handle_found()` en `are.sh`, se confirmó que
+el motor de decisión **ya es agnóstico del origen del reporte**: cualquier
+`<ip> <jail>` que llegue con un perfil existente en `jail_profile` se
+procesa igual, sin importar si proviene de Fail2Ban, o en el futuro de
+Suricata, CrowdSec, ModSecurity u otro sensor (ver Sensor Framework,
+`docs/DESIGN.md` Sección 8). No había, entonces, nada que "migrar" desde
+Fail2Ban específicamente — los 9 jails activos en producción ya tenían
+perfil.
+
+El problema real era la **ausencia de administración genérica**: crear,
+modificar o eliminar un perfil requería edición manual de SQL. La RFC se
+redefinió en consecuencia: no es una migración de datos, es un CRUD
+administrable desde ARE ADMIN, que habilita agregar cualquier jail nuevo
+—de cualquier sensor presente o futuro— sin tocar código ni base de
+datos a mano.
+
+**Principio de diseño resultante (para incorporar a `DESIGN.md`)**
+
+> Cualquier sensor que ARE incorpore, presente o futuro, entrega un
+> reporte `<ip> <jail>`. La existencia y las propiedades de riesgo de
+> ese `jail` (categoría, peso, confianza) viven exclusivamente en
+> `jail_profile`, administrable vía ARE ADMIN — nunca hardcodeadas
+> dentro del código de un sensor particular.
+
+**Implementación**
+
+CRUD completo en `admin/jails.sh`, con funciones de soporte nuevas en
+`database.sh`:
+
+* `db_list_jail_profiles()`
+* `db_jail_profile_exists()`
+* `db_create_jail_profile()`
+* `db_get_jail_profile_full()`
+* `db_update_jail_profile()`
+* `db_delete_jail_profile()`
+* `db_validate_jail_profiles()`
+* `db_category_weight_stats()` — referencia estadística (min/máx/promedio)
+  calculada de perfiles reales existentes en la categoría, para asistir
+  al administrador sin inventar valores de riesgo.
+
+**Escalas de referencia curadas por categoría**
+
+Se incorporó `config/jail_scale.conf` (nuevo archivo de configuración
+desacoplada, variable `ARE_JAIL_SCALE_CONFIG` en `config.conf`) para
+categorías donde el administrador define niveles de riesgo explícitos en
+vez de depender solo del promedio histórico. Formato:
+`CATEGORIA|NIVEL|PESO|CONFIANZA`. Cargada inicialmente solo para `BOT`,
+con 5 niveles (leve → malicioso). Extensible por categoría sin tocar
+código — cada categoría nueva es una línea agregada al archivo.
+
+**Selección de categoría restringida**
+
+La categoría se elige de una lista numerada contra `REPUTATION_CATEGORIES`
+(TASK-018), nunca por texto libre — elimina el riesgo de typos que
+generarían categorías fantasma no reconocidas por el resto del sistema.
+
+**Salvaguardas de UX/seguridad**
+
+* `Crear` rechaza nombres duplicados, sugiere `Modificar`.
+* `Modificar` selecciona el jail por lista numerada (no texto libre) y
+  ofrece "mantener valor actual" en cada campo, incluida la opción de
+  volver a elegir un nivel de escala en vez de escribir un número al
+  azar.
+* `Eliminar` selecciona por lista numerada y exige escribir el nombre
+  exacto del jail como confirmación (no solo `s/N`) — única operación
+  destructiva del CRUD.
+* `Validar` detecta perfiles con categoría fuera de `REPUTATION_CATEGORIES`,
+  peso ≤ 0, o confianza fuera de 0.0-1.0.
+
+**Validación**
+
+Probado en producción real, sesión 2026-08-18:
+
+* Creación de `apache-badbots` (categoría `BOT`, escala curada, nivel 2).
+* Modificación del mismo jail a nivel 4 (peso 3.0→7.0, confianza 0.6→0.8),
+  incluyendo prueba de "mantener actual" y de cancelación con `N`.
+* Eliminación de un jail de prueba (`apache-auth`), incluyendo caso de
+  confirmación con nombre incorrecto (correctamente rechazado, sin
+  borrar) y caso de confirmación correcta.
+* `Validar` sobre los 13 perfiles reales resultantes: `TODOS LOS
+  PERFILES SON VÁLIDOS`.
 
 **Relación con ARE ADMIN**
 
-La rama "1. Jails / Perfiles" del menú (ver FEAT-005) quedó pausada
-intencionalmente hasta resolver esta RFC — no se implementó como CRUD
-directo porque el problema real es de migración de datos, no de interfaz.
+La rama "1. Jails / Perfiles" del menú (ver FEAT-005), previamente
+pausada, queda **implementada y confirmada en producción**.
 
 ---
 
