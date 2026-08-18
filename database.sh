@@ -894,3 +894,141 @@ db_increment_ban_level() {
         WHERE ip='$IP';
     "
 }
+
+#############################################################
+# Listar todos los perfiles de jail
+#############################################################
+
+db_list_jail_profiles() {
+
+    db_exec "
+        SELECT
+            name || '|' ||
+            category || '|' ||
+            weight || '|' ||
+            confidence || '|' ||
+            decay || '|' ||
+            COALESCE(description, '')
+        FROM jail_profile
+        ORDER BY category, name;
+    "
+}
+
+#############################################################
+# ¿Existe un perfil para este jail?
+#############################################################
+
+db_jail_profile_exists() {
+
+    local NAME="$1"
+
+    local RESULT
+    RESULT=$(db_exec "SELECT COUNT(*) FROM jail_profile WHERE name='$NAME';")
+
+    [ "$RESULT" -gt 0 ]
+}
+
+#############################################################
+# Crear perfil de jail
+#############################################################
+
+db_create_jail_profile() {
+
+    local NAME="$1"
+    local CATEGORY="$2"
+    local WEIGHT="$3"
+    local CONFIDENCE="$4"
+    local DECAY="$5"
+    local DESCRIPTION="$6"
+
+    db_exec "
+        INSERT INTO jail_profile(name, category, weight, confidence, decay, description)
+        VALUES('$NAME', '$CATEGORY', $WEIGHT, $CONFIDENCE, $DECAY, '$DESCRIPTION');
+    "
+}
+
+#############################################################
+# Estadísticas de peso por categoría (referencia para admin)
+#############################################################
+
+db_category_weight_stats() {
+
+    local CATEGORY="$1"
+
+    db_exec "
+        SELECT
+            COALESCE(MIN(weight), 0) || '|' ||
+            COALESCE(MAX(weight), 0) || '|' ||
+            COALESCE(ROUND(AVG(weight), 1), 0) || '|' ||
+            COUNT(*)
+        FROM jail_profile
+        WHERE category='$CATEGORY';
+    "
+}
+
+#############################################################
+# Modificar perfil de jail existente
+#############################################################
+
+db_update_jail_profile() {
+
+    local NAME="$1"
+    local CATEGORY="$2"
+    local WEIGHT="$3"
+    local CONFIDENCE="$4"
+    local DECAY="$5"
+    local DESCRIPTION="$6"
+
+    db_exec "
+        UPDATE jail_profile
+        SET
+            category = '$CATEGORY',
+            weight = $WEIGHT,
+            confidence = $CONFIDENCE,
+            decay = $DECAY,
+            description = '$DESCRIPTION'
+        WHERE name = '$NAME';
+    "
+}
+
+#############################################################
+# Obtener perfil completo de un jail (para edición)
+#############################################################
+
+db_get_jail_profile_full() {
+
+    local NAME="$1"
+
+    db_exec "
+        SELECT category || '|' || weight || '|' || confidence || '|' || decay || '|' || COALESCE(description, '')
+        FROM jail_profile
+        WHERE name='$NAME';
+    "
+}
+
+#############################################################
+# Eliminar perfil de jail
+#############################################################
+
+db_delete_jail_profile() {
+
+    local NAME="$1"
+
+    db_exec "
+        DELETE FROM jail_profile
+        WHERE name = '$NAME';
+    "
+}
+
+#############################################################
+# Validar perfiles de jail (categorías inválidas, rangos fuera de límite)
+#############################################################
+
+db_validate_jail_profiles() {
+
+    db_exec "
+        SELECT
+            name || '|' || category || '|' || weight || '|' || confidence
+        FROM jail_profile;
+    "
+}
