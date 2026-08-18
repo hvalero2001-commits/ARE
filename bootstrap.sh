@@ -28,7 +28,6 @@ source "$BASE/policy/whitelist.sh"
 source "$BASE/policy/risk.sh"
 source "$BASE/policy/state_engine.sh"
 source "$BASE/policy/decision_engine.sh"
-source "$BASE/policy/engine.sh"
 source "$BASE/stats/state_manager.sh"
 
 # RULES
@@ -38,9 +37,6 @@ source "$BASE/policy/rules/bruteforce.sh"
 source "$BASE/policy/rules/recon.sh"
 source "$BASE/policy/rules/protocol.sh"
 source "$BASE/policy/rules/anomaly.sh"
-source "$BASE/policy/rules/malware.sh"
-source "$BASE/policy/rules/social.sh"
-source "$BASE/policy/rules/dos.sh"
 
 # APPLY
 source "$BASE/policy/apply.sh"

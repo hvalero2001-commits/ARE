@@ -43,16 +43,12 @@ dashboard_help() {
     echo "  admin"
     echo "      Estructura de menú CLI para administración de ARE."
     echo
-    echo "  policy-compare <IP>"
-    echo "      Compara la decisión del motor actual vs. el motor nuevo (RFC-009), sin aplicar nada."
-    echo
     echo "EJEMPLOS:"
     echo
     echo "  are.sh score 8.8.8.8"
     echo "  are.sh events 8.8.8.8"
     echo "  are.sh top"
     echo "  are.sh stats"
-    echo "  are.sh policy-compare 8.8.8.8"
     echo "  are.sh help"
     echo "  are.sh status"
     echo "  are.sh admin"

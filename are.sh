@@ -280,56 +280,6 @@ handle_sanction_apply_test() {
     apply_decision "$ip" "TEMP_BAN|0|SANCTION_TEST"
 }
 
-handle_policy_compare() {
-
-    local ip="$IP"
-
-    if [ -z "$ip" ]; then
-        ERROR "Uso: policy-compare <IP>"
-        return 1
-    fi
-
-    echo "=================================================="
-    echo "POLICY COMPARE — $ip"
-    echo "=================================================="
-
-    if is_whitelisted "$ip"; then
-        echo "IP whitelistada — en producción real, ninguno de los"
-        echo "dos motores llega a evaluarla (ver handle_ban/handle_found)."
-        echo
-        echo "Motor ACTUAL: ALLOW|0|WHITELISTED"
-        echo "Motor NUEVO:  ALLOW|0|WHITELISTED"
-        echo
-        echo "Resultado: COINCIDEN"
-        echo "=================================================="
-        return 0
-    fi
-
-    local status total decision_old decision_new
-
-    status=$(db_get_status "$ip")
-    total=$(db_get_score "$ip")
-
-    decision_old=$(policy_decide "$total" "$status")
-    decision_new=$(policy_evaluate "$ip")
-
-    echo "Status actual.......... $status"
-    echo "Score total actual..... $total"
-    echo
-    echo "Motor ACTUAL (decision_engine.sh, score total simple):"
-    echo "  $decision_old"
-    echo
-    echo "Motor NUEVO (engine.sh, por categoría + bruteforce):"
-    echo "  $decision_new"
-    echo
-    if [ "$decision_old" = "$decision_new" ]; then
-        echo "Resultado: COINCIDEN"
-    else
-        echo "Resultado: DIFIEREN"
-    fi
-    echo "=================================================="
-}
-
 case "$ACTION" in
 stats)
     dashboard_stats
@@ -372,9 +322,6 @@ admin)
 ;;
 decay-dry-run)
     reputation_decay_dry_run
-;;
-policy-compare)
-    handle_policy_compare
 ;;
 decay-apply)
     reputation_decay_apply

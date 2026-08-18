@@ -1,33 +1,27 @@
 #!/bin/bash
-#############################################################
-# Module : Policy - Rule RECON
-#
-# Responsibility
-#   Evaluar el score acumulado de la categoría EXPLOIT contra
-#   su umbral configurado y, si lo supera, aportarlo al Risk
-#   Accumulator. No decide ninguna acción por sí misma.
-#
-# Dependencies
-#   - policy/context_api.sh (ctx_get_exploit)
-#   - policy/risk.sh (risk_add)
-#   - config/policy.conf (EXPLOIT_THRESHOLD)
-#
-# Exports
-#   policy_rule_exploit()
-#############################################################
-
 policy_rule_recon() {
 
     local IP="$1"
     local CTX="$2"
 
-    local VALUE
-    VALUE=$(ctx_get_recon "$CTX")
-    VALUE="${VALUE:-0}"
+    local SCORE
+    local RECON
 
-    [ -z "${RECON_THRESHOLD:-}" ] && return 1
+    SCORE=$(ctx_get_total "$CTX")
+    RECON=$(ctx_get_recon "$CTX")
 
-    if [ "$VALUE" -ge "$RECON_THRESHOLD" ]; then
-        risk_add RECON "$VALUE"
+    SCORE=${SCORE:-0}
+    RECON=${RECON:-0}
+
+    if [ "$RECON" -ge 150 ]; then
+        echo "TEMP_BAN|3600|HIGH_RECON_ACTIVITY"
+        return 0
     fi
+
+    if [ "$SCORE" -ge 100 ]; then
+        echo "WATCH|0|RECON_ACTIVITY"
+        return 0
+    fi
+
+    return 1
 }

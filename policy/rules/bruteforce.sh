@@ -1,34 +1,28 @@
 #!/bin/bash
-#############################################################
-# Module : Policy - Rule BRUTEFORCE
-#
-# Responsibility
-#   Evaluar la frecuencia de eventos en las últimas 24 horas
-#   (señal temporal, no un score de categoría) contra su
-#   umbral configurado y, si lo supera, aportarla al Risk
-#   Accumulator.
-#
-# Dependencies
-#   - policy/context_api.sh (ctx_get_events_24h)
-#   - policy/risk.sh (risk_add)
-#   - config/policy.conf (BRUTEFORCE_EVENTS_24H_THRESHOLD)
-#
-# Exports
-#   policy_rule_bruteforce()
-#############################################################
-
 policy_rule_bruteforce() {
 
     local IP="$1"
     local CTX="$2"
 
+    local SCORE
     local EVENTS
+
+
+    SCORE=$(ctx_get_total "$CTX")
     EVENTS=$(ctx_get_events_24h "$CTX")
-    EVENTS="${EVENTS:-0}"
 
-    [ -z "${BRUTEFORCE_EVENTS_24H_THRESHOLD:-}" ] && return 1
+    SCORE=${SCORE:-0}
+    EVENTS=${EVENTS:-0}
 
-    if [ "$EVENTS" -ge "$BRUTEFORCE_EVENTS_24H_THRESHOLD" ]; then
-        risk_add BRUTEFORCE "$EVENTS"
+    if [ "$EVENTS" -ge 50 ]; then
+        echo "BAN|86400|BRUTEFORCE_DETECTED"
+        return 0
     fi
+
+    if [ "$EVENTS" -ge 20 ]; then
+        echo "TEMP_BAN|3600|BRUTEFORCE_SUSPICIOUS"
+        return 0
+    fi
+
+    return 1
 }
