@@ -100,10 +100,7 @@ handle_found() {
 
     state_update "$ip"
 
-    TOTAL=$(db_get_score "$ip")
-    STATUS=$(db_get_status "$ip")
-
-    DECISION=$(policy_decide "$TOTAL" "$STATUS")
+    DECISION=$(policy_evaluate "$ip")
 
     ACTION=$(echo "$DECISION" | cut -d'|' -f1)
     REASON=$(echo "$DECISION" | cut -d'|' -f3)
@@ -166,10 +163,7 @@ handle_external_unban() {
 
     local total status decision action reason
 
-    total=$(db_get_score "$ip")
-    status=$(db_get_status "$ip")
-
-    decision=$(policy_decide "$total" "$status")
+    DECISION=$(policy_evaluate "$ip")
 
     action=$(echo "$decision" | cut -d'|' -f1)
     reason=$(echo "$decision" | cut -d'|' -f3)
@@ -229,10 +223,7 @@ handle_ban() {
 
     state_update "$ip"
 
-    TOTAL=$(db_get_score "$ip")
-    STATUS=$(db_get_status "$ip")
-
-    DECISION=$(policy_decide "$TOTAL" "$STATUS")
+    DECISION=$(policy_evaluate "$ip")
 
     ACTION=$(echo "$DECISION" | cut -d'|' -f1)
     TIMEOUT=$(echo "$DECISION" | cut -d'|' -f2)
