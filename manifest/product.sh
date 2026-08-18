@@ -35,6 +35,7 @@ PRODUCT_LOGROTATE="${PRODUCT_ROOT}/etc/logrotate.d"
 
 PRODUCT_DIRS=(
     backend
+    admin
     dashboard
     docs
     infrastructure
@@ -52,6 +53,7 @@ PRODUCT_DIRS=(
 
 PRODUCT_FILES=(
     are-installer
+    admin.sh
     bootstrap.sh
     dashboard.sh
     database.sh
