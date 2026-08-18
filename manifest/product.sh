@@ -75,6 +75,7 @@ PRODUCT_CONFIG_FILES=(
     config.conf
     policy.conf
     whitelist.conf
+    jail_scale.conf
 )
 
 ##################################################
