@@ -163,7 +163,7 @@ handle_external_unban() {
 
     local total status decision action reason
 
-    DECISION=$(policy_evaluate "$ip")
+    decision=$(policy_evaluate "$ip")
 
     action=$(echo "$decision" | cut -d'|' -f1)
     reason=$(echo "$decision" | cut -d'|' -f3)
