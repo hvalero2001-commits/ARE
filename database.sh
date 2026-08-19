@@ -481,41 +481,15 @@ db_add_score() {
     local NOW
     NOW=$(date +%s)
 
-    case "$CATEGORY" in
+    db_exec "INSERT OR IGNORE INTO reputation (ip, updated) VALUES ('$IP', $NOW);"
 
-        RECON)
-            db_exec "UPDATE reputation SET recon_score = recon_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
+    db_exec "
+        INSERT INTO reputation_scores (ip, category, score)
+        VALUES ('$IP', '$CATEGORY', $SCORE)
+        ON CONFLICT(ip, category) DO UPDATE SET score = score + $SCORE;
+    "
 
-        EXPLOIT)
-            db_exec "UPDATE reputation SET exploit_score = exploit_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-
-        CREDENTIAL)
-            db_exec "UPDATE reputation SET credential_score = credential_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-
-        PROTOCOL)
-            db_exec "UPDATE reputation SET protocol_score = protocol_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-
-        BOT)
-            db_exec "UPDATE reputation SET bot_score = bot_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-        ANOMALY)
-            db_exec "UPDATE reputation SET anomaly_score = anomaly_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-	MALWARE)
-            db_exec "UPDATE reputation SET malware_score = malware_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-	DOS)
-            db_exec "UPDATE reputation SET dos_score = dos_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-	SOCIAL)
-            db_exec "UPDATE reputation SET social_score = social_score + $SCORE, updated=$NOW WHERE ip='$IP';"
-        ;;
-
-    esac
+    db_exec "UPDATE reputation SET updated=$NOW WHERE ip='$IP';"
 }
 
 #############################################################
@@ -523,22 +497,14 @@ db_add_score() {
 #############################################################
 
 db_recalculate_total() {
-	db_exec "
-    UPDATE reputation
-    SET total_score =
-        recon_score +
-        exploit_score +
-        credential_score +
-        protocol_score +
-        bot_score +
-	anomaly_score +
-	malware_score +
-	dos_score +
-	social_score
-    WHERE ip='$IP';
-"
 
+    local IP="$1"
 
+    db_exec "
+        UPDATE reputation
+        SET total_score = (SELECT COALESCE(SUM(score),0) FROM reputation_scores WHERE ip='$IP')
+        WHERE ip='$IP';
+    "
 }
 
 #############################################################
@@ -557,23 +523,21 @@ db_get_score() {
 }
 
 db_get_reputation() {
-
     local IP="$1"
-
     db_exec "
         SELECT
-            recon_score || '|' ||
-            exploit_score || '|' ||
-            credential_score || '|' ||
-            protocol_score || '|' ||
-            bot_score || '|' ||
-	    anomaly_score || '|' ||
-	    malware_score || '|' ||
-    	    dos_score || '|' ||
-	    social_score || '|' ||
-            total_score || '|' ||
-            updated
-        FROM reputation
+            COALESCE(MAX(CASE WHEN category='RECON' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='EXPLOIT' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='CREDENTIAL' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='PROTOCOL' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='BOT' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='ANOMALY' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='MALWARE' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='DOS' THEN score END), 0) || '|' ||
+            COALESCE(MAX(CASE WHEN category='SOCIAL' THEN score END), 0) || '|' ||
+            (SELECT COALESCE(SUM(score),0) FROM reputation_scores WHERE ip='$IP') || '|' ||
+            COALESCE((SELECT updated FROM reputation WHERE ip='$IP'), 0)
+        FROM reputation_scores
         WHERE ip='$IP';
     "
 }
@@ -679,16 +643,16 @@ db_avg_score() {
 db_sum_categories() {
     db_exec "
         SELECT
-            COALESCE(SUM(recon_score),0) || '|' ||
-            COALESCE(SUM(exploit_score),0) || '|' ||
-            COALESCE(SUM(credential_score),0) || '|' ||
-            COALESCE(SUM(protocol_score),0) || '|' ||
-            COALESCE(SUM(bot_score),0) || '|' ||
-	    COALESCE(SUM(anomaly_score),0) || '|' ||
-	    COALESCE(SUM(malware_score),0) || '|' ||
-	    COALESCE(SUM(dos_score),0) || '|' ||
-            COALESCE(SUM(social_score),0)
-        FROM reputation;
+            COALESCE(SUM(CASE WHEN category='RECON' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='EXPLOIT' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='CREDENTIAL' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='PROTOCOL' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='BOT' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='ANOMALY' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='MALWARE' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='DOS' THEN score ELSE 0 END),0) || '|' ||
+            COALESCE(SUM(CASE WHEN category='SOCIAL' THEN score ELSE 0 END),0)
+        FROM reputation_scores;
     "
 }
 
@@ -696,19 +660,21 @@ db_sum_categories() {
 db_top_attackers() {
     db_exec "
         SELECT
-            ip,
-            total_score,
-            recon_score,
-            exploit_score,
-            credential_score,
-            protocol_score,
-	    bot_score,
-	    anomaly_score,
-	    malware_score,
-	    dos_score,
-            social_score
-        FROM reputation
-        ORDER BY total_score DESC
+            r.ip,
+            COALESCE((SELECT SUM(score) FROM reputation_scores WHERE ip = r.ip), 0) AS total,
+            COALESCE(MAX(CASE WHEN rs.category='RECON' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='EXPLOIT' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='CREDENTIAL' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='PROTOCOL' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='BOT' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='ANOMALY' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='MALWARE' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='DOS' THEN rs.score END), 0),
+            COALESCE(MAX(CASE WHEN rs.category='SOCIAL' THEN rs.score END), 0)
+        FROM reputation r
+        LEFT JOIN reputation_scores rs ON rs.ip = r.ip
+        GROUP BY r.ip
+        ORDER BY total DESC
         LIMIT 10;
     "
 }

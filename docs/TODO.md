@@ -1423,7 +1423,7 @@ pausada, queda **implementada y confirmada en producción**.
 
 **Título:** Modelo de categorías extensible (columnas fijas → esquema normalizado)
 
-**Estado:** En progreso — Fase 1 completa
+**Estado:** En progreso — Fases 1-3 completas, Fase 4 pendiente a propósito
 
 **Versión:** v2.1 (en desarrollo)
 
@@ -1458,16 +1458,45 @@ truncamiento deja de ser posible por diseño, no por parche.
    existente (aditivo, sin tocar `reputation`), migrar los datos
    existentes, y verificar la migración comparando `SUM(score)` contra
    `total_score` IP por IP.
-2. **Fase 2 — Pendiente.** Reescribir las funciones de lectura
-   (`db_get_reputation`, `db_sum_categories`, `db_top_attackers`,
-   `ctx_get_*`) para leer de `reputation_scores`, corriendo en
-   paralelo contra las funciones viejas para comparar resultados
-   (mismo patrón de validación no invasiva que `policy-compare` en
-   RFC-009).
-3. **Fase 3 — Pendiente.** Reescribir las funciones de escritura
-   (`db_add_score`, `db_recalculate_total`).
-4. **Fase 4 — Pendiente.** Eliminar las columnas de categoría de
-   `reputation` una vez validado en producción.
+2. ✔ **Fase 2 — Completa.** `db_get_reputation`, `db_sum_categories`,
+   `db_top_attackers` reescritas para leer de `reputation_scores` (vía
+   `MAX(CASE WHEN category=...)` como pivote manual, SQLite no tiene
+   `PIVOT` nativo). Validado en producción: `./are.sh score`,
+   `./are.sh stats`, `./are.sh top` devuelven exactamente los mismos
+   valores que antes de la migración, para las mismas IPs.
+3. ✔ **Fase 3 — Completa.** `db_add_score` reescrita como
+   `INSERT ... ON CONFLICT DO UPDATE` genérico (reemplaza el `case` de
+   9 ramas por categoría) y `db_recalculate_total` como `SUM()` sobre
+   `reputation_scores` — esta última corrige BUG-017 en el momento de
+   escritura, no solo en la migración histórica.
+
+   Dos bugs propios de la implementación de esta fase, encontrados y
+   corregidos durante la validación manual (no en producción real, que
+   nunca los sufrió — ver detalle):
+
+   * `db_add_score()` no garantizaba la existencia previa de la fila
+     en `reputation` antes de hacer `UPDATE ... WHERE ip=...`; un
+     `UPDATE` sobre una fila inexistente no falla ni crea nada,
+     simplemente no afecta filas. En producción esto nunca se
+     manifestó porque `handle_found()`/`handle_ban()` siempre llaman
+     `db_init_reputation()` antes de `db_add_score()` — se manifestó
+     únicamente en pruebas manuales que invocaban la función de forma
+     aislada. Corregido con `INSERT OR IGNORE INTO reputation (ip,
+     updated) VALUES (...)` al inicio de la función, como garantía
+     adicional.
+   * `db_get_reputation()` propagaba `NULL` a toda la cadena de salida
+     cuando la subconsulta de `updated` no encontraba fila en
+     `reputation` (concatenación con `NULL` en SQL da `NULL`
+     completo). Corregido envolviendo esa subconsulta en `COALESCE(...,
+     0)`.
+
+4. **Fase 4 — Pendiente, a propósito.** Eliminar las columnas de
+   categoría de `reputation` (`recon_score`, `exploit_score`, etc.),
+   ya redundantes con `reputation_scores`. Se posterga
+   intencionalmente como red de seguridad: mientras coexistan, hay
+   forma de comparar y revertir si apareciera alguna discrepancia no
+   detectada. Se ejecutará tras una ventana de observación en
+   producción sin incidentes.
 
 **Hallazgo real durante la Fase 1: BUG-018**
 
