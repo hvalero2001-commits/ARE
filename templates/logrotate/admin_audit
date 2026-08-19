@@ -1,0 +1,11 @@
+/var/log/are/admin_audit.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    sharedscripts
+    su root root
+}

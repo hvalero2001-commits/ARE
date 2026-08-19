@@ -236,6 +236,7 @@ jails_create() {
 
     if [[ "$confirm" =~ ^[sS]$ ]]; then
         db_create_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
+        admin_audit_log "jails_create" "jail=$name categoria=$category peso=$weight confianza=$confidence"
         echo "  Perfil creado: $name -> $category"
     else
         echo "  Operación cancelada."
@@ -380,6 +381,7 @@ jails_modify() {
 
     if [[ "$confirm" =~ ^[sS]$ ]]; then
         db_update_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
+        admin_audit_log "jails_modify" "jail=$name categoria=$cur_category->$category peso=$cur_weight->$weight confianza=$cur_confidence->$confidence"
         echo "  Perfil actualizado: $name"
     else
         echo "  Operación cancelada."
@@ -462,6 +464,7 @@ jails_delete() {
     fi
 
     db_delete_jail_profile "$name"
+    admin_audit_log "jails_delete" "jail=$name categoria=$cur_category"
     echo "  Perfil eliminado: $name"
 
     admin_pause

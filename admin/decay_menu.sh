@@ -47,6 +47,7 @@ decay_execute() {
     read -rp "  Confirma ejecución real de decay-apply (s/N): " confirm
     if [[ "$confirm" =~ ^[sS]$ ]]; then
         reputation_decay_apply
+	admin_audit_log "decay_execute" "confirmado"
     else
         echo "  Operación cancelada."
     fi

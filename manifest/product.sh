@@ -122,6 +122,7 @@ PRODUCT_EXCLUDED=(
 PRODUCT_LOGROTATE_FILES=(
     are
     mod_evasive_report
+    admin_audit
 )
 
 PRODUCT_EXECUTABLE_FILES=(

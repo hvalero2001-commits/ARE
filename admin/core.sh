@@ -15,12 +15,19 @@
 # ============================================================
 
 admin_print_banner() {
-    cat <<'EOF'
+    local version
+    version=$(cat "${ARE_HOME}/VERSION" 2>/dev/null || echo "?")
+
+    local host
+    host=$(hostname -f 2>/dev/null || hostname)
+
+    cat <<EOF
 
   ┌─────────────────────────────────────────┐
   │                ARE ADMIN                 │
   │      Abuse Reputation Engine - CLI       │
   └─────────────────────────────────────────┘
+  server: ${host}  |  v${version}
 
   1) Jails / Perfiles
   2) Categorías
@@ -56,6 +63,27 @@ admin_main() {
                 ;;
         esac
     done
+}
+
+# ============================================================
+# admin_audit_log <accion> <detalle>
+#
+# Registra una acción administrativa de escritura en el log de
+# auditoría, con usuario, timestamp y detalle. Solo se invoca
+# desde operaciones que modifican estado (Crear/Modificar/
+# Eliminar/Ejecutar) — nunca desde consultas de solo lectura.
+# ============================================================
+admin_audit_log() {
+    local action="$1"
+    local detail="${2:-}"
+
+    local audit_file="${ARE_LOG_DIR:-/var/log/are}/admin_audit.log"
+    local user
+    user="$(whoami)"
+    local timestamp
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+
+    printf "%s | %s | %s | %s\n" "$timestamp" "$user" "$action" "$detail" >> "$audit_file" 2>/dev/null
 }
 
 # ------------------------------------------------------------
