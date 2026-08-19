@@ -46,6 +46,7 @@ do
             ACTION="EXTERNAL_UNBAN"
             JAIL=$(echo "$LINE" | sed -n 's/.*\[\([^]]*\)\] Unban .*/\1/p')
             IP=$(echo "$LINE" | sed -n 's/.* Unban \([^ ]*\).*/\1/p')
+            IP="${IP%,}"
         ;;
 
         *)

@@ -1423,7 +1423,9 @@ pausada, queda **implementada y confirmada en producción**.
 
 **Título:** Modelo de categorías extensible (columnas fijas → esquema normalizado)
 
-**Estado:** Draft
+**Estado:** En progreso — Fase 1 completa
+
+**Versión:** v2.1 (en desarrollo)
 
 **Descripción**
 
@@ -1436,19 +1438,66 @@ y actualizar múltiples funciones que enumeran las columnas explícitamente
 
 **Objetivo**
 
-Evaluar la migración hacia un esquema normalizado, por ejemplo
-`reputation_scores(ip, category, score)`, donde agregar una categoría
-nueva sea una operación de datos (`INSERT`) y no una migración de
-estructura. Esto es consistente con el principio ya documentado en
-`docs/DESIGN.md` Sección 3.2 de no convertir jails en columnas
-independientes — el mismo criterio aplicado hoy de forma inconsistente
-a las categorías.
+Migrar hacia un esquema normalizado, `reputation_scores(ip, category,
+score)`, donde agregar una categoría nueva sea una operación de datos
+(`INSERT`) y no una migración de estructura. Consistente con el
+principio ya documentado en `docs/DESIGN.md` Sección 3.2 de no
+convertir jails en columnas independientes — el mismo criterio ahora
+aplicado también a las categorías.
+
+**Decisión de diseño confirmada:** `total_score` deja de ser un campo
+independiente almacenado y pasa a derivarse siempre como `SUM(score)`
+sobre `reputation_scores`. Esto no es solo normalización — es la
+corrección estructural definitiva de BUG-017 (ver más abajo): al no
+existir dos números que puedan desincronizarse, la deriva de
+truncamiento deja de ser posible por diseño, no por parche.
+
+**Plan de migración en fases**
+
+1. ✔ **Fase 1 — Completa.** Crear `reputation_scores` junto a la tabla
+   existente (aditivo, sin tocar `reputation`), migrar los datos
+   existentes, y verificar la migración comparando `SUM(score)` contra
+   `total_score` IP por IP.
+2. **Fase 2 — Pendiente.** Reescribir las funciones de lectura
+   (`db_get_reputation`, `db_sum_categories`, `db_top_attackers`,
+   `ctx_get_*`) para leer de `reputation_scores`, corriendo en
+   paralelo contra las funciones viejas para comparar resultados
+   (mismo patrón de validación no invasiva que `policy-compare` en
+   RFC-009).
+3. **Fase 3 — Pendiente.** Reescribir las funciones de escritura
+   (`db_add_score`, `db_recalculate_total`).
+4. **Fase 4 — Pendiente.** Eliminar las columnas de categoría de
+   `reputation` una vez validado en producción.
+
+**Hallazgo real durante la Fase 1: BUG-018**
+
+La primera corrida de `db_verify_reputation_scores_migration()` sobre
+la base real de producción (2366 IPs) no mostró discrepancias
+esperables de redondeo — mostró **145 IPs completamente ausentes** de
+la comparación esperada, con un patrón que resultó ser un bug de
+datos independiente de la migración. Ver BUG-018 en el historial de
+resueltos.
+
+**Hallazgo real durante la Fase 1: BUG-017**
+
+Tras resolver BUG-018, la verificación repetida mostró una segunda
+categoría de discrepancia, sistemática y de menor magnitud, en la
+gran mayoría de las 2366 IPs: `total_score` (columna almacenada)
+consistentemente mayor que `SUM(score)` real de sus categorías. Causa
+identificada: `reputation_decay_apply()` trunca (`CAST ... AS
+INTEGER`) cada columna de categoría de forma independiente, y también
+trunca `total_score` por separado — 9 truncamientos independientes
+pierden fracciones más rápido que 1 solo truncamiento sobre el total
+agregado, y el error se acumula con cada corrida diaria del Decay
+Engine. No se corrige como parche aparte: la Fase 2/3 de esta misma
+RFC lo resuelve de raíz al eliminar `total_score` como campo
+almacenado.
 
 **Nota de riesgo operativo**
 
-Dado que el sistema corre en múltiples servidores de producción, esta
-migración debe evaluarse con un entorno de prueba/canario antes de
-aplicarse, no como cambio directo en caliente.
+Dado que el sistema corre en múltiples servidores de producción, cada
+fase debe validarse en el servidor actual antes de replicarse a la
+flota — mismo criterio de servidor canario ya aplicado en RFC-009.
 
 ---
 
@@ -2316,6 +2365,116 @@ Confirmado en producción con las 9 categorías mostrando `[OK]`.
 
 * `policy/rules/credential.sh` (nuevo)
 * `bootstrap.sh`
+
+---
+
+## BUG-017
+
+**Título:** Deriva de truncamiento entre `total_score` y la suma real de categorías
+
+**Estado:** Identificado — corrección estructural en curso (ver RFC-008)
+
+**Versión:** v2.1 (en desarrollo)
+
+**Problema**
+
+`reputation_decay_apply()` trunca (`CAST(... AS INTEGER)`) cada
+columna de categoría de forma independiente, y trunca `total_score`
+por separado en la misma sentencia. Nueve truncamientos
+independientes pierden fracciones más rápido que un único
+truncamiento sobre el total agregado. Con el Decay Engine corriendo
+diariamente, el error se acumula: `total_score` almacenado queda
+sistemáticamente por encima de lo que la suma real de sus categorías
+justificaría.
+
+**Impacto**
+
+El motor de decisión (`policy_evaluate()`, piso de seguridad de
+RFC-009) usa `total_score` como referencia — una deriva sistemática
+hacia arriba no genera falsos negativos de seguridad, pero sí
+distorsiona la precisión del score real con el que se calibran los
+umbrales.
+
+**Evidencia**
+
+Detectado al verificar la migración de RFC-008 contra la base real de
+producción (2366 IPs, servidor con 8 días de uptime y decay diario
+activo). Prácticamente todas las IPs con actividad histórica muestran
+`total_score` (viejo) mayor que `SUM(score)` real (nuevo), en
+magnitud proporcional a la antigüedad de la IP — consistente con
+acumulación diaria, no con un evento puntual.
+
+**Corrección**
+
+No se aplica un parche aislado. Se resuelve de raíz como parte de las
+Fases 2-3 de RFC-008: al eliminar `total_score` como campo almacenado
+y calcularlo siempre como `SUM(score)` sobre `reputation_scores`, dos
+números que puedan desincronizarse dejan de existir — la deriva se
+vuelve estructuralmente imposible, no solo corregida puntualmente.
+
+**Archivos relacionados**
+
+* `decay.sh` (`reputation_decay_apply`)
+* Ver RFC-008 para la corrección definitiva.
+
+---
+
+## BUG-018
+
+**Título:** IPs con coma sin limpiar en `EXTERNAL_UNBAN`, reputación partida en filas duplicadas
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.1 (en desarrollo)
+
+**Problema**
+
+`sensors/fail2ban.sh` limpiaba el carácter `,` al final de la IP
+únicamente en la rama `Found` (`IP="${IP%,}"`), no en la rama `Unban`.
+Cuando una línea de log de Fail2Ban con formato de "Unban" traía la
+IP seguida de coma, esa coma viajaba sin limpiar hasta
+`handle_external_unban()`, que creaba/actualizaba una fila de
+`reputation` para `"<ip>,"` como si fuera una IP distinta de `"<ip>"`.
+
+**Impacto**
+
+Reputación de IPs reales partida entre dos filas independientes en la
+base de datos. Confirmado con evidencia real: `45.148.10.238` tenía
+195 puntos en su fila limpia (`BANNED`) y 57 puntos adicionales en su
+fila con coma (`WATCH`), sin que el motor de decisión pudiera ver el
+score combinado real. Caso más grave detectado: `20.48.234.177` tenía
+**0** en su fila limpia y **51** en la fila con coma — el score real
+de esa IP era completamente invisible para el sistema.
+
+**Evidencia**
+
+Detectado al ejecutar `db_verify_reputation_scores_migration()`
+(construida para RFC-008) contra la base real: 145 IPs con fila
+duplicada por coma, la mayoría de ellas coincidiendo exactamente con
+IPs reales que también existían limpias.
+
+**Corrección**
+
+* `sensors/fail2ban.sh`: agregada la limpieza `IP="${IP%,}"` también
+  en la rama `Unban`, después de la asignación de `IP` (línea 49).
+* `database.sh`: nueva función `db_merge_comma_duplicates()` — para
+  cada par de filas limpia/con-coma, suma los scores por categoría,
+  recalcula `total_score`, mueve los eventos asociados (tabla
+  `events`) a la IP limpia, elimina la fila sucia, y ejecuta
+  `state_update()` sobre el resultado.
+
+**Validación**
+
+Ejecutado en producción real sobre las 145 IPs afectadas. Verificado:
+`db_verify_reputation_scores_migration()` pasó de listar 145 filas
+con coma a `0`. `45.148.10.238` quedó en `251` puntos (195+57, sin
+pérdida). `20.48.234.177` recuperó su score real (`51`, antes
+invisible con `0`).
+
+**Archivos relacionados**
+
+* `sensors/fail2ban.sh`
+* `database.sh`
 
 ---
 

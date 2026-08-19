@@ -1032,3 +1032,130 @@ db_validate_jail_profiles() {
         FROM jail_profile;
     "
 }
+
+#############################################################
+# RFC-008: Modelo de categorías extensible
+# Fase 1 — Crear reputation_scores (normalizada) sin tocar
+# la tabla reputation existente.
+#############################################################
+
+db_init_reputation_scores() {
+
+    db_exec "
+        CREATE TABLE IF NOT EXISTS reputation_scores(
+            ip TEXT NOT NULL,
+            category TEXT NOT NULL,
+            score INTEGER DEFAULT 0,
+            PRIMARY KEY (ip, category)
+        );
+    "
+}
+
+#############################################################
+# Migrar datos de reputation (columnas) a reputation_scores
+# (filas). Aditivo: no borra ni modifica la tabla reputation.
+# Idempotente: usa INSERT OR REPLACE, se puede correr de nuevo
+# sin duplicar si algo falla a mitad de camino.
+#############################################################
+
+db_migrate_reputation_scores() {
+
+    db_init_reputation_scores
+
+    local categories="RECON EXPLOIT CREDENTIAL PROTOCOL BOT ANOMALY MALWARE DOS SOCIAL"
+    local columns="recon_score exploit_score credential_score protocol_score bot_score anomaly_score malware_score dos_score social_score"
+
+    local cat_arr=($categories)
+    local col_arr=($columns)
+
+    local i
+    for i in "${!cat_arr[@]}"; do
+        local cat="${cat_arr[$i]}"
+        local col="${col_arr[$i]}"
+
+        db_exec "
+            INSERT OR REPLACE INTO reputation_scores (ip, category, score)
+            SELECT ip, '$cat', $col
+            FROM reputation
+            WHERE $col > 0;
+        "
+    done
+}
+
+#############################################################
+# Verificar que la migración fue exacta: compara, IP por IP,
+# la suma de reputation_scores contra total_score de la tabla
+# vieja. Devuelve las filas con discrepancia (vacío = OK).
+#############################################################
+
+db_verify_reputation_scores_migration() {
+
+    db_exec "
+        SELECT
+            r.ip,
+            r.total_score AS total_viejo,
+            COALESCE(SUM(rs.score), 0) AS total_nuevo
+        FROM reputation r
+        LEFT JOIN reputation_scores rs ON rs.ip = r.ip
+        GROUP BY r.ip
+        HAVING total_viejo != total_nuevo;
+    "
+}
+
+#############################################################
+# BUG-018: Fusionar IPs duplicadas por coma sin limpiar
+# (bug histórico en sensors/fail2ban.sh, rama Unban).
+#
+# Para cada IP que tenga una versión limpia y una versión con
+# coma en reputation, suma los scores por categoría, recalcula
+# total_score, mueve los eventos, y elimina la fila sucia.
+#############################################################
+
+db_merge_comma_duplicates() {
+
+    local categories="recon_score exploit_score credential_score protocol_score bot_score anomaly_score malware_score dos_score social_score"
+
+    local pairs
+    pairs=$(db_exec "
+        SELECT r1.ip
+        FROM reputation r1
+        JOIN reputation r2 ON r2.ip = r1.ip || ',';
+    ")
+
+    if [ -z "$pairs" ]; then
+        INFO "No hay pares de IPs duplicadas por coma para fusionar."
+        return 0
+    fi
+
+    local count=0
+
+    echo "$pairs" | while IFS= read -r clean_ip; do
+        [ -z "$clean_ip" ] && continue
+        local dirty_ip="${clean_ip},"
+
+        local set_clause=""
+        local col
+        for col in $categories; do
+            if [ -n "$set_clause" ]; then
+                set_clause="${set_clause}, "
+            fi
+            set_clause="${set_clause}${col} = ${col} + (SELECT ${col} FROM reputation WHERE ip = '${dirty_ip}')"
+        done
+
+        db_exec "UPDATE reputation SET ${set_clause} WHERE ip = '${clean_ip}';"
+
+        local sum_expr
+        sum_expr=$(echo "$categories" | tr ' ' '+')
+        db_exec "UPDATE reputation SET total_score = ${sum_expr} WHERE ip = '${clean_ip}';"
+
+        db_exec "UPDATE events SET ip = '${clean_ip}' WHERE ip = '${dirty_ip}';"
+
+        db_exec "DELETE FROM reputation WHERE ip = '${dirty_ip}';"
+
+        state_update "$clean_ip"
+
+        INFO "[MERGE] Fusionado: $dirty_ip -> $clean_ip"
+    done
+
+    INFO "Fusión de IPs duplicadas completada."
+}
