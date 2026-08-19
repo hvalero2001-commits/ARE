@@ -14,10 +14,16 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 
 # Estado del proyecto
 
-Versión estable actual:
+Versión estable liberada:
 
 ```text
-v1.1
+v2.0.0
+```
+
+Versión en desarrollo activo:
+
+```text
+v2.1 (rama v2.1-dev)
 ```
 
 Estado:
@@ -26,7 +32,7 @@ Estado:
 Producción
 ```
 
-La versión actual se encuentra operativa y continúa siendo objeto de consolidación y mantenimiento.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.1-dev`, documentado en detalle en `docs/TODO.md`.
 
 ---
 
@@ -120,95 +126,136 @@ Nuevas categorías:
 
 ---
 
-# v1.2
-
-## Objetivo
-
-Incrementar la inteligencia del motor de decisión y continuar la consolidación del sistema.
-
-## Funcionalidades previstas
-
-### Reputation
-
-* Decay Engine completo
-* optimización del cálculo de reputación
-* mejora de perfiles
-
-### Policy Engine
-
-* reglas dinámicas
-* correlación de categorías
-* optimización del modelo de decisión
-
-### Sensor Framework
-
-Nuevos sensores previstos:
-
-* ModSecurity
-* SSH
-* Apache
-* Syslog
-
-### Dashboard
-
-* gráficos históricos
-* métricas ampliadas
-* consultas avanzadas
-
----
-
-# v1.3
-
-## Objetivo
-
-Ampliar la integración con sistemas externos y las capacidades de observación del motor.
-
-## Funcionalidades previstas
-
-* exportación de métricas
-* eventos externos
-* APIs
-* integración con plataformas SIEM
-
----
-
 # v2.0
 
 ## Objetivo
 
-Evolucionar ARE hacia una arquitectura de reputación y decisión con mayor independencia de un mecanismo específico de Firewall.
+Consolidar la identidad propia del producto (migración desde `f2b-ipset`), incorporar una interfaz de administración completa, y evolucionar el motor de decisión de un modelo por score total a uno de evaluación por categoría.
 
-## Sensores previstos
+## Estado
 
-* ModSecurity
-* Suricata
-* Zeek
-* CrowdSec
-* Apache
-* Syslog
-* DNS
-* APIs externas
+✔ Completado — liberado como release oficial (`v2.0.0`)
+
+## Funcionalidades incorporadas
+
+Reemplazan y superan lo originalmente previsto para `v1.2`/`v1.3` en este mismo documento (Decay Engine, reglas dinámicas, correlación de categorías, métricas ampliadas) — ver detalle completo en `docs/CHANGELOG.md` y `docs/TODO.md`.
+
+### Product Manifest e Installer
+
+* `manifest/product.sh` como fuente única de verdad de los componentes del producto
+* Instalación oficial en `/opt/are`, abandonando la identidad histórica `f2b-ipset`
+
+### Reputation Decay
+
+* Decay Engine completo (`dry-run` / `apply`), con ejecución programada vía systemd
+
+### Interfaz de Administración (ARE ADMIN)
+
+* CLI completo (`are.sh admin`), 7 ramas: Jails/Perfiles, Categorías, Sensores, Política, Estado/Reputación, Decay, Configuración
+* Registro de auditoría de operaciones de escritura
+* Banner con identificación de servidor, para entornos con múltiples nodos
+
+### Policy Engine basado en categorías
+
+* Evaluación de riesgo por categoría de reputación, con regla propia y umbral configurable por categoría
+* Multiplicador de riesgo por reincidencia
+* Piso de seguridad: nunca menos estricto que el score total agregado
+* Herramienta de comparación (`policy-compare`) para validar el motor antes de aplicarlo en producción
+
+### Integración de mod_evasive
+
+* Protección anti-flood de Apache incorporada al modelo de reputación de ARE (categoría DOS), en reemplazo de un bloqueo de duración fija desconectado del sistema
+
+### Consolidación
+
+* Eliminación del código de generaciones anteriores del Policy Engine
 
 ---
 
-## Backends previstos
+# v2.1 (en desarrollo)
 
-* IPSet
+## Objetivo
+
+Administración avanzada de perfiles, extensibilidad del modelo de reputación, visibilidad operativa, y robustecimiento de la persistencia del Firewall Backend.
+
+## Estado
+
+En progreso — rama `v2.1-dev`
+
+## Funcionalidades incorporadas hasta el momento
+
+### Jails / Perfiles
+
+* Exportar / Importar `jail_profile` entre servidores, con resolución de conflictos y auditoría
+
+### Sensores
+
+* `apache_evasive.sh` formalizado como sensor oficial del framework — segundo patrón documentado (callback, invocado directo por Apache), junto al ya existente (polling, Fail2Ban)
+* Filtro de jails de Fail2Ban reemplazado por consulta dinámica contra `jail_profile`, en vez de una lista fija en el código
+
+### Modelo de reputación
+
+* Migración del modelo de categorías de columnas fijas a esquema normalizado (`reputation_scores`), permitiendo agregar categorías nuevas como operación de datos, sin migración de esquema ni cambios de código
+* Corrección de deriva de truncamiento en el cálculo de reputación (almacenamiento y cálculo de Decay)
+* Redistribución proporcional del Decay Engine entre categorías, evitando que la diversidad de técnicas de ataque acelere la liberación de una IP
+
+### Dashboard
+
+* Tendencias diarias de actividad (eventos, bans, IPs distintas por día), primera vista temporal del sistema
+
+### Firewall Backend
+
+* Restauración automática del estado del firewall (`ipset`) desde la base de datos al arrancar el sistema, preservando el tiempo restante exacto de sanciones temporales activas — antes, un reinicio del servidor podía perder sanciones activas sin cumplir su plazo
+* Corrección de un límite de rango no controlado en `ipset`, que impedía aplicar correctamente sanciones de larga duración (nivel más alto de reincidencia previo a la sanción permanente)
+
+## Pendiente en la rama actual
+
+* Exportación de tendencias a CSV
+* Desglose de tendencias por categoría
+* Definir umbrales de riesgo para las categorías `MALWARE` y `SOCIAL`, a la espera de un jail o sensor real que reporte a esas categorías
+* Eliminación de las columnas de categoría redundantes en `reputation` (pospuesta por limitación de versión de SQLite en el servidor de producción, sin fecha)
+
+---
+
+# Próximas líneas de trabajo
+
+## Sensores adicionales
+
+Previstos, sin implementación iniciada:
+
+* ModSecurity como sensor propio (hoy reporta indirectamente vía jails de Fail2Ban)
+* Suricata
+* Zeek
+* CrowdSec
+* Syslog genérico
+* DNS
+* APIs externas
+
+## Motor de decisión
+
+* Regla propia para las categorías `MALWARE` y `SOCIAL`, cuando exista una fuente real de datos
+* Integración completa de `mod_evasive` como única vía de bloqueo (hoy corre en modo doble escritura, ipset directo + reporte a ARE, como medida de transición)
+
+---
+
+# Visión de largo plazo
+
+Objetivos de arquitectura de mayor alcance, sin planificación de versión concreta todavía. Su inclusión aquí no implica compromiso de implementación — deben incorporarse formalmente a una versión del Roadmap antes de iniciar su desarrollo, según los criterios de la sección siguiente.
+
+## Backends de Firewall alternativos
+
 * nftables
 * firewalld
 * pf
 * Cloud Firewall
 
----
-
 ## Plataforma
 
 * API REST
-* Backend Manager
-* métricas
-* alta disponibilidad
-* replicación
-* integración distribuida
+* Backend Manager (administración de múltiples backends de firewall)
+* Alta disponibilidad
+* Replicación entre nodos
+* Integración distribuida (múltiples servidores compartiendo inteligencia de reputación)
 
 ---
 

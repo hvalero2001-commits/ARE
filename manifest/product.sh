@@ -87,6 +87,7 @@ PRODUCT_SYSTEMD_UNITS=(
     are-fail2ban-found.timer
     are-fail2ban-decay.service
     are-fail2ban-decay.timer
+    are-restore-ipsets.service
 )
 
 ##################################################

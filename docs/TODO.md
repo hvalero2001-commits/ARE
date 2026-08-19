@@ -1981,6 +1981,120 @@ punto a investigar por separado, sin bloquear el cierre de esta RFC.
 
 ---
 
+## RFC-014
+
+**Título:** Restaurar ipset desde `sanction_state` al arrancar el sistema
+
+**Estado:** ✔ Implementada
+
+**Versión:** v2.1 (en desarrollo)
+
+**Descripción**
+
+`ipset` no persiste nativamente entre reinicios del servidor — sus
+sets viven en memoria del kernel. El mecanismo de persistencia nativo
+de AlmaLinux (`ipset.service`) solo restaura los sets con el nombre
+histórico (`blacklist`, `blacklist6`, previos a la identidad `are-*`),
+que hoy están vacíos y sin uso. Los sets reales de ARE (`are-blacklist`,
+`are-filter`, etc.) no tenían ningún mecanismo de restauración
+explícito.
+
+**Contexto que motivó la investigación**
+
+Tras una actualización de kernel con reinicio real del servidor, se
+observó que `are-blacklist` volvió a tener contenido pese a la falta
+de mecanismo de persistencia conocido. Investigación con evidencia
+real confirmó que el repoblado ocurría de forma indirecta: el flujo
+normal de eventos (`handle_found`/`handle_ban`) reevalúa cualquier IP
+que vuelve a generar tráfico contra `sanction_state`, y el hard gate
+de `STATUS=BANNED` la re-agrega al ipset. Funcional para IPs
+permanentes que reinciden, pero **insuficiente para sanciones
+temporales**: una IP con `TEMP_BAN` activo (por ejemplo, con 1 hora
+restante de una sanción de 24) se pierde completamente tras un reboot
+si no vuelve a generar tráfico antes de que expire su `ban_until`
+real en la base — el temporizador de la sanción, en la práctica,
+dejaba de cumplirse.
+
+**Implementación**
+
+* `infrastructure/restore_ipsets.sh` (nuevo) — script de ejecución
+  única al arrancar: consulta `sanction_state` por IPs con
+  `permanent=1` o `ban_until` en el futuro, y las reincorpora al
+  ipset correspondiente (`BAN_SET4`/`BAN_SET6` según familia),
+  **preservando el tiempo restante exacto** (`ban_until - now`) en
+  vez de reiniciar la sanción a su duración completa original.
+  Excluye IPs whitelisteadas y sanciones ya expiradas.
+* `systemd/are-restore-ipsets.service` (nuevo) — unidad `oneshot` con
+  `After=network.target ipset.service` y `Requires=ipset.service`,
+  disparada una sola vez por boot, no periódica.
+* Agregada a `PRODUCT_SYSTEMD_UNITS` en `manifest/product.sh`.
+
+**Hallazgo real durante la validación: BUG-020**
+
+Al probar la restauración contra datos reales, `ipset add` falló para
+varias IPs con "out of range 0-2147483" — el mismo límite máximo de
+`ipset` en esta versión ya identificado en RFC-010. La causa raíz no
+estaba en el script nuevo: `policy/apply.sh`, en la rama `TEMP_BAN`,
+pasaba `SANCTION_TIME` sin capear a `ipset add`. Como
+`BAN_LEVEL_6_TIME=2592000` (30 días) supera el límite de `ipset`
+(~24.85 días), **cualquier IP real que escalara al nivel 6 del Ban
+Lifecycle quedaba marcada como sancionada en `sanction_state` sin
+que el bloqueo se aplicara efectivamente en el firewall** — el error
+de `ipset` se descartaba silenciosamente (`2>/dev/null`) sin ningún
+chequeo del código de salida, en las 4 líneas de `ipset add`/`ipset
+del` de todo el archivo.
+
+**Corrección de BUG-020**
+
+* Nueva variable `IPSET_MAX_TIMEOUT=2147483` en `config.conf` (real y
+  plantilla), como fuente única del límite — usada tanto en
+  `policy/apply.sh` como en `restore_ipsets.sh`, sin repetir el
+  número en ningún lugar.
+* `policy/apply.sh`: `SANCTION_TIME` se capea a `IPSET_MAX_TIMEOUT`
+  antes de aplicarse, con `WARN` explícito cuando ocurre.
+* Se agregó `-exist` a las 4 llamadas de `ipset add`/`ipset del` en
+  `policy/apply.sh` (ausente en el original, a diferencia de
+  `infrastructure/ipset.sh::banIP()`, que ya lo usaba) — hace la
+  operación idempotente y elimina el motivo original por el que
+  alguien había silenciado los errores.
+* Se eliminó el silenciamiento de errores (`2>/dev/null`) en las 4
+  líneas, reemplazado por chequeo explícito del código de salida y
+  `ERROR` visible en el log cuando `ipset` falla de verdad.
+
+**Validación**
+
+Reproducido el bug con una IP de prueba forzada a `ban_level=5` en
+`sanction_state` (para que `ban_lifecycle_calculate()` calculara el
+salto a nivel 6): confirmado el `WARN` de capeo y el `ipset add`
+exitoso con `timeout 2147483` (antes: error "out of range", sin
+bloqueo real aplicado). Restauración completa probada simulando un
+reboot (`ipset flush` + `restore_ipsets.sh`): 168 IPs reales
+restauradas sin errores, incluyendo las mismas IPs que antes fallaban
+por rango (`192.42.116.107`, `85.11.167.225`), ahora correctamente
+capeadas. Confirmado que los tiempos restaurados no son valores
+"redondos" del Ban Lifecycle sino tiempos restantes reales
+(`191.242.209.98` con `1829537s`, ~21.2 días, no coincide con ningún
+nivel fijo de la tabla), confirmando que se preserva el tiempo
+restante genuino, no se reinicia la sanción.
+
+**Pendiente**
+
+* Validación con un reboot real del servidor (la prueba actual usó
+  `ipset flush` como simulación controlada, no un reinicio genuino).
+* Evaluar si el mismo problema de timeout fuera de rango puede
+  afectar a `FILTER_SET` en escenarios de muy larga duración (hoy
+  `FILTER` no usa timeout, por lo que no aplica actualmente).
+
+**Archivos relacionados**
+
+* `infrastructure/restore_ipsets.sh` (nuevo)
+* `systemd/are-restore-ipsets.service` (nuevo)
+* `policy/apply.sh`
+* `config/config.conf`
+* `manifest/product.sh`
+
+---
+
 
 
 # IDEAS

@@ -1,0 +1,12 @@
+[Unit]
+Description=ARE - Restaurar ipset desde base de datos al iniciar
+After=network.target ipset.service
+Requires=ipset.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/are/infrastructure/restore_ipsets.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
