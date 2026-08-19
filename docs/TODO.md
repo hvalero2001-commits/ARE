@@ -1423,7 +1423,7 @@ pausada, queda **implementada y confirmada en producción**.
 
 **Título:** Modelo de categorías extensible (columnas fijas → esquema normalizado)
 
-**Estado:** En progreso — Fases 1-3 completas, Fase 4 pendiente a propósito
+**Estado:** En progreso — Fases 1-3 completas, Fase 4 pospuesta (limitación de SQLite). Ver también BUG-019 (decay proporcional).
 
 **Versión:** v2.1 (en desarrollo)
 
@@ -1490,13 +1490,26 @@ truncamiento deja de ser posible por diseño, no por parche.
      completo). Corregido envolviendo esa subconsulta en `COALESCE(...,
      0)`.
 
-4. **Fase 4 — Pendiente, a propósito.** Eliminar las columnas de
-   categoría de `reputation` (`recon_score`, `exploit_score`, etc.),
-   ya redundantes con `reputation_scores`. Se posterga
-   intencionalmente como red de seguridad: mientras coexistan, hay
-   forma de comparar y revertir si apareciera alguna discrepancia no
-   detectada. Se ejecutará tras una ventana de observación en
-   producción sin incidentes.
+4. **Fase 4 — Pospuesta, sin fecha, por limitación técnica real.**
+   Eliminar las columnas de categoría de `reputation` requiere
+   `ALTER TABLE ... DROP COLUMN`, soportado recién desde SQLite
+   3.35.0. El servidor de producción corre SQLite 3.26.0 (AlmaLinux 8,
+   `baseos`), que no ofrece actualización de este paquete por el
+   modelo de ABI estable de RHEL 8 — confirmado con `dnf check-update`.
+   En esta versión, eliminar columnas requeriría recrear la tabla
+   completa (crear nueva sin esas columnas, copiar datos, renombrar),
+   una operación bloqueante de mayor riesgo sobre una tabla con más de
+   2200 IPs reales en producción activa. Se evaluó y descartó
+   actualizar SQLite a nivel de sistema operativo por el riesgo que
+   implica para otros componentes del servidor (cPanel/WHM y
+   dependencias asociadas). Las columnas viejas no generan ningún
+   problema funcional mientras permanezcan sin uso — el sistema ya no
+   las lee ni las escribe (confirmado mediante `grep` exhaustivo; las
+   únicas referencias restantes son en `db_migrate_reputation_scores()`
+   y `db_merge_comma_duplicates()`, funciones de migración histórica
+   ya ejecutadas, que quedan como herramientas de referencia). Se
+   revisitará si el sistema operativo del servidor se actualiza en el
+   futuro.
 
 **Hallazgo real durante la Fase 1: BUG-018**
 
@@ -2504,6 +2517,65 @@ invisible con `0`).
 
 * `sensors/fail2ban.sh`
 * `database.sh`
+
+---
+
+## BUG-019
+
+**Título:** Decay trunca cada categoría por separado — IPs con actividad diversificada decaen más rápido que las concentradas
+
+**Estado:** Identificado, pendiente de implementar
+
+**Versión:** v2.1 (en desarrollo)
+
+**Problema**
+
+`reputation_decay_apply()` (ya migrada a `reputation_scores` en RFC-008
+Fase 3) aplica el factor de decay a cada fila de categoría por
+separado: `UPDATE reputation_scores SET score = CAST(score * FACTOR AS
+INTEGER)`. Cuando una IP tiene su score repartido entre varias
+categorías, cada una trunca de forma independiente, perdiendo más
+fracción acumulada en total que si el factor se aplicara una sola vez
+sobre el score agregado.
+
+**Impacto**
+
+Detectado con evidencia real en producción: una IP con
+`EXPLOIT=18, RECON=3, CREDENTIAL=2, ANOMALY=2` (total=25) decayó a
+`21` en una sola corrida (`25→21`, factor 0.95), cuando un único
+truncamiento sobre el agregado daría `23` (`25×0.95=23.75→23`).
+Consecuencia de seguridad real: **una IP con actividad diversificada
+en varias categorías se libera más rápido que una con actividad
+concentrada en una sola, con el mismo score total** — el resultado es
+el inverso de lo deseable, ya que diversidad de técnicas de ataque
+suele ser señal de mayor sofisticación, no de menor riesgo.
+
+**Corrección propuesta (no implementada aún)**
+
+Calcular el nuevo total como un único truncamiento sobre el agregado
+(`new_total = floor(old_total * FACTOR)`), y redistribuir ese total
+entre las categorías de forma proporcional a su peso relativo, usando
+el método del "mayor resto" para garantizar que la suma de las
+categorías redistribuidas sea exactamente igual al nuevo total, sin
+perder ni sobrar puntos.
+
+Validado en simulación (no en producción todavía): para el caso real
+de arriba, el método proporcional da `EXPLOIT=16, RECON=3,
+CREDENTIAL=2, ANOMALY=2` — total `23`, coincidiendo exacto con el
+truncamiento agregado esperado, en vez del `21` actual.
+
+**Alcance de implementación**
+
+Requiere modificar `reputation_decay_apply()` para, por cada IP
+candidata: obtener sus categorías y scores, calcular la redistribución
+proporcional (lógica de mayor resto, más compleja que una sola
+sentencia SQL — probablemente implementada con `awk` dentro del loop
+bash existente), y aplicar un `UPDATE` por categoría con el valor ya
+redistribuido, en vez del `UPDATE` masivo actual.
+
+**Archivos relacionados**
+
+* `decay.sh` (`reputation_decay_apply`)
 
 ---
 
