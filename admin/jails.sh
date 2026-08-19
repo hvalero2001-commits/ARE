@@ -18,6 +18,8 @@ jails_menu() {
         echo "  3) Modificar"
         echo "  4) Eliminar"
         echo "  5) Validar"
+        echo "  6) Exportar"
+        echo "  7) Importar"
         echo "  0) Volver"
         read -rp "  Seleccione una opción: " opt
 
@@ -27,6 +29,8 @@ jails_menu() {
             3) jails_modify ;;
             4) jails_delete ;;
             5) jails_validate ;;
+            6) jails_export ;;
+            7) jails_import ;;
             0) return 0 ;;
             *) echo "Opción inválida." ;;
         esac
@@ -236,7 +240,6 @@ jails_create() {
 
     if [[ "$confirm" =~ ^[sS]$ ]]; then
         db_create_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
-        admin_audit_log "jails_create" "jail=$name categoria=$category peso=$weight confianza=$confidence"
         echo "  Perfil creado: $name -> $category"
     else
         echo "  Operación cancelada."
@@ -381,7 +384,6 @@ jails_modify() {
 
     if [[ "$confirm" =~ ^[sS]$ ]]; then
         db_update_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
-        admin_audit_log "jails_modify" "jail=$name categoria=$cur_category->$category peso=$cur_weight->$weight confianza=$cur_confidence->$confidence"
         echo "  Perfil actualizado: $name"
     else
         echo "  Operación cancelada."
@@ -464,7 +466,6 @@ jails_delete() {
     fi
 
     db_delete_jail_profile "$name"
-    admin_audit_log "jails_delete" "jail=$name categoria=$cur_category"
     echo "  Perfil eliminado: $name"
 
     admin_pause
@@ -540,6 +541,156 @@ jails_validate() {
     else
         echo "  Resultado: SE ENCONTRARON PROBLEMAS"
     fi
+    echo "=================================================="
+    admin_pause
+}
+
+jails_export() {
+    echo "=================================================="
+    echo "JAILS / PERFILES - Exportar"
+    echo "=================================================="
+
+    local backup_dir="${ARE_DATA}/backups/jail_profiles"
+    mkdir -p "$backup_dir"
+
+    local ts
+    ts=$(date '+%Y%m%d_%H%M%S')
+    local file="${backup_dir}/jail_profiles_${ts}.txt"
+
+    local profiles
+    profiles=$(db_list_jail_profiles)
+
+    if [ -z "$profiles" ]; then
+        echo "  No hay perfiles registrados para exportar."
+        admin_pause
+        return 0
+    fi
+
+    {
+        echo "# ARE - Exportación de jail_profile"
+        echo "# Generado: $(date '+%Y-%m-%d %H:%M:%S') desde $(hostname -f 2>/dev/null || hostname)"
+        echo "# Formato: NOMBRE|CATEGORIA|PESO|CONFIANZA|DECAY|DESCRIPCION"
+        echo "$profiles"
+    } > "$file"
+
+    local count
+    count=$(echo "$profiles" | grep -c '.')
+
+    admin_audit_log "jails_export" "archivo=$file perfiles=$count"
+
+    echo "  Exportados $count perfil(es) a:"
+    echo "  $file"
+    echo "=================================================="
+    admin_pause
+}
+
+jails_import() {
+    echo "=================================================="
+    echo "JAILS / PERFILES - Importar"
+    echo "=================================================="
+
+    local backup_dir="${ARE_DATA}/backups/jail_profiles"
+
+    if [ ! -d "$backup_dir" ] || [ -z "$(ls -A "$backup_dir" 2>/dev/null)" ]; then
+        echo "  No hay archivos de exportación en $backup_dir"
+        admin_pause
+        return 0
+    fi
+
+    echo "  Archivos disponibles:"
+    echo
+    local -a files=()
+    local i=1
+    for f in "$backup_dir"/*.txt; do
+        [ -f "$f" ] || continue
+        printf "    %d) %s\n" "$i" "$(basename "$f")"
+        files+=("$f")
+        i=$((i + 1))
+    done
+    echo "    0) Cancelar"
+    echo
+
+    read -rp "  Seleccione archivo a importar: " sel
+
+    if [[ "$sel" == "0" ]] || [ -z "$sel" ]; then
+        echo "  Operación cancelada."
+        admin_pause
+        return 0
+    fi
+
+    if ! [[ "$sel" =~ ^[0-9]+$ ]] || [ "$sel" -lt 1 ] || [ "$sel" -gt "${#files[@]}" ]; then
+        echo "  Selección inválida."
+        admin_pause
+        return 1
+    fi
+
+    local file="${files[$((sel - 1))]}"
+
+    echo
+    echo "  Archivo: $(basename "$file")"
+    echo
+    echo "  Al encontrar un perfil que ya existe, ¿qué hacer?"
+    echo "    1) Sobrescribir con los valores del archivo"
+    echo "    2) Conservar el valor actual (omitir)"
+    read -rp "  Seleccione (1/2) [default 2]: " conflict_mode
+    conflict_mode="${conflict_mode:-2}"
+
+    if [ "$conflict_mode" != "1" ] && [ "$conflict_mode" != "2" ]; then
+        echo "  Selección inválida, se conserva por defecto (2 - omitir)."
+        conflict_mode="2"
+    fi
+
+    if [ -z "${REPUTATION_CATEGORIES:-}" ]; then
+        echo "  ERROR: REPUTATION_CATEGORIES no está definida en policy.conf"
+        admin_pause
+        return 1
+    fi
+    local -a valid_cats=($REPUTATION_CATEGORIES)
+
+    echo
+    local created=0 updated=0 skipped=0 errors=0
+
+    while IFS='|' read -r name category weight confidence decay description; do
+        [ -z "$name" ] && continue
+
+        local cat_valid=0
+        for vc in "${valid_cats[@]}"; do
+            [ "$vc" = "$category" ] && cat_valid=1 && break
+        done
+
+        if [ "$cat_valid" -eq 0 ]; then
+            echo "  [ERROR] $name: categoría '$category' no reconocida, omitido"
+            errors=$((errors + 1))
+            continue
+        fi
+
+        if ! [[ "$weight" =~ ^-?[0-9]+([.][0-9]+)?$ ]] || ! [[ "$confidence" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+            echo "  [ERROR] $name: peso/confianza no numéricos, omitido"
+            errors=$((errors + 1))
+            continue
+        fi
+
+        if db_jail_profile_exists "$name"; then
+            if [ "$conflict_mode" = "1" ]; then
+                db_update_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
+                echo "  [OK]   $name: actualizado"
+                updated=$((updated + 1))
+            else
+                echo "  [SKIP] $name: ya existe, conservado"
+                skipped=$((skipped + 1))
+            fi
+        else
+            db_create_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
+            echo "  [OK]   $name: creado"
+            created=$((created + 1))
+        fi
+    done < <(grep -Ev '^\s*(#|$)' "$file")
+
+    admin_audit_log "jails_import" "archivo=$(basename "$file") creados=$created actualizados=$updated omitidos=$skipped errores=$errors"
+
+    echo
+    echo "=================================================="
+    echo "  Creados: $created   Actualizados: $updated   Omitidos: $skipped   Errores: $errors"
     echo "=================================================="
     admin_pause
 }

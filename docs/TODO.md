@@ -1668,6 +1668,71 @@ evento.
 
 ---
 
+## RFC-011
+
+**Título:** Exportar / Importar `jail_profile`
+
+**Estado:** ✔ Implementada y validada en producción
+
+**Versión:** v2.1 (en desarrollo)
+
+**Descripción**
+
+Primera funcionalidad de la línea v2.1. Surgida de una recomendación
+hecha durante el diseño original de RFC-007 (propagar cambios de
+perfil entre servidores de forma controlada y auditable), retomada al
+confirmarse que el software ya se está replicando a colegas y otros
+servidores de la flota.
+
+**Objetivo**
+
+Permitir que un administrador exporte el catálogo completo de
+`jail_profile` de un servidor a un archivo portable, e importe ese
+archivo en otro servidor — evitando recrear manualmente cada perfil
+calibrado (peso, confianza, decay, categoría) jail por jail.
+
+**Implementación**
+
+* Nuevas opciones "6) Exportar" y "7) Importar" en la rama
+  Jails/Perfiles de ARE ADMIN.
+* Formato de archivo: texto plano, mismo esquema de campos que ya usa
+  internamente `db_list_jail_profiles()`
+  (`NOMBRE|CATEGORIA|PESO|CONFIANZA|DECAY|DESCRIPCION`), con cabecera
+  de comentarios (fecha, hostname de origen).
+* Ubicación fija: `${ARE_DATA}/backups/jail_profiles/` — dato
+  persistente, no producto, coherente con la separación
+  PRODUCT/CONFIG/DATA ya establecida en `DESIGN.md` Sección 10.
+* Exportar genera nombre de archivo con timestamp automático, sin
+  pedir ruta ni riesgo de sobrescribir un backup anterior.
+* Importar presenta los archivos disponibles como lista numerada (no
+  texto libre), y pregunta una única vez cómo resolver conflictos con
+  perfiles ya existentes (sobrescribir todos / conservar todos —
+  default: conservar), en vez de preguntar jail por jail.
+* Validación por línea durante la importación: categoría reconocida
+  en `REPUTATION_CATEGORIES`, peso y confianza numéricos — líneas
+  inválidas se reportan como error y se omiten, sin abortar el resto
+  de la importación.
+* No se agregó ninguna función nueva a `database.sh`: reutiliza
+  `db_list_jail_profiles()`, `db_jail_profile_exists()`,
+  `db_create_jail_profile()`, `db_update_jail_profile()`, ya
+  existentes desde RFC-007.
+* Ambas operaciones quedan registradas en el log de auditoría
+  (`admin_audit.log`).
+
+**Validación**
+
+Probado en producción real: exportación de los 17 perfiles reales del
+servidor (incluyendo los calibrados en la misma sesión: `dovecot`,
+`postfix-sasl`, `mysqld-auth`, `mod_evasive`), seguida de importación
+del mismo archivo con modo "conservar" — resultado `Creados: 0,
+Actualizados: 0, Omitidos: 17, Errores: 0`, confirmando que la
+detección de perfiles existentes funciona correctamente sin riesgo de
+sobrescritura accidental.
+
+---
+
+
+
 # IDEAS
 
 ## IDEA-001
