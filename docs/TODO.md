@@ -1588,67 +1588,84 @@ corrección del incidente de despliegue.
 
 **Título:** Integrar `mod_evasive` como sensor real de ARE (categoría DOS)
 
-**Estado:** Draft — candidata, no iniciada
+**Estado:** ✔ Implementada en modo doble escritura, validada con tráfico simulado
 
 **Descripción**
 
-`mod_evasive` (protección anti-flood a nivel de Apache) opera hoy
-completamente por fuera de ARE: `/usr/local/bin/ddos_system.sh` escribe
-directo al ipset (`ipset add are-blacklist "$IP" timeout 2419200`,
-corregido en esta sesión — ver historial) sin pasar por
-`database.sh`, sin generar reputación, sin registrar eventos, y sin
-posibilidad de recuperación gradual vía Decay. Una IP baneada por
-`mod_evasive` queda fuera del modelo de ARE por completo hasta que el
-timeout del ipset expire.
+`mod_evasive` (protección anti-flood a nivel de Apache) operaba
+completamente por fuera de ARE: `/usr/local/bin/ddos_system.sh`
+escribía directo al ipset sin pasar por `database.sh`, sin generar
+reputación, sin registrar eventos, y sin posibilidad de recuperación
+gradual vía Decay. Esta decisión fue intencional en su momento: se
+prefirió no integrar `mod_evasive` a ARE mientras el motor no tenía
+soporte real para la categoría `DOS`. Con RFC-009 completa, la
+integración quedó desbloqueada.
 
-Esta decisión fue **intencional**, no un descuido: se prefirió no
-integrar `mod_evasive` a ARE mientras el motor no tenía soporte real
-para la categoría `DOS` (sin `jail_profile`, sin regla activa, sin
-umbral calibrado). Con RFC-009 y la calibración de `DOS_THRESHOLD=30`
-(ver TASK-018) ya completas, y el perfil `jail_profile` de
-`mod_evasive` ya creado, la integración queda desbloqueada.
+**Calibración del perfil**
 
-**Objetivo**
+A diferencia de las categorías de acumulación gradual (`RECON`,
+`PROTOCOL`), `mod_evasive` ya aplica su propio umbral interno
+(`DOSSiteCount`) antes de reportar — cuando reporta, ya es un flood
+confirmado, no una sospecha. El perfil se calibró para reflejar esto:
+`weight=70, confidence=0.95` (score ≈ 66-67 por evento), suficiente
+para que un único reporte cruce `TEMP_BAN_SCORE=60` de inmediato, sin
+esperar acumulación — a diferencia del bloqueo fijo de 4 semanas
+anterior, ahora escala vía Ban Lifecycle (1h → 6h → 1d → ... →
+permanente según reincidencia real).
 
-Modificar `ddos_system.sh` para reportar a ARE (`are.sh ban $IP
-mod_evasive`) en lugar de —o además de— escribir directo al ipset,
-dándole a esas IPs: reputación real y acumulable, posibilidad de
-recuperación vía Decay Engine si la actividad cesa, visibilidad
-completa en ARE ADMIN (`Consultar IP`, `Eventos`, `Top`), y peso/
-confianza ajustables en vez de un bloqueo binario de todo-o-nada.
+**Implementación**
 
-**Contexto que motivó la RFC**
+* Corrección previa (fuera de ARE, en `ddos_system.sh`): el `ipset add`
+  original no especificaba `timeout`, por lo que el set (`timeout 0`
+  por defecto) dejaba la IP baneada permanentemente pese a que el
+  email notificaba "4 semanas". Corregido con `timeout` explícito
+  (ajustado al máximo válido de `ipset`, `2147483647`, tras un primer
+  intento con `2419200` fuera de rango en la versión instalada).
+* `ddos_system.sh` modificado con **doble escritura**: mantiene el
+  `ipset add` directo (protección inmediata sin downtime) y agrega
+  `are.sh ban "$SOURCEIP" mod_evasive`, registrado en un log separado
+  (`/var/log/are/mod_evasive_report.log`) para monitoreo independiente
+  del resto del script.
+* Logrotate integrado para el log nuevo: plantilla
+  `templates/logrotate/mod_evasive_report` (mismo esquema que
+  `are.log`: diario, 14 rotaciones, comprimido), agregada a
+  `PRODUCT_LOGROTATE_FILES` en `manifest/product.sh`, instalada en
+  `/etc/logrotate.d/` y verificada con `logrotate -d` y
+  `are-installer verify`.
 
-Como `mod_evasive` cuenta requests crudos sin ningún concepto de
-reputación acumulada, picos legítimos de tráfico proxy (ej. rangos de
-Cloudflare) disparaban falsos positivos, resueltos hoy con una lista
-blanca estática de decenas de rangos IP mantenida a mano
-(`DOSWhitelist` en `300-mod_evasive.conf`). El modelo de ARE (peso ×
-confianza, con decay) está diseñado justamente para atenuar este tipo
-de falso positivo sin necesitar mantenimiento manual de excepciones.
+**Validación**
 
-**Alcance propuesto**
+Probado con IPs de prueba (rango `192.0.2.0/24`, reservado para
+documentación, `RFC 5737`):
 
-* Modificar `ddos_system.sh` para invocar `are.sh ban "$SOURCEIP"
-  mod_evasive` (perfil ya existe: categoría `DOS`, peso 10,
-  confianza 0.95).
-* Decidir si `mod_evasive` sigue escribiendo también al ipset
-  directamente (redundante pero con cero downtime durante la
-  transición) o si el bloqueo pasa a depender exclusivamente de la
-  decisión de `policy_evaluate()`.
-* Probar en aislado antes de tocar el script real en producción —
-  mismo criterio aplicado en el cutover de RFC-009 (backup, prueba con
-  IP de prueba, ventana de monitoreo).
-* Evaluar si la lista de `DOSWhitelist` de Cloudflare puede reducirse
-  una vez que el modelo de reputación de ARE absorba esos falsos
-  positivos naturalmente.
+```
+Evento recibido: 192.0.2.99 desde mod_evasive
+Score aplicado: 66
+[POLICY] CATEGORY_RISK=99 RAW_TOTAL=66 EFFECTIVE=99   (multiplicador de reincidencia activo)
+Policy decision: TEMP_BAN (MEDIUM_RISK)
+[APPLY] EXECUTE: TEMP BAN (3600 sec)
+[APPLY] SANCTION LEVEL: BAN_LEVEL_1
+```
 
-**Nota de riesgo operativo**
+Confirmado con `./are.sh score` (Threat Level HIGH, sanción nivel 1,
+vigencia exacta de 1 hora) y con `ban-lifecycle-test` (segundo evento
+escala correctamente a `BAN_LEVEL_2`, 21600 seg / 6h). Prueba de
+integración completa vía `ddos_system.sh 192.0.2.100` confirmó ambos
+caminos (ipset directo + reporte a ARE) funcionando en el mismo
+evento.
 
-`mod_evasive` protege activamente el servidor contra DoS en este
-momento. Cualquier cambio debe garantizar que la protección no quede
-interrumpida durante la transición — no se reemplaza el mecanismo
-actual hasta confirmar que el camino vía ARE funciona correctamente.
+**Pendiente**
+
+* Ventana de monitoreo con tráfico real (no simulado) antes de decidir
+  si se retira el `ipset add` directo y ARE pasa a ser la única vía de
+  bloqueo.
+* Evaluar reducción de la lista `DOSWhitelist` de Cloudflare una vez
+  que el modelo de reputación de ARE demuestre absorber esos falsos
+  positivos en producción real.
+* Replicar el cambio de `ddos_system.sh` y la corrección de timeout a
+  otros servidores de la flota que tengan el mismo script (vive fuera
+  del repositorio de ARE, en `/usr/local/bin/`, sin sincronización
+  automática vía git).
 
 ---
 
