@@ -1731,6 +1731,60 @@ sobrescritura accidental.
 
 ---
 
+## RFC-012
+
+**Título:** Formalizar `apache_evasive.sh` como sensor oficial (patrón callback)
+
+**Estado:** ✔ Implementada
+
+**Versión:** v2.1 (en desarrollo)
+
+**Descripción**
+
+El script que reportaba eventos de `mod_evasive` a ARE
+(`ddos_system.sh`, ver RFC-010) vivía fuera del repositorio, en
+`/usr/local/bin/`, sin versionar y sin manifiesto — un colega que
+instalara ARE desde cero no lo recibía. Se formaliza como
+`sensors/apache_evasive.sh`, parte oficial del Sensor Framework.
+
+**Segundo patrón de sensor documentado**
+
+El Sensor Framework (`docs/DESIGN.md` Sección 8) solo documentaba el
+patrón de *polling* (`sensors/fail2ban.sh`, systemd timer que lee un
+log periódicamente). `apache_evasive.sh` es estructuralmente distinto:
+Apache lo invoca **directo y síncrono** en el instante que
+`mod_evasive` confirma un flood (patrón *callback*). Se documenta como
+segundo patrón válido dentro del mismo framework, no como excepción.
+
+**Implementación**
+
+* Movido a `sensors/apache_evasive.sh`, ya cubierto por `PRODUCT_DIRS`
+  en el manifiesto (el directorio `sensors/` completo ya se instalaba
+  como unidad).
+* `300-mod_evasive.conf` (`DOSSystemCommand`) actualizado a la ruta
+  nueva.
+* Entrada de `sudoers` actualizada para apuntar a la ruta dentro del
+  repositorio.
+* Eliminadas las llamadas a `/usr/local/bin/firewall_snapshot.sh`
+  (mecanismo de backup de reglas `iptables` para sobrevivir reinicios,
+  obsoleto desde la migración a `ipset`, que persiste sus reglas de
+  forma nativa).
+
+**Hallazgo de seguridad detectado y corregido en el proceso**
+
+Al confirmar que `firewall_snapshot.sh` ya no se ejecutaba, se
+encontró en `/etc/sudoers` un permiso sin restricción de argumentos
+para el usuario bajo el que corre Apache (`nobody`):
+`nobody ALL=NOPASSWD: /sbin/iptables *`. Este permiso ya no tenía
+ningún consumidor real — su único propósito histórico era
+`firewall_snapshot.sh`. Eliminado, reduciendo la superficie de ataque:
+si el proceso de Apache llegara a comprometerse, ya no tendría control
+irrestricto sobre el firewall vía `sudo iptables`. Confirmado con
+`sudo -l -U nobody` que el permiso desapareció sin afectar los
+comandos que sí siguen en uso (`at`, `apache_evasive.sh`).
+
+---
+
 
 
 # IDEAS
