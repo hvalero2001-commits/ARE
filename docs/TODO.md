@@ -394,7 +394,7 @@ Evaluar la activación controlada de las decisiones generadas por el Decay Engin
 
 **Título:** Interfaz de Administración (ARE ADMIN)
 
-**Estado:** En progreso
+**Estado:** ✔ Resuelto — 7/7 ramas implementadas y probadas en producción
 
 **Versión objetivo:** v2.0
 
@@ -421,7 +421,7 @@ nueva autoridad de decisión (ver `docs/DESIGN.md`, Sección 13).
 | 1. Jails / Perfiles | ✔ Implementada y probada (RFC-007) |
 | 2. Categorías | ✔ Implementada y probada |
 | 3. Sensores | ✔ Implementada y probada |
-| 4. Política | Pausada — motor de decisión ya resuelto (RFC-009 implementada), falta exponerlo vía CLI |
+| 4. Política | ✔ Implementada y probada |
 | 5. Estado / Reputación | ✔ Implementada y probada |
 | 6. Decay | ✔ Implementada y probada |
 | 7. Configuración | ✔ Implementada y probada |
@@ -2139,6 +2139,65 @@ problema.
 **Archivos relacionados**
 
 * `are.sh`
+
+---
+
+## BUG-016
+
+**Título:** Falta `policy/rules/credential.sh` — categoría CREDENTIAL sin regla evaluando su score
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.0 (en desarrollo)
+
+**Problema**
+
+Durante la implementación de RFC-009 se escribieron reglas para 8 de
+las 9 categorías (`exploit`, `bot`, `recon`, `protocol`, `bruteforce`,
+`anomaly`, `malware`, `dos`, `social`). `CREDENTIAL` quedó sin regla
+propia — `bruteforce.sh` evalúa una señal relacionada
+(`ctx_get_events_24h`, frecuencia de eventos) pero no el score
+acumulado de la categoría (`ctx_get_credential`) contra
+`CREDENTIAL_THRESHOLD`.
+
+**Impacto**
+
+`CREDENTIAL_THRESHOLD=30` estaba definido en `policy.conf` y la
+categoría figuraba en `REPUTATION_CATEGORIES`, pero ningún componente
+del motor la evaluaba por score. Los 6 jails reales que suman a
+`credential_score` (`sshd`, `telnet`, `dovecot`, `postfix-sasl`,
+`mysqld-auth`, `modsec-bruteforce`) acumulaban reputación sin que ese
+acumulado aportara al riesgo total — solo la señal de frecuencia de
+`bruteforce.sh` protegía indirectamente esos jails.
+
+**Detección**
+
+Encontrado por la propia herramienta construida para detectarlo: la
+opción "Validar" de la rama Política de ARE ADMIN (ver FEAT-005),
+diseñada específicamente para confirmar que cada categoría con umbral
+definido tenga su regla correspondiente en `policy/rules/`.
+
+**Corrección**
+
+Se creó `policy/rules/credential.sh`, mismo contrato único que las
+demás 8 reglas: lee `CREDENTIAL_THRESHOLD` de `policy.conf`, aporta
+`ctx_get_credential` al acumulador de riesgo si lo supera. Agregada a
+`bootstrap.sh` junto al resto de `policy/rules/*.sh`.
+
+**Validación**
+
+```
+POLÍTICA - Validación
+  [OK]    CREDENTIAL -> policy_rule_credential()
+  Resultado: CONFIGURACIÓN DE POLÍTICA VÁLIDA
+```
+
+Confirmado en producción con las 9 categorías mostrando `[OK]`.
+
+**Archivos relacionados**
+
+* `policy/rules/credential.sh` (nuevo)
+* `bootstrap.sh`
 
 ---
 

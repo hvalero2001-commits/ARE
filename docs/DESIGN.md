@@ -627,13 +627,9 @@ Esto preserva la integridad del modelo de reputación descrito en la Sección 3 
 
 ## 13.6 Estado de implementación
 
-De las siete ramas definidas en la Sección 13.3, seis se encuentran implementadas, verificadas mediante pruebas aisladas y confirmadas operando en producción con datos reales: Jails/Perfiles, Categorías, Sensores, Estado/Reputación, Decay y Configuración.
+Las siete ramas definidas en la Sección 13.3 se encuentran implementadas, verificadas mediante pruebas aisladas y confirmadas operando en producción con datos reales: Jails/Perfiles, Categorías, Sensores, Política, Estado/Reputación, Decay y Configuración.
 
-Una rama permanece intencionalmente sin implementar, bloqueada por una decisión de diseño pendiente documentada en `docs/TODO.md`:
-
-* **Política**, hasta identificar cuál de las definiciones concurrentes del motor de decisión es la que efectivamente gobierna el sistema en producción (ver RFC-009).
-
-Esta sección debe actualizarse cuando la rama restante se desbloquee e implemente.
+La implementación de la rama Política (ver RFC-009) reveló, a través de su propia validación, una categoría de reputación (`CREDENTIAL`) sin regla de evaluación asociada pese a tener umbral configurado — corregido como parte del mismo trabajo (ver `docs/TODO.md`, BUG-016). Es un ejemplo del propósito de la validación integrada al CLI: detectar inconsistencias entre configuración e implementación antes de que se manifiesten como comportamiento incorrecto silencioso.
 
 ---
 
