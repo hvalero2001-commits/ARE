@@ -94,25 +94,65 @@ Eliminar la primera definición, dejando una sola copia de la función.
 
 ## TASK-016
 
-**Título:** Centralizar `LOG_FILE` del sensor Fail2Ban en `config.conf`
+**Título:** Centralizar `LOG_FILE` del sensor Fail2Ban en `config.conf`, y reemplazar el filtro de jails fijo por consulta dinámica a `jail_profile`
 
-**Estado:** Pendiente
+**Estado:** ✔ Resuelto
 
 **Prioridad:** Media
 
+**Versión:** v2.1 (en desarrollo)
+
 **Descripción**
 
-`sensors/fail2ban.sh` define `LOG_FILE="/var/log/fail2ban.log"` como valor
-fijo dentro del script, en lugar de tomarlo de `config/config.conf`. Esto
-es inconsistente con el principio de centralización de rutas ya aplicado
-en TASK-012 para el resto de las variables operativas (`ARE_HOME`,
-`ARE_DATA`, `ARE_BIN`, etc.).
+`sensors/fail2ban.sh` definía `LOG_FILE="/var/log/fail2ban.log"` como
+valor fijo dentro del script, en lugar de tomarlo de
+`config/config.conf`. Inconsistente con el principio de centralización
+de rutas ya aplicado en TASK-012 para el resto de las variables
+operativas.
 
-**Alcance**
+**Hallazgo adicional durante la resolución**
 
-* Agregar `FAIL2BAN_LOG_FILE` (o nombre equivalente) a `config/config.conf`.
-* Modificar `sensors/fail2ban.sh` para leer la variable desde la
-  configuración en lugar de tenerla hardcodeada.
+El mismo archivo tenía un segundo problema del mismo tipo, más
+relevante: un filtro fijo de jails permitidos
+(`modsec-*|recidive|sshd|telnet`) que determinaba qué eventos `FOUND`
+procesar en el camino de polling. Esta lista quedó desactualizada tras
+la implementación de RFC-007 (CRUD de `jail_profile`): los perfiles
+creados desde entonces (`dovecot`, `postfix-sasl`, `mysqld-auth`,
+`apache-badbots`, `mod_evasive`) no estaban en la lista, por lo que sus
+eventos `FOUND` se descartaban silenciosamente en el camino de
+polling — sin log de error, sin aviso — aunque el jail ya tuviera
+perfil administrado en ARE ADMIN.
+
+**Corrección**
+
+* `LOG_FILE` ahora se lee de `FAIL2BAN_LOG_FILE` en `config.conf`, con
+  default de compatibilidad (`/var/log/fail2ban.log`) si la variable
+  no está definida.
+* El filtro fijo de jails fue reemplazado por una consulta dinámica
+  contra `jail_profile` (`SELECT COUNT(*) FROM jail_profile WHERE
+  name='$JAIL'`) — cualquier jail con perfil administrado se procesa
+  automáticamente, sin necesidad de mantener ni actualizar una lista
+  en el código cada vez que se crea un perfil nuevo desde el admin.
+* Se agregó verificación de existencia del archivo de log antes de
+  arrancar, con mensaje de error explícito en vez de fallar
+  silenciosamente en el `wc -l`.
+
+**Validación**
+
+Probado en producción con `sqlite3` de referencia (entorno de
+desarrollo, sin `sqlite3` instalado directamente): confirmado que
+jails ya existentes (`sshd`, `modsec-rce`, `recidive`) siguen
+procesándose, jails nuevos que antes se descartaban (`dovecot`,
+`postfix-sasl`, `mod_evasive`, `apache-badbots`) ahora se aceptan, y
+un jail inventado sin perfil real se sigue descartando correctamente.
+Confirmado en el servidor real: `./sensors/fail2ban.sh --dry-run`
+corre sin error, y el timer (`are-fail2ban-found.timer`) sigue
+procesando eventos reales con normalidad tras el cambio.
+
+**Archivos relacionados**
+
+* `sensors/fail2ban.sh`
+* `config/config.conf`
 
 **Archivos relacionados**
 
