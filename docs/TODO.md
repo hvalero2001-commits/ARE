@@ -1914,6 +1914,22 @@ irrestricto sobre el firewall vía `sudo iptables`. Confirmado con
 `sudo -l -U nobody` que el permiso desapareció sin afectar los
 comandos que sí siguen en uso (`at`, `apache_evasive.sh`).
 
+**Observación post-implementación (2026-08-19)**
+
+Revisión de `mod_evasive_report.log`, `reputation_scores` (categoría
+`DOS`) e `ipset are-blacklist` una jornada después del cutover: sin
+eventos reales registrados desde la integración, solo las IPs de
+prueba usadas durante el desarrollo (`192.0.2.99`, `192.0.2.100`).
+Explicado por medidas de mitigación tomadas por el administrador el
+mismo día del pico detectado en RFC-013 (2026-08-15): cierre temporal
+del acceso a la tienda sin registro (principal blanco de los
+escaneos) y activación de Cloudflare "Under Attack Mode", ambas
+filtrando tráfico antes de que llegue a Apache/`mod_evasive`. La
+integración queda técnicamente validada (con tráfico de prueba); su
+primera validación con tráfico real de flood quedará pendiente hasta
+que se reabra el acceso sin registro y se desactive el modo de
+Cloudflare.
+
 ---
 
 ## RFC-013
