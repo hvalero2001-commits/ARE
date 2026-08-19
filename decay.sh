@@ -65,17 +65,49 @@ reputation_decay_apply() {
         local OLD_SCORE NEW_SCORE STATUS DECISION ACTION REASON
         OLD_SCORE=$(db_get_score "$IP")
 
-        sqlite3 "$DB_FILE" "
-            UPDATE reputation_scores
-            SET score = CAST(score * $FACTOR AS INTEGER)
-            WHERE ip='$IP';
-        "
+        # === BUG-019: redistribución proporcional, no truncamiento por categoría ===
+        local OLD_TOTAL
+        OLD_TOTAL=$(sqlite3 "$DB_FILE" "SELECT COALESCE(SUM(score),0) FROM reputation_scores WHERE ip='$IP';")
 
-        sqlite3 "$DB_FILE" "
-            UPDATE reputation
-            SET last_decay = $NOW
-            WHERE ip='$IP';
-        "
+        if [ "$OLD_TOTAL" -gt 0 ]; then
+            local NEW_TOTAL
+            NEW_TOTAL=$(awk "BEGIN{print int($OLD_TOTAL * $FACTOR)}")
+
+            local ROWS
+            ROWS=$(sqlite3 "$DB_FILE" "SELECT category||'|'||score FROM reputation_scores WHERE ip='$IP';")
+
+            local ALLOC
+            ALLOC=$(echo "$ROWS" | awk -F'|' -v old="$OLD_TOTAL" -v new="$NEW_TOTAL" '
+                {
+                    cat[NR]=$1; score[NR]=$2;
+                    raw = (old>0) ? score[NR]*new/old : 0;
+                    base[NR] = int(raw);
+                    frac[NR] = raw - base[NR];
+                    sumbase += base[NR];
+                    n = NR;
+                }
+                END {
+                    remainder = new - sumbase;
+                    for (i=1;i<=n;i++) alloc[i]=base[i];
+                    for (r=0;r<remainder;r++) {
+                        maxf=-1; maxi=0;
+                        for (i=1;i<=n;i++) {
+                            if (frac[i]>maxf) { maxf=frac[i]; maxi=i }
+                        }
+                        alloc[maxi]++;
+                        frac[maxi]=-1;
+                    }
+                    for (i=1;i<=n;i++) print cat[i]"|"alloc[i];
+                }
+            ')
+
+            while IFS='|' read -r CAT NEWCATSCORE; do
+                [ -z "$CAT" ] && continue
+                sqlite3 "$DB_FILE" "UPDATE reputation_scores SET score=$NEWCATSCORE WHERE ip='$IP' AND category='$CAT';"
+            done <<< "$ALLOC"
+        fi
+
+        sqlite3 "$DB_FILE" "UPDATE reputation SET last_decay = $NOW WHERE ip='$IP';"
 
         db_recalculate_total "$IP"
 

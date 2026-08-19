@@ -2524,17 +2524,17 @@ invisible con `0`).
 
 **Título:** Decay trunca cada categoría por separado — IPs con actividad diversificada decaen más rápido que las concentradas
 
-**Estado:** Identificado, pendiente de implementar
+**Estado:** ✔ Resuelto
 
 **Versión:** v2.1 (en desarrollo)
 
 **Problema**
 
 `reputation_decay_apply()` (ya migrada a `reputation_scores` en RFC-008
-Fase 3) aplica el factor de decay a cada fila de categoría por
+Fase 3) aplicaba el factor de decay a cada fila de categoría por
 separado: `UPDATE reputation_scores SET score = CAST(score * FACTOR AS
-INTEGER)`. Cuando una IP tiene su score repartido entre varias
-categorías, cada una trunca de forma independiente, perdiendo más
+INTEGER)`. Cuando una IP tenía su score repartido entre varias
+categorías, cada una truncaba de forma independiente, perdiendo más
 fracción acumulada en total que si el factor se aplicara una sola vez
 sobre el score agregado.
 
@@ -2544,34 +2544,37 @@ Detectado con evidencia real en producción: una IP con
 `EXPLOIT=18, RECON=3, CREDENTIAL=2, ANOMALY=2` (total=25) decayó a
 `21` en una sola corrida (`25→21`, factor 0.95), cuando un único
 truncamiento sobre el agregado daría `23` (`25×0.95=23.75→23`).
-Consecuencia de seguridad real: **una IP con actividad diversificada
-en varias categorías se libera más rápido que una con actividad
-concentrada en una sola, con el mismo score total** — el resultado es
+Consecuencia de seguridad real: una IP con actividad diversificada en
+varias categorías se liberaba más rápido que una con actividad
+concentrada en una sola, con el mismo score total — el resultado era
 el inverso de lo deseable, ya que diversidad de técnicas de ataque
 suele ser señal de mayor sofisticación, no de menor riesgo.
 
-**Corrección propuesta (no implementada aún)**
+**Corrección**
 
-Calcular el nuevo total como un único truncamiento sobre el agregado
-(`new_total = floor(old_total * FACTOR)`), y redistribuir ese total
-entre las categorías de forma proporcional a su peso relativo, usando
-el método del "mayor resto" para garantizar que la suma de las
-categorías redistribuidas sea exactamente igual al nuevo total, sin
-perder ni sobrar puntos.
+`reputation_decay_apply()` calcula ahora el nuevo total como un único
+truncamiento sobre el agregado (`new_total = floor(old_total *
+FACTOR)`), y redistribuye ese total entre las categorías de forma
+proporcional a su peso relativo, usando el método del "mayor resto"
+(implementado en `awk` dentro del loop bash existente) para garantizar
+que la suma de las categorías redistribuidas sea exactamente igual al
+nuevo total, sin perder ni sobrar puntos. Para IPs con una sola
+categoría activa, el resultado es idéntico al método anterior — el fix
+solo cambia el comportamiento quando hay diversidad de categorías.
 
-Validado en simulación (no en producción todavía): para el caso real
-de arriba, el método proporcional da `EXPLOIT=16, RECON=3,
-CREDENTIAL=2, ANOMALY=2` — total `23`, coincidiendo exacto con el
-truncamiento agregado esperado, en vez del `21` actual.
+**Validación**
 
-**Alcance de implementación**
-
-Requiere modificar `reputation_decay_apply()` para, por cada IP
-candidata: obtener sus categorías y scores, calcular la redistribución
-proporcional (lógica de mayor resto, más compleja que una sola
-sentencia SQL — probablemente implementada con `awk` dentro del loop
-bash existente), y aplicar un `UPDATE` por categoría con el valor ya
-redistribuido, en vez del `UPDATE` masivo actual.
+Probado con 4 casos límite (una sola categoría, score muy bajo cercano
+a liberación, 5 categorías con valores chicos, y el caso real de
+producción) ejecutando el `awk` real vía subprocess, no una
+reimplementación aproximada. Confirmado en producción real: IP de
+prueba reproduciendo el caso original (`203.0.113.60`) decayó
+correctamente a `EXPLOIT=16, RECON=3, CREDENTIAL=2, ANOMALY=2`, total
+`23` (antes: `21`). La misma corrida de `reputation_decay_apply()`
+procesó además dos IPs reales de tráfico genuino
+(`45.73.162.125`, `78.151.73.141`) con el mismo patrón de corrección
+(`25→23`), confirmando el fix con datos de producción real, no solo
+simulados.
 
 **Archivos relacionados**
 
