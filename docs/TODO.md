@@ -183,16 +183,30 @@ coincide con la configuración activa.
 
 **Descripción**
 
-`config/policy.conf` define umbrales de categoría (`*_THRESHOLD`) solo
-para `RECON`, `EXPLOIT`, `CREDENTIAL`, `PROTOCOL` y `BOT`. Las categorías
-`ANOMALY`, `MALWARE`, `DOS` y `SOCIAL` —incorporadas al modelo de
-reputación en TASK-005 y BUG-006— no tienen umbral definido en
-configuración.
+`config/policy.conf` define umbrales de categoría (`*_THRESHOLD`) para
+`RECON`, `EXPLOIT`, `CREDENTIAL`, `PROTOCOL`, `BOT`, `ANOMALY` y `DOS`.
+`MALWARE` y `SOCIAL` permanecen sin umbral, a la espera de que exista un
+jail/sensor real que reporte a esas categorías (ver RFC-006).
 
 Como parte de la implementación de ARE ADMIN (ver FEAT-005), se incorporó
 la variable `REPUTATION_CATEGORIES` a `policy.conf` como catálogo
 explícito y única fuente de verdad de las categorías soportadas, consumida
 por `admin/categories.sh`.
+
+**Umbrales calibrados en esta sesión**
+
+* `ANOMALY_THRESHOLD=40` — señal heurística blanda (ModSecurity generic
+  anomaly), calibrada entre `RECON`(80) y `PROTOCOL`(20): necesita
+  acumulación sostenida, pero menos que un simple escaneo.
+* `DOS_THRESHOLD=30` — amenaza confirmada (umbral determinístico de
+  `mod_evasive`, no heurística), calibrada al mismo nivel que
+  `CREDENTIAL`(30): pocos eventos bastan para disparar.
+
+Calibración basada en `weight × confidence` de los jails reales
+asignados a cada categoría y en el número de eventos que ese cálculo
+implica para cruzar el umbral, siguiendo el mismo criterio ya aplicado a
+las categorías existentes (amenaza confirmada = umbral bajo, señal
+heurística = umbral alto).
 
 **Alcance**
 
@@ -200,11 +214,10 @@ por `admin/categories.sh`.
 * ✔ `admin/categories.sh` (`categories_list`, `categories_scores`) lee el
   catálogo y los umbrales dinámicamente; muestra `N/D` cuando el umbral no
   está definido.
-* Pendiente: definir `ANOMALY_THRESHOLD`, `MALWARE_THRESHOLD`,
-  `DOS_THRESHOLD`, `SOCIAL_THRESHOLD` — depende de que `MALWARE`, `DOS` y
-  `SOCIAL` tengan primero una regla de política activa (ver RFC-006; hoy
-  no existe `policy/rules/malware.sh`, `dos.sh` ni `social.sh`), y de
-  resolver BUG-012 para `ANOMALY`.
+* ✔ `ANOMALY_THRESHOLD` y `DOS_THRESHOLD` definidos y calibrados.
+* Pendiente: `MALWARE_THRESHOLD`, `SOCIAL_THRESHOLD` — depende de que
+  esas categorías tengan primero un jail/sensor real reportando (ver
+  RFC-006). No se definen umbrales especulativos sin evidencia.
 
 **Archivos relacionados**
 
@@ -1570,6 +1583,74 @@ corrección del incidente de despliegue.
 ---
 
 
+
+## RFC-010
+
+**Título:** Integrar `mod_evasive` como sensor real de ARE (categoría DOS)
+
+**Estado:** Draft — candidata, no iniciada
+
+**Descripción**
+
+`mod_evasive` (protección anti-flood a nivel de Apache) opera hoy
+completamente por fuera de ARE: `/usr/local/bin/ddos_system.sh` escribe
+directo al ipset (`ipset add are-blacklist "$IP" timeout 2419200`,
+corregido en esta sesión — ver historial) sin pasar por
+`database.sh`, sin generar reputación, sin registrar eventos, y sin
+posibilidad de recuperación gradual vía Decay. Una IP baneada por
+`mod_evasive` queda fuera del modelo de ARE por completo hasta que el
+timeout del ipset expire.
+
+Esta decisión fue **intencional**, no un descuido: se prefirió no
+integrar `mod_evasive` a ARE mientras el motor no tenía soporte real
+para la categoría `DOS` (sin `jail_profile`, sin regla activa, sin
+umbral calibrado). Con RFC-009 y la calibración de `DOS_THRESHOLD=30`
+(ver TASK-018) ya completas, y el perfil `jail_profile` de
+`mod_evasive` ya creado, la integración queda desbloqueada.
+
+**Objetivo**
+
+Modificar `ddos_system.sh` para reportar a ARE (`are.sh ban $IP
+mod_evasive`) en lugar de —o además de— escribir directo al ipset,
+dándole a esas IPs: reputación real y acumulable, posibilidad de
+recuperación vía Decay Engine si la actividad cesa, visibilidad
+completa en ARE ADMIN (`Consultar IP`, `Eventos`, `Top`), y peso/
+confianza ajustables en vez de un bloqueo binario de todo-o-nada.
+
+**Contexto que motivó la RFC**
+
+Como `mod_evasive` cuenta requests crudos sin ningún concepto de
+reputación acumulada, picos legítimos de tráfico proxy (ej. rangos de
+Cloudflare) disparaban falsos positivos, resueltos hoy con una lista
+blanca estática de decenas de rangos IP mantenida a mano
+(`DOSWhitelist` en `300-mod_evasive.conf`). El modelo de ARE (peso ×
+confianza, con decay) está diseñado justamente para atenuar este tipo
+de falso positivo sin necesitar mantenimiento manual de excepciones.
+
+**Alcance propuesto**
+
+* Modificar `ddos_system.sh` para invocar `are.sh ban "$SOURCEIP"
+  mod_evasive` (perfil ya existe: categoría `DOS`, peso 10,
+  confianza 0.95).
+* Decidir si `mod_evasive` sigue escribiendo también al ipset
+  directamente (redundante pero con cero downtime durante la
+  transición) o si el bloqueo pasa a depender exclusivamente de la
+  decisión de `policy_evaluate()`.
+* Probar en aislado antes de tocar el script real en producción —
+  mismo criterio aplicado en el cutover de RFC-009 (backup, prueba con
+  IP de prueba, ventana de monitoreo).
+* Evaluar si la lista de `DOSWhitelist` de Cloudflare puede reducirse
+  una vez que el modelo de reputación de ARE absorba esos falsos
+  positivos naturalmente.
+
+**Nota de riesgo operativo**
+
+`mod_evasive` protege activamente el servidor contra DoS en este
+momento. Cualquier cambio debe garantizar que la protección no quede
+interrumpida durante la transición — no se reemplaza el mecanismo
+actual hasta confirmar que el camino vía ARE funciona correctamente.
+
+---
 
 # IDEAS
 
