@@ -17,6 +17,7 @@ state_menu() {
         echo "  2) Eventos"
         echo "  3) Top"
         echo "  4) Estadísticas"
+        echo "  5) Tendencias"
         echo "  0) Volver"
         read -rp "  Seleccione una opción: " opt
 
@@ -25,6 +26,7 @@ state_menu() {
             2) state_events ;;
             3) state_top ;;
             4) state_stats ;;
+            5) state_trends ;;
             0) return 0 ;;
             *) echo "Opción inválida." ;;
         esac
@@ -50,5 +52,16 @@ state_top() {
 
 state_stats() {
     dashboard_stats
+    admin_pause
+}
+
+state_trends() {
+    read -rp "  Cantidad de días a mostrar [default 7]: " dias
+    dias="${dias:-7}"
+    if ! [[ "$dias" =~ ^[0-9]+$ ]] || [ "$dias" -lt 1 ]; then
+        echo "  Valor inválido, usando 7 días por defecto."
+        dias=7
+    fi
+    dashboard_trends "$dias"
     admin_pause
 }

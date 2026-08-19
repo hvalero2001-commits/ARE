@@ -1916,6 +1916,55 @@ comandos que sí siguen en uso (`at`, `apache_evasive.sh`).
 
 ---
 
+## RFC-013
+
+**Título:** Visibilidad temporal — tendencias diarias de actividad
+
+**Estado:** ✔ Implementada
+
+**Versión:** v2.1 (en desarrollo)
+
+**Descripción**
+
+Las vistas existentes (`dashboard_stats`, `dashboard_top`,
+`dashboard_score`, `dashboard_status`) muestran una foto del estado
+actual del sistema, pero ninguna permite ver cómo evolucionó la
+actividad a lo largo del tiempo. Con más de 60.000 eventos reales
+acumulados en la tabla `events`, no había forma de responder
+preguntas como "¿esta semana hubo más ataques que la anterior?" o
+"¿qué día tuve el pico de actividad?" sin consultar la base
+manualmente.
+
+**Implementación**
+
+* `dashboard/trends.sh` (nuevo módulo) — `dashboard_trends(dias)`:
+  agrupa eventos por día (`date(fecha, 'unixepoch')`), desglosando
+  totales, `FOUND`, `BAN`, `EXTERNAL_UNBAN`, e IPs distintas por día,
+  para una ventana configurable (default 7 días).
+* Nueva opción "5) Tendencias" en la rama Estado/Reputación de ARE
+  ADMIN, sin renumerar las opciones existentes.
+* Sin datos nuevos ni instrumentación adicional: reutiliza
+  exclusivamente la tabla `events` ya existente, poblada por el flujo
+  normal de `handle_found`/`handle_ban`/`handle_external_unban` desde
+  el inicio del proyecto.
+
+**Validación**
+
+Probado en producción con los 7 días reales más recientes. Reveló de
+inmediato un pico real no detectado previamente: el 2026-08-15
+registró 5767 eventos (vs. un rango normal de 500-1300 en los demás
+días de la muestra), con un volumen de `EXTERNAL_UNBAN` (1518)
+desproporcionado respecto al resto de la semana — queda anotado como
+punto a investigar por separado, sin bloquear el cierre de esta RFC.
+
+**Pendiente**
+
+* Desglose por categoría dentro de la misma ventana temporal
+  (extensión natural, mismo patrón de consulta).
+* Exportación a CSV, reutilizando el patrón ya validado en RFC-011.
+
+---
+
 
 
 # IDEAS

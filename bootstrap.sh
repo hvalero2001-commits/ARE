@@ -10,6 +10,7 @@ source "$BASE/decay.sh"
 
 #DASHBOARD
 source "$BASE/dashboard.sh"  >/dev/null 2>&1
+source "$BASE/dashboard/trends.sh"
 
 #ADMIN
 for f in "$BASE/admin/"*.sh; do
