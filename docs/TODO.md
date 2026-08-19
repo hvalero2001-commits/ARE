@@ -1567,18 +1567,17 @@ corrección del incidente de despliegue.
 
 * Monitorear una ventana más amplia (recomendado: 24-48h) antes de
   replicar el corte al resto de la flota de servidores.
-* Definir `ANOMALY_THRESHOLD`, `MALWARE_THRESHOLD`, `DOS_THRESHOLD`,
-  `SOCIAL_THRESHOLD` en `policy.conf` — sus reglas ya existen y están
-  activas en el orquestador, pero no evalúan hasta tener umbral
-  definido (ver RFC-006, TASK-018).
-* Eliminar el código confirmado como muerto (`policy/policy.sh`,
-  `policy/rules/core.sh`, `policy/decision.sh`) una vez que la
-  confianza en el motor nuevo sea suficiente en toda la flota — no se
-  eliminó todavía, por si hiciera falta un rollback rápido.
-* Rama "4. Política" de ARE ADMIN sigue sin implementar como interfaz
-  de administración — RFC-009 resolvió el motor de decisión en sí, no
-  la exposición de su configuración vía CLI (queda como tarea
-  independiente).
+* ✔ Definido `ANOMALY_THRESHOLD=40`, `DOS_THRESHOLD=30`. Pendiente:
+  `MALWARE_THRESHOLD`, `SOCIAL_THRESHOLD` — sin jail/sensor real
+  todavía reportando a esas categorías (ver RFC-006, TASK-018).
+* ✔ Código muerto eliminado (`policy/policy.sh`, `policy/rules/core.sh`,
+  `policy/decision.sh`), tras confirmación repetida de que ningún
+  archivo los carga ni invoca, y validación funcional completa
+  post-eliminación (`stats`, `score`, `policy-compare`, las 7 ramas de
+  ARE ADMIN). Backup preservado fuera del repositorio.
+* ✔ Rama "4. Política" de ARE ADMIN implementada — ver FEAT-005.
+  Su propia validación detectó y permitió corregir BUG-016
+  (`CREDENTIAL` sin regla asociada).
 
 ---
 
