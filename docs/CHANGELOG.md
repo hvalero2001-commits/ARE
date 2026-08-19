@@ -14,7 +14,7 @@ El proyecto sigue un versionado basado en versiones estables.
 
 Segunda versión mayor de ARE.
 
-La versión 2.0 consolida la identidad propia del producto, abandona la estructura histórica de `f2b-ipset` y establece `/opt/are` como instalación oficial de ARE.
+La versión 2.0 consolida la identidad propia del producto, abandona la estructura histórica de `f2b-ipset` y establece `/opt/are` como instalación oficial de ARE. Incorpora además la interfaz de administración ARE ADMIN, un motor de decisión basado en evaluación de riesgo por categoría, y la integración de la protección anti-flood de Apache al modelo de reputación de ARE.
 
 ## Estructura del producto
 
@@ -182,6 +182,39 @@ La configuración se realiza de forma idempotente sobre:
 ```text
 /root/.bash_profile
 ```
+
+## Interfaz de Administración (ARE ADMIN)
+
+Se incorpora `are.sh admin` como interfaz de administración por línea de comandos, integrada al mismo `bootstrap.sh` que el resto del sistema.
+
+Ramas implementadas:
+
+* Jails / Perfiles — administración completa (crear, modificar, eliminar, validar) de `jail_profile`, con asistencia de peso y confianza basada en perfiles existentes o en escalas de referencia configurables por categoría.
+* Categorías — catálogo y puntuaciones por IP, leídos dinámicamente desde configuración.
+* Sensores — estado y configuración del Sensor Framework.
+* Política — configuración efectiva del Policy Engine y validación de consistencia entre categorías, umbrales y reglas.
+* Estado / Reputación — consulta de IP, historial de eventos, listado priorizado y estadísticas generales.
+* Decay — estado, simulación (dry-run) y ejecución del Decay Engine.
+* Configuración — visualización, validación y estado operativo del sistema.
+
+Se incorpora un registro de auditoría (`admin_audit.log`) para las operaciones de escritura realizadas desde la interfaz de administración, con usuario, fecha y detalle de cada acción.
+
+## Policy Engine basado en categorías
+
+El motor de decisión evalúa el riesgo de una IP por categoría de reputación de forma independiente, en lugar de depender exclusivamente del score total acumulado.
+
+* Cada categoría cuenta con una regla propia, con umbral configurable en `policy.conf`.
+* Se incorpora un multiplicador de riesgo por reincidencia, aplicado a IPs en estado de observación o sanción activa.
+* La decisión final nunca es menos estricta que la evaluación por score total, preservando como piso de seguridad el comportamiento ya validado del motor anterior.
+* Se incorpora un comando de comparación entre motores, para validar el comportamiento del motor nuevo contra datos reales antes de aplicarlo en producción.
+
+## Integración de mod_evasive
+
+La protección anti-flood de Apache (`mod_evasive`) pasa a reportar a ARE como categoría DOS, incorporando reputación acumulable, recuperación gradual mediante Decay y escalado de sanciones mediante Ban Lifecycle, en reemplazo de un bloqueo de duración fija.
+
+## Consolidación del Policy Engine
+
+Se elimina el código de generaciones anteriores del Policy Engine que había quedado sin uso tras la incorporación del motor basado en categorías.
 
 ## Compatibilidad
 
@@ -421,4 +454,3 @@ Versión inicial estable utilizada en producción.
 ## Licencia
 
 GPL v3
-
