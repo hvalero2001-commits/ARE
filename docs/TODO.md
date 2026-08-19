@@ -2077,10 +2077,44 @@ capeadas. Confirmado que los tiempos restaurados no son valores
 nivel fijo de la tabla), confirmando que se preserva el tiempo
 restante genuino, no se reinicia la sanción.
 
+**Validación con reboot real (2026-08-19, extensión posterior)**
+
+Confirmado con un reinicio genuino del servidor (no simulado):
+`are-restore-ipsets.service` corrió automáticamente al arrancar
+(`journalctl` confirma ejecución sin intervención manual), y
+`are-blacklist` quedó poblado con 146 sanciones activas reales tras
+el boot.
+
+**Hallazgo adicional durante esta validación: `FILTER_SET` también se
+pierde en cada reinicio, sin ningún mecanismo de restauración**
+
+El diseño original de esta RFC solo cubría `BAN_SET`, restaurado desde
+`sanction_state`. El estado `FILTER` (`reputation.status='FILTER'`) es
+un mecanismo distinto — no vive en `sanction_state`, no tiene
+`ban_until` que preservar — y quedó completamente fuera del alcance
+original. Confirmado con evidencia real: tras el reboot, la base de
+datos tenía 178 IPs con `status='FILTER'`, pero el `ipset are-filter`
+solo conservaba 13 (las que habían vuelto a generar tráfico y fueron
+re-agregadas por el flujo normal, igual que ocurre con `BAN` cuando no
+existía este mecanismo).
+
+**Corrección**
+
+`infrastructure/restore_ipsets.sh` extendido: además de restaurar
+`BAN_SET` desde `sanction_state` (con tiempo restante preservado),
+ahora también restaura `FILTER_SET` desde `reputation.status='FILTER'`
+(sin timeout, igual que la creación original en `policy/apply.sh`).
+Misma exclusión de IPs whitelisteadas en ambos casos.
+
+**Validación de la extensión**
+
+Simulado con `ipset flush are-filter` + corrida del script: log
+confirma `FILTER restaurados=178`, coincidiendo con el conteo real de
+`reputation.status='FILTER'` en la base; el `ipset` quedó con 170
+entradas (diferencia esperable por exclusión de whitelist).
+
 **Pendiente**
 
-* Validación con un reboot real del servidor (la prueba actual usó
-  `ipset flush` como simulación controlada, no un reinicio genuino).
 * Evaluar si el mismo problema de timeout fuera de rango puede
   afectar a `FILTER_SET` en escenarios de muy larga duración (hoy
   `FILTER` no usa timeout, por lo que no aplica actualmente).
