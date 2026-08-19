@@ -41,6 +41,7 @@ source "$BASE/policy/rules/anomaly.sh"
 source "$BASE/policy/rules/malware.sh"
 source "$BASE/policy/rules/social.sh"
 source "$BASE/policy/rules/dos.sh"
+source "$BASE/policy/rules/credential.sh"
 
 # APPLY
 source "$BASE/policy/apply.sh"
