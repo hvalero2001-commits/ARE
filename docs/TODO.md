@@ -1930,11 +1930,25 @@ Explicado por medidas de mitigación tomadas por el administrador el
 mismo día del pico detectado en RFC-013 (2026-08-15): cierre temporal
 del acceso a la tienda sin registro (principal blanco de los
 escaneos) y activación de Cloudflare "Under Attack Mode", ambas
-filtrando tráfico antes de que llegue a Apache/`mod_evasive`. La
-integración queda técnicamente validada (con tráfico de prueba); su
-primera validación con tráfico real de flood quedará pendiente hasta
-que se reabra el acceso sin registro y se desactive el modo de
-Cloudflare.
+filtrando tráfico antes de que llegue a Apache/`mod_evasive`.
+
+**Intento deliberado de validación (2026-08-19, más tarde)**
+
+Se desactivó temporalmente "Under Attack Mode" para intentar destapar
+tráfico real que ejercitara el sensor. Confirmado con historial de
+`/var/log/apache2/mod_evasive/*.filtered` que `mod_evasive` sí tiene
+actividad de detección real y reciente (eventos entre el 5 y el 15 de
+agosto, previos a la integración con ARE) — el mecanismo de detección
+en sí funciona; lo que falta es que un evento nuevo coincida con la
+ventana de observación post-integración. Sin resultado en la primera
+hora de monitoreo tras desactivar el modo de Cloudflare.
+
+**Decisión**: se mantiene "Under Attack Mode" desactivado de forma
+indefinida (no se reactiva de inmediato), a la espera de que ocurra
+un evento real que ejercite el sensor de forma genuina, sin bloquear
+el resto del trabajo de la sesión mientras tanto. La integración
+queda técnicamente validada (con tráfico de prueba); su primera
+validación con tráfico real de flood permanece pendiente.
 
 ---
 
