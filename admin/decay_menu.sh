@@ -21,6 +21,7 @@ decay_menu() {
         echo "  2) Dry-run"
         echo "  3) Ejecutar"
         echo "  0) Volver"
+        echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
 
         case "$opt" in
@@ -28,6 +29,7 @@ decay_menu() {
             2) decay_dry_run ;;
             3) decay_execute ;;
             0) return 0 ;;
+            x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
         esac
     done

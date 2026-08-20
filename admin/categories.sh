@@ -16,12 +16,14 @@ categories_menu() {
         echo "  1) Listar"
         echo "  2) Ver puntuaciones"
         echo "  0) Volver"
+        echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
 
         case "$opt" in
             1) categories_list ;;
             2) categories_scores ;;
             0) return 0 ;;
+            x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
         esac
     done

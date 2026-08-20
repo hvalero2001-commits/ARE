@@ -16,12 +16,14 @@ policy_menu() {
         echo "  1) Ver configuración"
         echo "  2) Validar"
         echo "  0) Volver"
+        echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
 
         case "$opt" in
             1) policy_view_config ;;
             2) policy_validate ;;
             0) return 0 ;;
+            x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
         esac
     done

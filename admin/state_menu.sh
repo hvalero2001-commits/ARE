@@ -19,6 +19,7 @@ state_menu() {
         echo "  4) Estadísticas"
         echo "  5) Tendencias"
         echo "  0) Volver"
+        echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
 
         case "$opt" in
@@ -28,6 +29,7 @@ state_menu() {
             4) state_stats ;;
             5) state_trends ;;
             0) return 0 ;;
+            x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
         esac
     done

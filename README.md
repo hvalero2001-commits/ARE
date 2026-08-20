@@ -24,8 +24,9 @@ ARE implementa una arquitectura modular basada en la separación de responsabili
 +----------------------+
 |      Sensores        |
 |----------------------|
-| Fail2Ban             |
-| ModSecurity          |
+| Fail2Ban (polling)   |
+| Apache/mod_evasive   |
+| (patrón callback)    |
 | Otros                |
 +----------+-----------+
            |
@@ -37,6 +38,9 @@ ARE implementa una arquitectura modular basada en la separación de responsabili
 | Reputation Engine    |
 | State Engine         |
 | Policy Engine        |
+| (evaluación por      |
+|  categoría)          |
+| Ban Lifecycle Engine |
 +----------+-----------+
            |
            v
@@ -44,8 +48,9 @@ ARE implementa una arquitectura modular basada en la separación de responsabili
 | Firewall Backend     |
 |----------------------|
 | IPSet                |
-| IPTables             |
-| IP6Tables            |
+| (con restauración    |
+|  automática al       |
+|  arrancar)           |
 +----------+-----------+
            |
            v
@@ -55,6 +60,7 @@ ARE implementa una arquitectura modular basada en la separación de responsabili
 | ALLOW                |
 | WATCH                |
 | FILTER               |
+| TEMP_BAN             |
 | BANNED               |
 +----------------------+
 ```
@@ -65,19 +71,19 @@ La arquitectura permite incorporar sensores y mecanismos de respuesta manteniend
 
 Entre las capacidades actuales de ARE se encuentran:
 
-* Motor de reputación basado en categorías de amenaza.
+* Motor de reputación basado en categorías de amenaza, evaluadas de forma independiente por el Policy Engine.
 * Evaluación histórica del comportamiento de cada dirección IP.
 * Motor de estados para el ciclo de vida de las IP.
-* Policy Engine separado del mecanismo de detección.
-* Framework de sensores.
-* Sensor de integración con Fail2Ban.
-* Persistencia mediante SQLite.
-* Dashboard operativo para reputación, eventos y estadísticas.
-* Backend de firewall basado en IPSet, IPTables e IP6Tables.
+* Policy Engine separado del mecanismo de detección, con evaluación por categoría y umbrales configurables.
+* Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive).
+* Persistencia mediante SQLite, con modelo de reputación extensible sin migración de esquema.
+* Interfaz de administración por línea de comandos (ARE ADMIN), con auditoría de operaciones.
+* Dashboard operativo para reputación, eventos, estadísticas y tendencias temporales.
+* Backend de firewall basado en IPSet, con restauración automática de sanciones activas al arrancar el sistema.
 * Integración con ModSecurity y Fail2Ban.
 * Soporte para IPv4 e IPv6.
-* Decay de reputación.
-* Gestión de sanciones.
+* Decay de reputación, con redistribución proporcional entre categorías.
+* Gestión de sanciones mediante Ban Lifecycle Engine.
 * Installer Engine para instalación y mantenimiento.
 
 Las categorías de reputación utilizadas actualmente son:
@@ -98,9 +104,9 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v1.1.0**
+**ARE v2.0.0** (estable, liberada) — **v2.1 en desarrollo activo**
 
-La versión 1.1 incorpora el Installer Engine, el Sensor Framework, la ampliación del modelo de reputación, la gestión de sanciones y mejoras en los mecanismos de reputación y mantenimiento.
+La versión 2.0 consolidó la identidad propia del producto (migración desde la estructura histórica `f2b-ipset` hacia `/opt/are`), incorporó la interfaz de administración ARE ADMIN, y reconstruyó el Policy Engine hacia un modelo de evaluación por categoría. La versión 2.1, en desarrollo, extiende la administración de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios.
 
 ## Instalación
 
@@ -113,8 +119,6 @@ Requisitos:
 * Bash.
 * SQLite 3.
 * IPSet.
-* IPTables.
-* IP6Tables.
 * systemd.
 
 Fail2Ban y ModSecurity pueden actuar como fuentes de eventos según la integración configurada.
@@ -145,10 +149,26 @@ La interfaz oficial de ARE es:
 are
 ```
 
+### Administración (ARE ADMIN)
+
+Interfaz de administración por línea de comandos, con ramas para Jails/Perfiles, Categorías, Sensores, Política, Estado/Reputación, Decay y Configuración:
+
+```bash
+are admin
+```
+
 ### Estadísticas
 
 ```bash
 are stats
+```
+
+### Tendencias
+
+Evolución diaria de la actividad registrada:
+
+```bash
+are trends
 ```
 
 ### Top de amenazas
@@ -201,6 +221,14 @@ are external-unban <IP> [JAIL]
 
 Si no se especifica el Jail, ARE utiliza `fail2ban`.
 
+### Comparar decisiones de política
+
+Ejecuta el motor de decisión sobre una IP sin aplicar ninguna acción, útil para validar cambios de configuración contra datos reales:
+
+```bash
+are policy-compare <IP>
+```
+
 ### Decay
 
 Simular el decay sin modificar la reputación:
@@ -250,19 +278,20 @@ Las operaciones de mantenimiento utilizan el Manifest del producto como referenc
 Core:
 
 ```text
-/opt/f2b-ipset
+/opt/are
 ```
 
 Configuración:
 
 ```text
-/etc/f2b-ipset
+/opt/are/config
 ```
 
-Base de datos:
+Datos persistentes y base de datos:
 
 ```text
-/var/lib/f2b-ipset
+/var/lib/are
+/var/lib/are/are.db
 ```
 
 Logs:
@@ -279,18 +308,23 @@ Ejecutables:
 
 ## Documentación
 
-| Documento              | Descripción                                     |
-| ---------------------- | ----------------------------------------------- |
-| `README.md`            | Presentación general y uso básico del proyecto. |
-| `docs/USER_GUIDE.md`   | Guía de operación y administración.             |
-| `docs/ARCHITECTURE.md` | Arquitectura y componentes del sistema.         |
-| `docs/DESIGN.md`       | Principios y decisiones de diseño.              |
-| `docs/ROADMAP.md`      | Evolución planificada del proyecto.             |
-| `docs/CHANGELOG.md`    | Historial de versiones y cambios.               |
-| `docs/DEVELOPMENT.md`  | Metodología de desarrollo.                      |
-| `docs/CONTRIBUTING.md` | Guía para colaboradores.                        |
-| `docs/GOVERNANCE.md`   | Gobierno y evolución del proyecto.              |
-| `docs/SECURITY.md`     | Seguridad y gestión de vulnerabilidades.        |
+| Documento               | Descripción                                     |
+| ------------------------ | ----------------------------------------------- |
+| `README.md`             | Presentación general y uso básico del proyecto. |
+| `docs/USER_GUIDE.md`    | Guía de operación y administración.             |
+| `docs/ARCHITECTURE.md`  | Arquitectura y componentes del sistema.         |
+| `docs/DESIGN.md`        | Principios y decisiones de diseño.              |
+| `docs/INSTALL.md`       | Ciclo de vida del Installer.                    |
+| `docs/BAN_LIFECYCLE.md` | Ciclo de vida de las sanciones.                 |
+| `docs/ROADMAP.md`       | Evolución planificada del proyecto.             |
+| `docs/CHANGELOG.md`     | Historial de versiones y cambios.               |
+| `docs/DEVELOPMENT.md`   | Metodología de desarrollo.                      |
+| `docs/CONTRIBUTING.md`  | Guía para colaboradores.                        |
+| `docs/GOVERNANCE.md`    | Gobierno y evolución del proyecto.              |
+| `docs/SECURITY.md`      | Seguridad y gestión de vulnerabilidades.        |
+| `docs/PROJECT.md`       | Definición y visión del proyecto.               |
+| `docs/PHILOSOPHY.md`    | Principios fundamentales.                       |
+| `docs/TODO.md`          | Trabajo pendiente y resuelto, con trazabilidad. |
 
 ## Licencia
 

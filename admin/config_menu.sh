@@ -18,6 +18,7 @@ config_menu() {
         echo "  2) Validar"
         echo "  3) Estado del sistema"
         echo "  0) Volver"
+        echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
 
         case "$opt" in
@@ -25,6 +26,7 @@ config_menu() {
             2) config_validate ;;
             3) config_system_status ;;
             0) return 0 ;;
+            x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
         esac
     done

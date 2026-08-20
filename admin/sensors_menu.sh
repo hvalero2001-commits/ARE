@@ -17,12 +17,14 @@ sensors_menu() {
         echo "  1) Estado"
         echo "  2) Configuración"
         echo "  0) Volver"
+        echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
 
         case "$opt" in
             1) sensors_status ;;
             2) sensors_config ;;
             0) return 0 ;;
+            x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
         esac
     done
@@ -35,7 +37,7 @@ sensors_status() {
     echo "=================================================="
     echo "SENSORES - ESTADO"
     echo "=================================================="
-    echo "Sensor: fail2ban"
+    echo "Sensor: fail2ban (patrón polling)"
     echo ""
 
     if [ -f "$offset_file" ]; then
@@ -51,9 +53,12 @@ sensors_status() {
     fi
 
     echo ""
-    echo "Sensores no implementados aún: apache, crowdsec,"
-    echo "modsecurity, suricata, zeek (roadmap de próximas"
-    echo "versiones)."
+    echo "Sensor: apache_evasive (patrón callback)"
+    echo "  Invocado directamente por Apache/mod_evasive,"
+    echo "  no por systemd timer."
+    echo ""
+    echo "Sensores no implementados aún: crowdsec, modsecurity"
+    echo "propio, suricata, zeek (roadmap de próximas versiones)."
     echo "=================================================="
     admin_pause
 }
@@ -64,13 +69,14 @@ sensors_config() {
     echo "=================================================="
     echo "Directorio de sensores.... ${ARE_SENSOR_DIR}"
     echo ""
-    echo "fail2ban:"
-    echo "  Log fuente............. /var/log/fail2ban.log"
+    echo "fail2ban (polling):"
+    echo "  Log fuente............. ${FAIL2BAN_LOG_FILE:-/var/log/fail2ban.log}"
     echo "  Archivo de offset...... ${ARE_DATA}/fail2ban.offset"
-    echo "  Jails admitidos........ modsec-*, recidive, sshd, telnet"
+    echo "  Jails admitidos........ dinámico (según jail_profile)"
     echo ""
-    echo "NOTA: la ruta del log de fail2ban está fija dentro"
-    echo "de sensors/fail2ban.sh, no proviene de config.conf."
+    echo "apache_evasive (callback):"
+    echo "  Invocado por............ DOSSystemCommand (mod_evasive)"
+    echo "  Reporta a categoría..... DOS"
     echo "=================================================="
     admin_pause
 }

@@ -21,6 +21,7 @@ jails_menu() {
         echo "  6) Exportar"
         echo "  7) Importar"
         echo "  0) Volver"
+        echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
 
         case "$opt" in
@@ -32,6 +33,7 @@ jails_menu() {
             6) jails_export ;;
             7) jails_import ;;
             0) return 0 ;;
+            x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
         esac
     done

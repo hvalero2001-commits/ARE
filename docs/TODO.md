@@ -2149,6 +2149,84 @@ entradas (diferencia esperable por exclusión de whitelist).
 
 ---
 
+## RFC-015
+
+**Título:** Atajo de salida directa en ARE ADMIN (`x) Salir`)
+
+**Estado:** ✔ Implementada
+
+**Versión:** v2.1 (en desarrollo)
+
+**Descripción**
+
+Hasta esta RFC, salir de ARE ADMIN desde cualquier submenú requería
+navegar de vuelta al menú raíz (`0) Volver`, repetido tantas veces
+como niveles de profundidad) antes de poder usar `0) Salir` desde
+ahí. Con 7 ramas y hasta 7 opciones por rama, un administrador que
+solo quería cerrar la sesión debía recorrer el árbol completo hacia
+atrás.
+
+**Decisión de diseño**
+
+Se evaluaron dos alternativas: agregar un número nuevo (ej. `9)
+Salir`) junto a las opciones existentes, o renombrar `0)` de "Volver"
+a "Salir" cambiando su semántica. Se descartaron ambas: la primera
+por no escalar bien si una rama crece más allá de 8-9 opciones
+numéricas (el atajo dejaría de distinguirse visualmente del resto); la
+segunda por reasignar el significado de una tecla ya conocida y muy
+usada (`0`), con riesgo de que alguien cierre el programa pensando
+que solo retrocede un nivel.
+
+Se optó por una letra (`x`) en lugar de un número: nunca compite con
+el rango de opciones numéricas de ningún submenú, sin importar cuánto
+crezca, y queda visualmente distinguida del resto de las opciones.
+
+**Implementación**
+
+* `admin_exit()` (nueva, en `admin/core.sh`): función única de
+  salida, invocada desde los 8 puntos donde corresponde (el `0)` del
+  menú raíz y el alias `x|X` en los 7 submenús), evitando duplicar el
+  mensaje de despedida en cada archivo.
+* Cada uno de los 7 submenús (`jails.sh`, `categories.sh`,
+  `sensors_menu.sh`, `config_menu.sh`, `policy_menu.sh`,
+  `decay_menu.sh`, `state_menu.sh`) agrega `x) Salir` a su listado de
+  opciones y `x|X) admin_exit ;;` a su `case`, sin modificar ninguna
+  otra opción existente (`0) Volver` conserva su semántica y número
+  originales en todos los niveles).
+* El menú raíz no repite la línea visual `x) Salir` (ya tiene
+  `0) Salir` explícito, que cumple la misma función), pero sí acepta
+  el alias `x|X` por consistencia con el resto de la interfaz.
+
+**Hallazgo adicional durante la revisión de `sensors_menu.sh`**
+
+Al tocar ese archivo para agregar la opción `x`, se encontró que
+`sensors_status()` y `sensors_config()` mostraban información
+desactualizada al administrador: `apache_evasive` figuraba como
+sensor "no implementado aún" (implementado desde RFC-012), y
+`sensors_config()` describía el log de Fail2Ban como ruta fija y el
+filtro de jails como lista estática (ambos corregidos desde
+TASK-016). Corregido en el mismo cambio, ya que el archivo se estaba
+modificando de todos modos.
+
+**Validación**
+
+Probado en las 7 ramas: `x` desde cualquier submenú cierra el
+programa completo de inmediato, sin pasar por el menú raíz. `0)
+Volver` sigue funcionando sin cambios en su comportamiento original.
+
+**Archivos relacionados**
+
+* `admin/core.sh`
+* `admin/jails.sh`
+* `admin/categories.sh`
+* `admin/sensors_menu.sh`
+* `admin/config_menu.sh`
+* `admin/policy_menu.sh`
+* `admin/decay_menu.sh`
+* `admin/state_menu.sh`
+
+---
+
 
 
 # IDEAS
