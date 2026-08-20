@@ -2855,6 +2855,67 @@ simulados.
 
 ---
 
+## BUG-021
+
+**Título:** Consulta de filtro dinámico en `sensors/fail2ban.sh` sin manejo de bloqueo de SQLite
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.1 (en desarrollo)
+
+**Problema**
+
+La consulta de filtro dinámico agregada en TASK-016
+(`SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL'`) usaba
+`sqlite3` directo, sin timeout de espera ante bloqueo (`database is
+locked`) ni blindaje contra respuesta vacía. Al correr manualmente
+`./sensors/fail2ban.sh --dry-run` mientras el timer automático
+(`are-fail2ban-found.timer`) escribía simultáneamente en la misma
+base, la consulta fallaba con `Error: database is locked`, y el
+`$PROFILE_EXISTS` vacío resultante rompía la comparación
+`[ "$PROFILE_EXISTS" -eq 0 ]` con `integer expression expected`.
+
+**Impacto**
+
+Cada choque de concurrencia hacía que la línea de log en curso se
+descartara sin procesar — en el peor caso, durante una ráfaga de
+eventos reales de una IP atacante, varios de esos eventos podrían no
+sumar a su reputación.
+
+**Detección**
+
+Encontrado al correr manualmente el sensor en `--dry-run` para probar
+el jail nuevo `courier-auth`, mientras el timer automático procesaba
+en paralelo eventos reales de otra IP (`195.178.110.223`, ya
+bloqueada correctamente por el flujo normal — el hallazgo fue
+específicamente sobre la ejecución manual concurrente, no sobre un
+fallo del bloqueo en sí).
+
+**Corrección**
+
+```bash
+PROFILE_EXISTS=$(sqlite3 -cmd ".timeout 3000" "$DB_FILE" "SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL';" 2>/dev/null)
+PROFILE_EXISTS="${PROFILE_EXISTS:-0}"
+```
+
+`.timeout 3000` espera hasta 3 segundos si la base está bloqueada por
+otro proceso, en vez de fallar de inmediato. El blindaje
+`${PROFILE_EXISTS:-0}` evita que una respuesta vacía rompa la
+comparación entera posterior.
+
+**Recomendación operativa**
+
+Para pruebas manuales del sensor, detener el timer automático antes
+de correr `--dry-run`/`--execute` manualmente
+(`systemctl stop are-fail2ban-found.timer`), evitando el choque de
+raíz además del fix de timeout.
+
+**Archivos relacionados**
+
+* `sensors/fail2ban.sh`
+
+---
+
 # BUG-014
 
 **Título:** Bloque de código huérfano en `dashboard/events.sh`

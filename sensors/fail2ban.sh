@@ -74,9 +74,10 @@ do
 
     # Filtro dinámico: solo procesar jails con perfil administrado
     # en jail_profile, en vez de una lista fija en el código.
-    PROFILE_EXISTS=$(sqlite3 "$DB_FILE" "SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL';")
+    PROFILE_EXISTS=$(sqlite3 -cmd ".timeout 3000" "$DB_FILE" "SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL';" 2>/dev/null)
+    PROFILE_EXISTS="${PROFILE_EXISTS:-0}"
     if [ "$PROFILE_EXISTS" -eq 0 ]; then
-        continue
+        continue    
     fi
 
     if [ "$MODE" = "--execute" ]; then
