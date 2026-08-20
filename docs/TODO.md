@@ -2994,6 +2994,66 @@ raíz además del fix de timeout.
 
 ---
 
+## BUG-022
+
+**Título:** `db_exec()` sin manejo de bloqueo de SQLite — punto único de fallo de todo el sistema
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.1 (en desarrollo)
+
+**Problema**
+
+`db_exec()`, la función central que ejecuta prácticamente cada
+lectura y escritura de ARE, invocaba `sqlite3` sin `.timeout`:
+
+```bash
+RESULT=$(sqlite3 -batch "$DB_FILE" "$SQL" 2>/dev/null)
+```
+
+Idéntico patrón al identificado y corregido en BUG-021, pero en el
+punto del que dependen todas las demás funciones del sistema
+(`handle_ban`, `handle_found`, `db_add_score`,
+`db_recalculate_total`, auditoría, decay, restauración de ipset al
+arrancar), no una consulta puntual.
+
+**Impacto**
+
+Cualquier choque de escrituras concurrentes contra la base —
+especialmente probable durante un ataque real, cuando múltiples
+eventos llegan en rápida sucesión (ver el ataque de
+`195.178.110.223` que motivó el hallazgo de BUG-021) — podía hacer
+que `sqlite3` fallara con `database is locked` en cualquier punto del
+sistema, no solo en el sensor.
+
+**Verificación de que el error no se perdía en un segundo nivel**
+
+Se confirmó que `db_error()`, invocada cuando `sqlite3` retorna
+código de error distinto de cero, sí registra el problema
+correctamente vía `ERROR()` — el punto ciego era exclusivamente la
+ausencia de `.timeout`, no un segundo nivel de silenciamiento.
+
+**Corrección**
+
+```bash
+RESULT=$(sqlite3 -batch -cmd ".timeout 3000" "$DB_FILE" "$SQL" 2>/dev/null)
+```
+
+Mismo timeout de 3 segundos que BUG-021, aplicado en el punto único
+del que dependen todas las funciones de `database.sh`.
+
+**Validación**
+
+Reproducido un escenario de 5 escrituras concurrentes reales
+(`db_add_score` en paralelo, mismo instante, contra la misma base):
+las 5 se aplicaron correctamente, sin ningún error de bloqueo.
+
+**Archivos relacionados**
+
+* `database.sh` (`db_exec`)
+
+---
+
 # BUG-014
 
 **Título:** Bloque de código huérfano en `dashboard/events.sh`

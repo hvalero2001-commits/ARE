@@ -15,28 +15,21 @@
 db_exec() {
 
     local SQL="$1"
-
     local RESULT
-
     RESULT=$(
-        sqlite3 -batch "$DB_FILE" "$SQL" 2>/dev/null
+        sqlite3 -batch -cmd ".timeout 3000" "$DB_FILE" "$SQL" 2>/dev/null
     )
 
     local RC=$?
-
     if [ "$RC" -ne 0 ]
     then
-
         db_error "$RC" "$RESULT"
-
         return "$RC"
 
     fi
 
     echo "$RESULT" >&1
-
     return 0
-
 }
 
 #############################################################
