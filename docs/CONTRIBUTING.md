@@ -145,12 +145,12 @@ Los cambios deberán realizarse dentro del componente correspondiente a su respo
 
 Entre los componentes actualmente organizados en el proyecto se encuentran:
 
+* `admin/`
 * `sensors/`
 * `policy/`
 * `infrastructure/`
 * `manifest/`
 * `dashboard/`
-* `testing/`
 * `systemd/`
 * `templates/`
 
@@ -172,8 +172,6 @@ La verificación deberá basarse en resultados observables y deberá comprobar, 
 * que los componentes relacionados continúan funcionando;
 * que los datos persistentes no resultan afectados indebidamente;
 * que las operaciones modificadas del sistema continúan siendo coherentes.
-
-Las pruebas existentes en `testing/` deberán reutilizarse cuando correspondan al comportamiento modificado.
 
 No deberá considerarse suficiente una comprobación basada únicamente en que el código no produzca errores sintácticos.
 
@@ -198,6 +196,7 @@ Según el alcance del cambio podrán verse involucrados:
 * `docs/CONTRIBUTING.md`
 * `docs/GOVERNANCE.md`
 * `docs/SECURITY.md`
+* `docs/BAN_LIFECYCLE.md`
 * `docs/USER_GUIDE.md`
 * `docs/TODO.md`
 
@@ -281,4 +280,3 @@ Cada modificación debe partir del comportamiento real existente, resolver un ob
 Las nuevas capacidades deben incorporarse sin romper las responsabilidades existentes ni introducir complejidad innecesaria.
 
 La documentación debe evolucionar junto con el software y representar el estado real del proyecto.
-

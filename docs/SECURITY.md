@@ -14,8 +14,10 @@ El objetivo es garantizar una gestión responsable de los incidentes de segurida
 
 | Versión | Estado |
 |---------|:------:|
-| 1.1.x | ✅ Soportada |
-| 1.0.x | ✅ Soporte limitado |
+| 2.1.x (en desarrollo) | ✅ Soportada |
+| 2.0.x | ✅ Soportada |
+| 1.1.x | ✅ Soporte limitado |
+| 1.0.x | ❌ No soportada |
 | < 1.0 | ❌ No soportada |
 
 ---
@@ -110,7 +112,10 @@ Incluye:
 - Reputation Engine;
 - State Engine;
 - Policy Engine;
+- Ban Lifecycle Engine;
+- Apply Engine;
 - Firewall Backend;
+- ARE ADMIN;
 - Installer Engine;
 - Dashboard;
 - SQLite;

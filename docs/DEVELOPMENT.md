@@ -177,7 +177,10 @@ El desarrollo debe respetar la separación existente entre:
 * State Engine;
 * Policy Engine;
 * Ban Lifecycle Engine;
+* Apply Engine;
 * Firewall Backend;
+* Reputation Decay Engine;
+* ARE ADMIN;
 * Installer Engine.
 
 Cada componente debe utilizar las funciones y mecanismos correspondientes a su responsabilidad.
@@ -204,6 +207,7 @@ Según el alcance del cambio pueden verse afectados:
 * CONTRIBUTING.md;
 * GOVERNANCE.md;
 * SECURITY.md;
+* BAN_LIFECYCLE.md;
 * USER_GUIDE.md.
 
 La documentación no debe describir funcionalidades que no estén implementadas.

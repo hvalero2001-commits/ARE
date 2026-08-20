@@ -2,7 +2,7 @@
 
 ## Introducción
 
-Este documento describe el ciclo de vida de instalación de ARE (Abuse Reputation Engine) en la versión 2.0.
+Este documento describe el ciclo de vida de instalación de ARE (Abuse Reputation Engine).
 
 ARE v2 consolida la identidad y estructura propias del producto, sustituyendo la estructura histórica utilizada por `f2b-ipset` en v1.1. La estructura de instalación, los componentes administrados y sus ubicaciones son definidos por `manifest/product.sh`.
 
@@ -27,8 +27,6 @@ ARE requiere un sistema Linux con:
 * Bash
 * SQLite 3
 * IPSet
-* iptables
-* ip6tables
 * systemd
 * privilegios de `root`
 
@@ -82,9 +80,12 @@ events
 config
 jails
 reputation
+reputation_scores
 jail_profile
 sanction_state
 ```
+
+`reputation_scores` almacena el score por categoría de forma normalizada, permitiendo incorporar categorías nuevas de reputación sin modificar el esquema de la base ni el código de las funciones de consulta.
 
 Los datos históricos procedentes de la estructura anterior fueron incorporados a la nueva base persistente de ARE durante la evolución hacia v2.
 
@@ -111,12 +112,6 @@ El Manifest centraliza:
 * archivos ejecutables;
 * configuración de logrotate;
 * exclusiones.
-
-La versión correspondiente a esta estructura es:
-
-```text
-2.0.0
-```
 
 El Installer utiliza los valores definidos por el Manifest en lugar de mantener una segunda definición independiente de la estructura del producto.
 
@@ -312,7 +307,6 @@ La verificación comprueba, según corresponda:
 * permisos;
 * base de datos;
 * conjuntos IPSet;
-* reglas de firewall;
 * unidades systemd;
 * configuración de logrotate;
 * ejecución funcional del runtime.
@@ -339,7 +333,13 @@ dry-run
 apply
 ```
 
-La ejecución mediante systemd fue verificada durante la consolidación de v2.
+La restauración del Firewall Backend al arrancar el sistema, incorporada en v2.1, se ejecuta una única vez por arranque mediante:
+
+```text
+are-restore-ipsets.service
+```
+
+Este servicio repuebla los conjuntos IPSet a partir de la base de datos, ya que IPSet no conserva su contenido de forma nativa entre reinicios.
 
 El Installer administra las unidades declaradas por el Product Manifest.
 
@@ -356,7 +356,7 @@ FOUND
 EXTERNAL_UNBAN
 ```
 
-El sensor utiliza un offset persistente para procesar nuevos eventos.
+El sensor utiliza un offset persistente para procesar nuevos eventos, y valida cada jail dinámicamente contra `jail_profile`.
 
 La integración con Fail2Ban permite que los eventos externos sean incorporados al flujo operativo de ARE sin convertir Fail2Ban en el mecanismo central de reputación del producto.
 
@@ -412,6 +412,7 @@ ARE v2.0
     +-- Product Manifest
     +-- Installer Engine
     +-- Reputation Decay
+    +-- ARE ADMIN
 ```
 
 La versión 2.0 establece oficialmente `/opt/are` como Core del producto y `/var/lib/are` como ubicación de datos persistentes.
@@ -475,4 +476,3 @@ Las operaciones de mantenimiento deben actuar únicamente sobre los componentes 
 El Product Manifest constituye la referencia única de los componentes administrados por el Installer, mientras que la información persistente permanece separada del Core.
 
 ARE v2 continúa así la evolución iniciada en v1.1 sin confundir la documentación del Installer con la documentación interna de implementación del script.
-
