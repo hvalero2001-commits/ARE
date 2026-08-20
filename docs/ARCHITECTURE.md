@@ -8,7 +8,7 @@ La arquitectura separa la observación de los eventos, la construcción de reput
 
 ARE v2.0 continúa esta arquitectura a partir de la base funcional y establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones.
 
-La versión v1.1 constituye la última versión estable liberada. v2.0 se encuentra en desarrollo y validación sobre esa base.
+La versión v2.0.0 constituye la última versión estable liberada. v2.1 se encuentra en desarrollo y validación sobre esa base.
 
 ---
 
@@ -22,10 +22,10 @@ La arquitectura actual puede representarse mediante el siguiente flujo:
              +-----------------+-----------------+
              |                                   |
              v                                   v
-        Fail2Ban                         Otras fuentes
-             |                         (arquitectura extensible)
-             v
-       Sensor Framework
+        Fail2Ban                      Apache (mod_evasive)
+             |                                   |
+             v                                   v
+       Sensor Framework  <----------------------->
              |
              | eventos internos
              v
@@ -78,9 +78,11 @@ La arquitectura actual puede representarse mediante el siguiente flujo:
 
 El flujo representa la arquitectura funcional actual. Los componentes externos generan información; ARE procesa esa información y determina la respuesta; el backend ejecuta la acción correspondiente.
 
+El Sensor Framework admite dos patrones de entrega de eventos: por *polling* (el sensor consulta periódicamente una fuente externa, como el log de Fail2Ban) y por *callback* (la fuente externa invoca directamente al sensor en el instante del evento, como hace Apache con `mod_evasive`). Ambos patrones convergen en el mismo contrato de entrada hacia el Reputation Engine.
+
 ---
 
-# Relación entre v1.1 y v2.0
+# Relación entre v1.1 y v2.0/v2.1
 
 v2.0 no constituye un sistema independiente de v1.1.
 
@@ -99,7 +101,7 @@ Entre los elementos heredados se encuentran:
 * Ban Lifecycle Engine.
 * Installer Engine.
 
-La evolución hacia v2.0 incorpora principalmente una reorganización de identidad, estructura operativa, instalación y mantenimiento, junto con la integración de capacidades desarrolladas durante la evolución posterior de v1.1.
+La evolución hacia v2.0 incorporó una reorganización de identidad, estructura operativa, instalación y mantenimiento, la interfaz de administración ARE ADMIN, y la reconstrucción del Policy Engine hacia un modelo de evaluación por categoría (ver Sección "Policy Engine" más abajo). v2.1, en desarrollo, extiende la administración de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios.
 
 La arquitectura v2 mantiene como principio que las nuevas capacidades deben integrarse sin duplicar responsabilidades existentes.
 
@@ -115,7 +117,7 @@ Su responsabilidad es recibir información generada por sistemas externos y tran
 
 Los sensores no determinan la política de seguridad.
 
-### Sensor Fail2Ban
+### Sensor Fail2Ban (patrón polling)
 
 El sensor Fail2Ban es la primera implementación oficial del Sensor Framework.
 
@@ -140,7 +142,27 @@ Sensor Fail2Ban
 Evento ARE
 ```
 
-La arquitectura permite incorporar otros sensores sin modificar la responsabilidad del núcleo de reputación.
+El jail que reporta cada evento se valida dinámicamente contra `jail_profile` — un jail sin perfil administrado se descarta sin generar evento, sin necesidad de mantener una lista fija de jails permitidos en el código del sensor.
+
+### Sensor Apache/mod_evasive (patrón callback)
+
+Segundo patrón oficial del Sensor Framework, estructuralmente distinto del polling: Apache invoca al sensor directa y síncronamente en el instante en que `mod_evasive` confirma un flood, sin esperar a un ciclo de lectura periódica.
+
+El flujo general es:
+
+```text
+mod_evasive (Apache)
+    |
+    v
+Sensor Apache Evasive
+    |
+    v
+Evento ARE (categoría DOS)
+```
+
+El sensor mantiene, durante su período de transición, doble escritura: aplica el bloqueo directamente sobre el Firewall Backend y, en paralelo, reporta el evento a ARE para su incorporación al modelo de reputación.
+
+La arquitectura permite incorporar otros sensores, de cualquiera de los dos patrones, sin modificar la responsabilidad del núcleo de reputación.
 
 ---
 
@@ -152,9 +174,13 @@ Los eventos procesados producen cambios en las categorías de reputación corres
 
 La reputación se mantiene de forma persistente en SQLite.
 
-El modelo de reputación utilizado por ARE se construyó y amplió durante v1.1 y forma parte de la base sobre la que continúa desarrollándose v2.0.
+El modelo de reputación utilizado por ARE se construyó y amplió durante v1.1 y forma parte de la base sobre la que continúa desarrollándose v2.0/v2.1.
 
 La reputación representa comportamiento acumulado y no solamente el último evento recibido.
+
+Las categorías de reputación soportadas son administradas mediante `REPUTATION_CATEGORIES`, en `config/policy.conf`, como catálogo explícito — no una lista fija en el código de ningún componente.
+
+A partir de v2.1, el modelo de almacenamiento por categoría transiciona de columnas fijas por categoría en la tabla `reputation` hacia un esquema normalizado (`reputation_scores`), donde una categoría nueva se incorpora como dato, sin requerir modificación de esquema ni de código.
 
 ---
 
@@ -174,6 +200,8 @@ BANNED
 ```
 
 El State Engine es independiente del mecanismo utilizado posteriormente para ejecutar una acción.
+
+El estado se recalcula por completo en cada evaluación, en función del score vigente en ese momento — no conserva memoria del estado anterior. Esto permite que una IP pase de `BANNED` a un estado inferior cuando su score disminuye por acción del Decay Engine, sin requerir intervención manual.
 
 La evolución de v1.1 demostró además la necesidad de mantener sincronizados State Engine y Policy Engine, evitando estados incompatibles con las decisiones generadas por la política.
 
@@ -198,6 +226,22 @@ El Policy Engine no ejecuta directamente las modificaciones del firewall.
 Su responsabilidad termina en la generación de una decisión coherente con la información disponible.
 
 La ejecución corresponde a las capas posteriores.
+
+## Evaluación por categoría
+
+A partir de v2.0, el Policy Engine evalúa el riesgo de una IP por categoría de reputación de forma independiente, en lugar de depender exclusivamente del score total agregado. Cada categoría cuenta con una regla propia (`policy/rules/<categoria>.sh`), que conoce únicamente su propio umbral —configurado en `config/policy.conf`— y aporta al riesgo total solo si lo supera. Ninguna regla conoce a las demás ni decide una acción por sí misma; esa responsabilidad corresponde exclusivamente al orquestador del motor.
+
+El orquestador itera dinámicamente sobre `REPUTATION_CATEGORIES`, por lo que una categoría nueva con su regla correspondiente ya escrita comienza a evaluarse sin necesidad de modificar el orquestador.
+
+Se incorpora además un multiplicador de riesgo por reincidencia, aplicado cuando la IP ya se encuentra en estado de observación o sanción activa, configurable en `config/policy.conf`.
+
+### Piso de seguridad
+
+La decisión final del Policy Engine nunca es menos estricta que la que resultaría de evaluar únicamente el score total acumulado. El motor por categoría puede ser más estricto —detectando señales que el score simple no distingue, como una frecuencia elevada de eventos en poco tiempo— pero nunca menos. Esto evita que una IP con riesgo repartido entre varias categorías, cada una por debajo de su propio umbral individual, evada la detección aunque su score total sea alto.
+
+### Validación no invasiva
+
+Se dispone de un mecanismo de comparación (`policy-compare`) que ejecuta simultáneamente el motor de decisión activo y una evaluación alternativa sobre la misma IP, sin aplicar ninguna decisión, permitiendo validar cambios de comportamiento contra datos reales de producción antes de su adopción definitiva.
 
 ---
 
@@ -225,7 +269,9 @@ La información administrada incluye:
 
 El mecanismo permite escalar progresivamente las sanciones hasta un bloqueo permanente cuando la política correspondiente lo determina.
 
-El Ban Lifecycle Engine fue implementado y validado durante la evolución de v1.1 y forma parte de la arquitectura sobre la que continúa v2.0.
+El Ban Lifecycle Engine fue implementado y validado durante la evolución de v1.1 y forma parte de la arquitectura sobre la que continúa v2.0/v2.1.
+
+Un bloqueo permanente (`sanction_state.permanent = 1`) no es alcanzado por el Reputation Decay Engine — su reconsideración requiere una decisión administrativa explícita, no una recuperación automática por inactividad.
 
 ---
 
@@ -262,6 +308,8 @@ BAN
 
 y coordina las operaciones necesarias para materializar la decisión mediante el backend.
 
+Toda duración aplicada al Firewall Backend se ajusta al límite máximo soportado por el mecanismo utilizado (`IPSET_MAX_TIMEOUT` en `config/policy.conf`), registrando explícitamente cuando una sanción calculada excede ese límite.
+
 ---
 
 # Firewall Backend
@@ -276,7 +324,11 @@ Actualmente se utilizan conjuntos diferenciados para las funciones de filtrado y
 
 El objetivo arquitectónico es que una decisión de ARE no dependa de una implementación específica del mecanismo de firewall.
 
-La incorporación de otros backends pertenece a la evolución futura del proyecto y no debe considerarse una capacidad implementada de v2.0 mientras no haya sido desarrollada y validada.
+La incorporación de otros backends pertenece a la evolución futura del proyecto y no debe considerarse una capacidad implementada mientras no haya sido desarrollada y validada.
+
+## Persistencia del Firewall Backend
+
+`ipset` no persiste nativamente su contenido entre reinicios del sistema operativo. ARE restaura el estado del Firewall Backend al arrancar a partir de la base de datos —fuente de verdad del sistema—, no de un snapshot congelado del firewall: las sanciones activas (permanentes o temporales, preservando el tiempo restante exacto de estas últimas) y las IPs en estado de filtrado se reincorporan a los conjuntos correspondientes mediante una unidad de ejecución única al inicio del sistema, separada del ciclo normal de procesamiento de eventos.
 
 ---
 
@@ -284,7 +336,7 @@ La incorporación de otros backends pertenece a la evolución futura del proyect
 
 El Reputation Decay Engine permite reducir gradualmente la reputación de direcciones IP que no presentan actividad reciente.
 
-El mecanismo fue desarrollado durante la evolución de v1.1 y continúa formando parte del ciclo operativo de v2.0.
+El mecanismo fue desarrollado durante la evolución de v1.1 y continúa formando parte del ciclo operativo de v2.0/v2.1.
 
 El proceso utiliza:
 
@@ -304,6 +356,8 @@ last_decay
 ```
 
 para controlar la frecuencia de aplicación del decay.
+
+La reducción se aplica sobre el score total agregado de la IP, redistribuyendo el resultado proporcionalmente entre sus categorías activas — no se trunca cada categoría de forma independiente, lo que evitaría que una IP con actividad repartida entre varias categorías decayera más rápido que una con actividad concentrada en una sola, ante el mismo score total.
 
 Después de una reducción se reevalúan:
 
@@ -349,6 +403,7 @@ events
 jails
 jail_profile
 reputation
+reputation_scores
 sanction_state
 ```
 
@@ -359,7 +414,7 @@ Eventos
    |
    +---- actividad observada
 
-Reputation
+Reputation / Reputation Scores
    |
    +---- conocimiento acumulado
 
@@ -411,6 +466,20 @@ manifest/product.sh
 ```
 
 El Product Manifest no implementa lógica de negocio. Define los componentes que forman parte del producto y que deben ser administrados por el Installer Engine.
+
+---
+
+# Interfaz de Administración (ARE ADMIN)
+
+ARE ADMIN es la interfaz de administración por línea de comandos de ARE, incorporada en v2.0.
+
+Se accede mediante `are.sh admin` o el atajo equivalente `admin.sh`, ambos cargando el mismo `bootstrap.sh` utilizado por el resto del sistema — ARE ADMIN opera siempre sobre los mismos componentes reales, sin duplicar lógica ni mantener un entorno de carga separado.
+
+ARE ADMIN no introduce una nueva autoridad de decisión. Es una capa de consulta y administración que se apoya sobre los componentes existentes, respetando la separación de responsabilidades del resto de la arquitectura: no modifica directamente `reputation` ni el Firewall Backend, no reemplaza al Policy Engine ni al Decay Engine.
+
+Las ramas administradas son: Jails/Perfiles, Categorías, Sensores, Política, Estado/Reputación, Decay y Configuración. Las operaciones de escritura quedan registradas en un log de auditoría independiente, con usuario, fecha y detalle de cada acción.
+
+El diseño completo de ARE ADMIN se documenta en `docs/DESIGN.md`, Sección 13.
 
 ---
 
@@ -523,13 +592,14 @@ Los enlaces forman parte de los componentes administrados por el Product Manifes
 
 # Systemd
 
-ARE utiliza systemd para la ejecución de procesos periódicos que forman parte del ciclo operativo.
+ARE utiliza systemd para la ejecución de procesos periódicos y de arranque único que forman parte del ciclo operativo.
 
 Entre los componentes actualmente administrados se encuentran:
 
 ```text
-Fail2Ban Sensor
-Reputation Decay
+Fail2Ban Sensor (periódico)
+Reputation Decay (periódico)
+Restauración del Firewall Backend (arranque único)
 ```
 
 El uso de systemd permite separar la lógica de ejecución de la lógica de los motores.
@@ -599,15 +669,16 @@ La decisión resultante se mantiene separada de la ejecución directa del firewa
 La arquitectura mantiene las siguientes responsabilidades:
 
 | Componente           | Responsabilidad                        |
-| -------------------- | -------------------------------------- |
+| -------------------- | --------------------------------------- |
 | Sensor Framework     | Observación y normalización de eventos |
 | Reputation Engine    | Construcción de reputación             |
 | State Engine         | Determinación del estado               |
-| Policy Engine        | Generación de decisiones               |
+| Policy Engine        | Generación de decisiones, por categoría |
 | Ban Lifecycle Engine | Evolución de sanciones                 |
 | Apply Engine         | Coordinación de aplicación             |
-| Firewall Backend     | Ejecución sobre el sistema operativo   |
+| Firewall Backend     | Ejecución sobre el sistema operativo, con persistencia entre reinicios |
 | Reputation Decay     | Recuperación gradual de reputación     |
+| ARE ADMIN            | Administración y consulta del sistema completo |
 | Installer Engine     | Ciclo de vida del producto             |
 | Product Manifest     | Definición estructural del producto    |
 | SQLite               | Persistencia                           |
@@ -664,7 +735,7 @@ Las plantillas distribuidas con el producto se diferencian de la configuración 
 
 ## Evolución incremental
 
-v2.0 continúa la arquitectura desarrollada en v1.1.
+v2.0/v2.1 continúan la arquitectura desarrollada en v1.1.
 
 Las modificaciones deben realizarse de forma incremental:
 
@@ -686,9 +757,9 @@ La documentación debe reflejar el comportamiento validado del sistema y no anti
 
 # Estado arquitectónico
 
-La arquitectura base de v1.1 permanece como fundamento de v2.0.
+La arquitectura base de v1.1 permanece como fundamento de v2.0/v2.1.
 
-v2.0 introduce una evolución estructural y operativa que incluye:
+v2.0 introdujo una evolución estructural y operativa que incluye:
 
 * identidad oficial ARE;
 * estructura de producto `/opt/are`;
@@ -699,9 +770,15 @@ v2.0 introduce una evolución estructural y operativa que incluye:
 * comandos oficiales ARE;
 * persistencia de `sanction_state`;
 * integración operativa del Reputation Decay;
-* administración de componentes mediante systemd.
+* administración de componentes mediante systemd;
+* interfaz de administración ARE ADMIN;
+* Policy Engine reconstruido con evaluación por categoría.
 
-La arquitectura de v2.0 continúa en desarrollo y validación.
+v2.1, en desarrollo, extiende esta base con:
+
+* administración avanzada de perfiles (exportar/importar entre servidores);
+* modelo de reputación extensible sin migración de esquema;
+* visibilidad temporal de la actividad del sistema;
+* persistencia del Firewall Backend a través de reinicios.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.
-
