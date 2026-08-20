@@ -71,20 +71,26 @@ Revisar y normalizar la documentación oficial de ARE para garantizar que reflej
 
 **Título:** Eliminar duplicación de `db_get_sanction()` en `database.sh`
 
-**Estado:** Pendiente
+**Estado:** ✔ Resuelto
 
 **Prioridad:** Baja
 
+**Versión:** v2.1 (en desarrollo)
+
 **Descripción**
 
-`db_get_sanction()` está definida dos veces en `database.sh`, con contenido
-idéntico. No genera comportamiento incorrecto (la segunda definición
-sobrescribe a la primera sin cambiar el resultado), pero es ruido que
-dificulta la lectura y mantenimiento del archivo.
+`db_get_sanction()` estaba definida dos veces en `database.sh`, con
+contenido idéntico. No generaba comportamiento incorrecto (la segunda
+definición sobrescribía a la primera sin cambiar el resultado), pero
+era ruido que dificultaba la lectura y mantenimiento del archivo.
 
-**Alcance**
+**Corrección**
 
-Eliminar la primera definición, dejando una sola copia de la función.
+Confirmado con `grep -n "^db_get_sanction()" database.sh` que la
+función aparece una única vez — la duplicación fue eliminada como
+parte de alguna de las reorganizaciones de `database.sh` realizadas
+durante RFC-007/RFC-008, sin haber quedado registrada explícitamente
+en su momento como resolución de esta tarea puntual.
 
 **Archivos relacionados**
 
