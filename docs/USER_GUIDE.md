@@ -2,7 +2,7 @@
 
 ## Introducción
 
-Esta guía describe el uso operativo de ARE (Abuse Reputation Engine) v2.0.
+Esta guía describe el uso operativo de ARE (Abuse Reputation Engine).
 
 ARE procesa eventos de seguridad, mantiene información persistente de reputación y estado, evalúa las políticas configuradas y aplica las decisiones mediante el backend correspondiente.
 
@@ -31,7 +31,9 @@ are
 Los comandos operativos de ARE son:
 
 ```text
+are admin
 are stats
+are trends [días]
 are top
 are score <IP>
 are events <IP>
@@ -39,7 +41,7 @@ are found <IP> <JAIL>
 are ban <IP> <JAIL>
 are unban <IP>
 are external-unban <IP> [JAIL]
-are autoban
+are policy-compare <IP>
 are decay-dry-run
 are decay-apply
 ```
@@ -64,6 +66,95 @@ El punto de entrada oficial se instala mediante `/usr/local/sbin/are`, con el Co
 
 ---
 
+# ARE ADMIN
+
+Interfaz de administración por línea de comandos:
+
+```bash
+are admin
+```
+
+Organizada en siete ramas:
+
+```text
+1) Jails / Perfiles
+2) Categorías
+3) Sensores
+4) Política
+5) Estado / Reputación
+6) Decay
+7) Configuración
+0) Salir
+```
+
+Cada submenú ofrece `0) Volver` para retroceder un nivel, y `x) Salir` como atajo para cerrar el programa completo desde cualquier punto de la navegación, sin necesidad de volver primero al menú raíz.
+
+Las operaciones de escritura (crear, modificar, eliminar un perfil; ejecutar decay) quedan registradas en un log de auditoría, con usuario, fecha y detalle de la acción:
+
+```text
+/var/log/are/admin_audit.log
+```
+
+## Jails / Perfiles
+
+Administra la relación entre un jail (de Fail2Ban, o de un sensor por callback como `mod_evasive`) y su categoría de reputación, peso, confianza y decay.
+
+```text
+1) Listar
+2) Crear
+3) Modificar
+4) Eliminar
+5) Validar
+6) Exportar
+7) Importar
+```
+
+Al crear o modificar un perfil, el sistema ofrece asistencia para elegir peso y confianza: una escala de referencia curada si existe para la categoría, o estadísticas (mínimo, máximo, promedio) calculadas sobre los perfiles ya existentes en esa categoría.
+
+`Exportar` genera un archivo con timestamp en `${ARE_DATA}/backups/jail_profiles/`, con todos los perfiles del servidor. `Importar` permite seleccionar uno de esos archivos y aplicarlo, preguntando una única vez si se debe sobrescribir o conservar los perfiles que ya existan localmente. Este mecanismo permite replicar la calibración de perfiles entre servidores sin recrearlos manualmente uno por uno.
+
+## Categorías
+
+Consulta de solo lectura del catálogo de categorías de reputación y sus umbrales configurados, y de las puntuaciones acumuladas por categoría para una IP concreta.
+
+## Sensores
+
+Estado y configuración de los sensores activos (Fail2Ban por polling, `apache_evasive` por callback).
+
+## Política
+
+Consulta de solo lectura de la configuración efectiva del Policy Engine: umbrales globales, umbrales por categoría, multiplicadores de reincidencia, y niveles del Ban Lifecycle. La opción de validación comprueba que los umbrales estén en orden ascendente y que cada categoría con umbral definido tenga su regla correspondiente implementada.
+
+## Estado / Reputación
+
+```text
+1) Consultar IP
+2) Eventos
+3) Top
+4) Estadísticas
+5) Tendencias
+```
+
+`Tendencias` muestra la evolución diaria de la actividad (eventos totales, por tipo de acción, e IPs distintas) para una ventana configurable de días.
+
+## Decay
+
+```text
+1) Estado
+2) Dry-run
+3) Ejecutar
+```
+
+## Configuración
+
+```text
+1) Ver
+2) Validar
+3) Estado del sistema
+```
+
+---
+
 # Estadísticas
 
 Consultar información general del sistema:
@@ -77,6 +168,18 @@ El comando `stats` proporciona información operacional del sistema.
 Entre la información incorporada al Dashboard se encuentra la actividad de los Jails.
 
 La sección `TOP JAILS` utiliza la tabla `events` como fuente de información y excluye eventos internos como `fail2ban` y `policy_apply`.
+
+---
+
+# Tendencias
+
+Consultar la evolución diaria de la actividad registrada:
+
+```bash
+are trends [días]
+```
+
+Por defecto muestra los últimos 7 días. Cada fila incluye eventos totales, desglose por tipo de acción (`FOUND`, `BAN`, `EXTERNAL_UNBAN`) e IPs distintas involucradas ese día.
 
 ---
 
@@ -106,7 +209,7 @@ are score 192.168.1.10
 
 La información de reputación se mantiene en SQLite junto con los datos de hosts, eventos, Jails, perfiles de Jail y estado de sanciones.
 
-La estructura persistente de ARE v2 incluye:
+La estructura persistente de ARE incluye:
 
 ```text
 hosts
@@ -114,11 +217,14 @@ events
 config
 jails
 reputation
+reputation_scores
 jail_profile
 sanction_state
 ```
 
-La base de datos de la instalación v2 se encuentra en:
+`reputation_scores` mantiene el score por categoría de forma normalizada (una fila por IP y categoría), lo que permite incorporar categorías nuevas sin modificar la estructura de la base ni el código de las funciones que la consultan.
+
+La base de datos se encuentra en:
 
 ```text
 /var/lib/are/are.db
@@ -140,7 +246,7 @@ Ejemplo:
 are events 192.168.1.10
 ```
 
-Los eventos constituyen el historial de actividad procesado por ARE y también son utilizados por las estadísticas de Jails.
+Los eventos constituyen el historial de actividad procesado por ARE y también son utilizados por las estadísticas de Jails y por las tendencias temporales.
 
 ---
 
@@ -170,13 +276,13 @@ Reputation
 State
   │
   ▼
-Policy
+Policy (evaluación por categoría)
   │
   ▼
 Apply
 ```
 
-El procesamiento de `FOUND` mediante el Sensor Framework y su integración con el Policy Engine fueron validados durante la evolución del proyecto.
+El `JAIL` debe tener un perfil administrado (ver ARE ADMIN, Jails / Perfiles). Un jail sin perfil se descarta sin generar evento, sin necesidad de mantener una lista fija en el código del sensor.
 
 ---
 
@@ -193,6 +299,8 @@ El Jail proporciona el contexto utilizado por ARE para procesar el evento.
 Las decisiones de aplicación incluyen `FILTER`, `TEMP_BAN` y `BAN`.
 
 El backend utiliza conjuntos separados para filtrado y bloqueo, tanto para IPv4 como para IPv6.
+
+Cuando la sanción calculada excede el límite máximo de timeout soportado por IPSet, el sistema ajusta automáticamente la duración aplicada a ese límite, registrando la situación en el log.
 
 ---
 
@@ -224,17 +332,19 @@ EXTERNAL_UNBAN
 
 El `EXTERNAL_UNBAN` no libera directamente la dirección IP.
 
-ARE vuelve a evaluar la dirección mediante el Policy Engine y aplica la decisión resultante. Este comportamiento fue validado en producción.
+ARE vuelve a evaluar la dirección mediante el Policy Engine y aplica la decisión resultante.
 
 ---
 
-# Autoban
+# Comparar decisiones de política
 
-Ejecutar el mecanismo de enforcement automático:
+Ejecutar simultáneamente el motor de decisión activo y una evaluación de referencia sobre la misma IP, sin aplicar ninguna decisión:
 
 ```bash
-are autoban
+are policy-compare <IP>
 ```
+
+Útil para validar el comportamiento del Policy Engine contra datos reales de producción antes de adoptar un cambio de configuración o de umbrales.
 
 ---
 
@@ -250,6 +360,8 @@ DECAY_FACTOR=0.95
 ```
 
 Esto corresponde a un mínimo de 24 horas sin actividad y un factor inicial de reducción de `0.95`.
+
+La reducción se calcula sobre el score total agregado de la IP y se redistribuye proporcionalmente entre sus categorías activas, evitando que una IP con actividad repartida entre varias categorías decaiga más rápido que otra con actividad concentrada en una sola, ante el mismo score total.
 
 ## Simulación
 
@@ -271,7 +383,7 @@ are decay-apply
 
 La operación:
 
-* reduce el score;
+* reduce el score, redistribuido proporcionalmente entre categorías;
 * actualiza el estado;
 * reevalúa el Policy Engine;
 * actualiza `last_decay`;
@@ -288,9 +400,11 @@ are-fail2ban-decay.timer
 
 ---
 
-# Fail2Ban Sensor
+# Sensores
 
-ARE mantiene un Sensor Framework para Fail2Ban.
+## Fail2Ban (patrón polling)
+
+ARE mantiene un sensor para Fail2Ban que lee el log de forma periódica.
 
 Los eventos procesados por el sensor son:
 
@@ -299,7 +413,23 @@ FOUND
 EXTERNAL_UNBAN
 ```
 
-El sensor utiliza un cursor persistente para procesar nuevos eventos.
+El sensor utiliza un cursor persistente para procesar nuevos eventos, y valida dinámicamente cada jail contra `jail_profile` — un jail sin perfil administrado se descarta.
+
+## Apache / mod_evasive (patrón callback)
+
+Sensor invocado directamente por Apache en el instante en que `mod_evasive` detecta un flood, sin esperar a un ciclo de lectura periódica. Reporta a la categoría `DOS`.
+
+---
+
+# Restauración del Firewall Backend
+
+IPSet no conserva su contenido de forma nativa entre reinicios del sistema operativo. ARE restaura al arrancar las sanciones activas (permanentes y temporales, preservando el tiempo restante exacto de estas últimas) y las IPs en estado de filtrado, a partir de la base de datos — no de un snapshot congelado del firewall.
+
+Este mecanismo se ejecuta una única vez por arranque, mediante:
+
+```text
+are-restore-ipsets.service
+```
 
 ---
 
@@ -361,7 +491,6 @@ La verificación comprueba, entre otros elementos:
 * estructura SQLite;
 * runtime;
 * IPSet;
-* reglas de firewall;
 * systemd;
 * logrotate.
 
@@ -374,6 +503,7 @@ jails
 events
 jail_profile
 reputation
+reputation_scores
 sanction_state
 ```
 
@@ -443,8 +573,6 @@ Unidades systemd:
 /etc/systemd/system
 ```
 
-La estructura v2 fue validada sobre la instalación activa de `/opt/are`, incluyendo Product Manifest, enlaces oficiales, Installer Engine, base de datos y servicio de Reputation Decay.
-
 ---
 
 # Flujo operativo
@@ -461,10 +589,10 @@ Reputation
 State
    │
    ▼
-Policy
+Policy (por categoría)
    │
    ▼
-Decision
+Ban Lifecycle
    │
    ▼
 Apply
@@ -473,7 +601,7 @@ Apply
 Firewall
 ```
 
-Fail2Ban actúa como fuente de eventos mediante el Sensor Framework.
+Fail2Ban y Apache/mod_evasive actúan como fuentes de eventos mediante el Sensor Framework.
 
 ARE mantiene la reputación y el estado, determina la decisión mediante el Policy Engine y ejecuta la acción correspondiente mediante el backend.
 
@@ -484,8 +612,10 @@ ARE mantiene la reputación y el estado, determina la decisión mediante el Poli
 * Verificar la instalación después de operaciones de mantenimiento.
 * Mantener protegida la configuración.
 * Mantener copias de seguridad de los datos persistentes.
-* Revisar periódicamente eventos y estadísticas.
+* Revisar periódicamente eventos, estadísticas y tendencias.
 * Supervisar el estado de los sensores y las decisiones aplicadas.
+* Usar `policy-compare` antes de adoptar cambios de umbrales en producción.
+* Exportar el catálogo de `jail_profile` antes de cambios mayores, para poder restaurar la calibración si algo sale mal.
 
 ---
 
@@ -537,17 +667,11 @@ are stats
 are decay-dry-run
 ```
 
----
+### Comparar el motor de decisión
 
-# Versión
-
-Esta guía corresponde a:
-
-```text
-ARE v2.0
+```bash
+are policy-compare <IP>
 ```
-
-La estructura v2 utiliza `/opt/are` como Core y `/var/lib/are/are.db` como base persistente.
 
 ---
 
@@ -560,10 +684,11 @@ README.md
 docs/ARCHITECTURE.md
 docs/DESIGN.md
 docs/INSTALL.md
+docs/BAN_LIFECYCLE.md
 docs/DEVELOPMENT.md
 docs/SECURITY.md
 docs/CHANGELOG.md
+docs/ROADMAP.md
 ```
 
-Esta guía contiene únicamente procedimientos y capacidades respaldados por la documentación y las implementaciones verificadas disponibles para ARE v2.0.
-
+Esta guía contiene únicamente procedimientos y capacidades respaldados por la documentación y las implementaciones verificadas disponibles para ARE.
