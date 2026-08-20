@@ -6,6 +6,75 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.1.0
+
+**Fecha:** 2026-08-20
+
+## Resumen
+
+Versión de consolidación estructural sobre v2.0. Incorpora administración de perfiles entre servidores, un modelo de reputación por categoría extensible sin migración de esquema, visibilidad temporal de la actividad del sistema, persistencia del Firewall Backend a través de reinicios, un segundo patrón de sensor formalizado, y una revisión completa de la documentación del proyecto.
+
+## Administración de perfiles entre servidores
+
+Se incorpora exportación e importación de `jail_profile` desde ARE ADMIN, permitiendo replicar la calibración de perfiles entre servidores sin recrearlos manualmente.
+
+* Exportación con nombre de archivo generado automáticamente, sin sobrescribir backups anteriores.
+* Importación con selección de archivo por lista numerada y resolución de conflictos en un único paso (sobrescribir o conservar).
+* Ambas operaciones auditadas.
+
+## Modelo de reputación extensible
+
+El almacenamiento de reputación por categoría transiciona de columnas fijas en la tabla `reputation` hacia un esquema normalizado, `reputation_scores`, donde incorporar una categoría nueva es una operación de datos y no una migración de estructura ni de código.
+
+* Funciones de lectura y escritura reescritas sobre el nuevo esquema, validadas en producción sin cambio de comportamiento observable.
+* `db_add_score()` reemplaza nueve ramas de asignación por categoría por una única sentencia genérica.
+* `total_score` se deriva siempre como suma de las categorías, eliminando estructuralmente la posibilidad de que se desincronice del dato real.
+* El Decay Engine redistribuye la reducción proporcionalmente entre categorías, en lugar de truncar cada una de forma independiente.
+
+## Segundo sensor: patrón callback
+
+`apache_evasive.sh` se formaliza como sensor oficial del framework, invocado directamente por Apache/`mod_evasive` en el instante del evento, junto al patrón de polling ya existente (Fail2Ban).
+
+* Reporta a la categoría DOS, con reputación acumulable y recuperación gradual, en reemplazo de un bloqueo de duración fija.
+* El filtro de jails de Fail2Ban pasa de una lista fija en el código a una consulta dinámica contra `jail_profile`.
+
+## Visibilidad temporal
+
+Se incorpora una vista de tendencias diarias de actividad (eventos totales, por tipo de acción, e IPs distintas), a partir de la tabla `events` existente.
+
+## Persistencia del Firewall Backend
+
+IPSet no conserva su contenido de forma nativa entre reinicios. ARE restaura al arrancar las sanciones activas y las IPs en estado de filtrado a partir de la base de datos, preservando el tiempo restante exacto de las sanciones temporales, mediante una unidad `systemd` de ejecución única por arranque.
+
+## Interfaz de administración
+
+* Atajo de salida directa (`x`) disponible en las siete ramas del menú, sin necesidad de navegar de regreso al menú raíz.
+* Rama Política completada: visualización de la configuración efectiva del Policy Engine y validación de consistencia entre categorías, umbrales y reglas.
+
+## Correcciones
+
+* Deriva de truncamiento entre el score total almacenado y la suma real de categorías, corregida de raíz junto con el nuevo modelo de almacenamiento.
+* IPs con reputación partida en filas duplicadas por un carácter sin limpiar en el sensor de Fail2Ban, fusionadas sin pérdida de datos.
+* Timeout fuera de rango en `ipset` para sanciones de larga duración, capeado al máximo soportado por el backend.
+* Ausencia de manejo de bloqueo de SQLite en la función central de acceso a la base de datos, corregida para tolerar escrituras concurrentes sin pérdida de eventos.
+
+## Documentación
+
+Revisión completa de la documentación del proyecto para reflejar el estado real del código: rutas, requisitos, backend de firewall, interfaz de administración y comandos disponibles.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity.
+
+---
+
 # v2.0.0
 
 **Fecha:** 2026-08-15
