@@ -637,9 +637,9 @@ La implementación de la rama Política (ver RFC-009) reveló, a través de su p
 
 v2.0 no se diseña como una ruptura conceptual respecto de v1.1.
 
-La versión estable v1.1 proporciona la base funcional sobre la que se desarrolla v2.0.
+La versión estable v1.1 proporcionó la base funcional sobre la que se desarrolló v2.0.
 
-La evolución actual afecta principalmente:
+La evolución de v2.0 afectó principalmente:
 
 * identidad del producto;
 * estructura operativa;
@@ -685,9 +685,9 @@ Las propuestas que todavía no hayan sido implementadas pertenecen al Roadmap o 
 
 # 17. Estado del diseño
 
-El diseño actual de v2.0 conserva los principios establecidos durante v1.1 y los adapta a la estructura operativa actual de ARE.
+El diseño actual conserva los principios establecidos durante v1.1 y los adapta a la estructura operativa consolidada a través de v2.0, v2.1 y v2.2.
 
-Las decisiones principales consolidadas para v2.0 son:
+## Decisiones consolidadas en v2.0
 
 * separación entre sensores y decisión;
 * separación entre decisión y ejecución;
@@ -701,4 +701,22 @@ Las decisiones principales consolidadas para v2.0 son:
 * estructura operativa propia de ARE;
 * evolución incremental sobre la base estable de v1.1.
 
-La versión v2.0 continúa siendo objeto de desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+## Decisiones consolidadas en v2.1
+
+* modelo de reputación por categoría normalizado (`reputation_scores`), donde incorporar una categoría nueva es una operación de datos y no una migración de esquema ni de código;
+* `total_score` derivado siempre como suma de las categorías, en vez de almacenado de forma independiente — elimina estructuralmente la posibilidad de que se desincronice del dato real;
+* segundo patrón de sensor formalizado dentro del Sensor Framework: callback (invocación directa y síncrona en el instante del evento), junto al patrón de polling ya existente;
+* filtro de jails resuelto dinámicamente contra `jail_profile`, en vez de mantenido como lista fija en el código de cada sensor;
+* administración de perfiles entre servidores (exportar/importar), como mecanismo de propagación de calibración sin recrear cada perfil a mano;
+* restauración del Firewall Backend desde la base de datos al arrancar el sistema, dado que IPSet no persiste su contenido de forma nativa entre reinicios.
+
+## Decisiones consolidadas en v2.2
+
+* patrón de "adaptador por fuente" dentro de un sensor: la extracción de datos varía según el origen real (hoy, Exim para SpamAssassin), pero el contrato de reporte hacia el Reputation Engine permanece único — sumar una fuente nueva es agregar una función, no reescribir el sensor;
+* separación de responsabilidad entre `config.conf` (infraestructura: qué leer y de dónde) y `policy.conf` (calibración de decisión: cuándo algo importa) aplicada también a la configuración de un sensor, no solo a los umbrales globales;
+* calibración proactiva de un umbral de categoría sin sensor local disponible (`MALWARE_THRESHOLD`), como decisión consciente de motor genérico — útil para cualquier servidor con superficie real de esa amenaza, no solo el que lo calibra;
+* empaquetado y distribución como capa añadida *antes* del Installer Engine, sin modificar su núcleo — el motor de instalación sigue operando exactamente igual, reciba su fuente de un `git clone` o de un paquete descargado y extraído.
+
+Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
+
+La versión v2.2 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.

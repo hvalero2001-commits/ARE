@@ -6,9 +6,9 @@ ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado p
 
 La arquitectura separa la observación de los eventos, la construcción de reputación, la evaluación del estado, la decisión de política y la ejecución de las acciones.
 
-ARE v2.0 continúa esta arquitectura a partir de la base funcional y establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones.
+ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1 y v2.2 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.0.0 constituye la última versión estable liberada. v2.1 se encuentra en desarrollo y validación sobre esa base.
+La versión v2.1.0 constituye la última versión estable liberada. v2.2 se encuentra en desarrollo y validación sobre esa base.
 
 ---
 
@@ -101,7 +101,7 @@ Entre los elementos heredados se encuentran:
 * Ban Lifecycle Engine.
 * Installer Engine.
 
-La evolución hacia v2.0 incorporó una reorganización de identidad, estructura operativa, instalación y mantenimiento, la interfaz de administración ARE ADMIN, y la reconstrucción del Policy Engine hacia un modelo de evaluación por categoría (ver Sección "Policy Engine" más abajo). v2.1, en desarrollo, extiende la administración de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios.
+La evolución hacia v2.0 incorporó una reorganización de identidad, estructura operativa, instalación y mantenimiento, la interfaz de administración ARE ADMIN, y la reconstrucción del Policy Engine hacia un modelo de evaluación por categoría (ver Sección "Policy Engine" más abajo). v2.1 extendió esa base con administración avanzada de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios. v2.2, en desarrollo, incorpora un sensor real para la categoría SOCIAL, completa el catálogo de umbrales de categoría, y da los primeros pasos hacia la distribución del producto como paquete instalable.
 
 La arquitectura v2 mantiene como principio que las nuevas capacidades deben integrarse sin duplicar responsabilidades existentes.
 
@@ -174,7 +174,7 @@ Los eventos procesados producen cambios en las categorías de reputación corres
 
 La reputación se mantiene de forma persistente en SQLite.
 
-El modelo de reputación utilizado por ARE se construyó y amplió durante v1.1 y forma parte de la base sobre la que continúa desarrollándose v2.0/v2.1.
+El modelo de reputación utilizado por ARE se construyó y amplió durante v1.1 y forma parte de la base sobre la que continuó evolucionando en v2.0, v2.1 y v2.2.
 
 La reputación representa comportamiento acumulado y no solamente el último evento recibido.
 
@@ -269,7 +269,7 @@ La información administrada incluye:
 
 El mecanismo permite escalar progresivamente las sanciones hasta un bloqueo permanente cuando la política correspondiente lo determina.
 
-El Ban Lifecycle Engine fue implementado y validado durante la evolución de v1.1 y forma parte de la arquitectura sobre la que continúa v2.0/v2.1.
+El Ban Lifecycle Engine fue implementado y validado durante la evolución de v1.1 y forma parte de la arquitectura sobre la que continuó v2.0, v2.1 y v2.2.
 
 Un bloqueo permanente (`sanction_state.permanent = 1`) no es alcanzado por el Reputation Decay Engine — su reconsideración requiere una decisión administrativa explícita, no una recuperación automática por inactividad.
 
@@ -336,7 +336,7 @@ La incorporación de otros backends pertenece a la evolución futura del proyect
 
 El Reputation Decay Engine permite reducir gradualmente la reputación de direcciones IP que no presentan actividad reciente.
 
-El mecanismo fue desarrollado durante la evolución de v1.1 y continúa formando parte del ciclo operativo de v2.0/v2.1.
+El mecanismo fue desarrollado durante la evolución de v1.1 y continúa formando parte del ciclo operativo de v2.0, v2.1 y v2.2.
 
 El proceso utiliza:
 
@@ -735,7 +735,7 @@ Las plantillas distribuidas con el producto se diferencian de la configuración 
 
 ## Evolución incremental
 
-v2.0/v2.1 continúan la arquitectura desarrollada en v1.1.
+v2.0, v2.1 y v2.2 continúan la arquitectura desarrollada en v1.1.
 
 Las modificaciones deben realizarse de forma incremental:
 
@@ -757,7 +757,7 @@ La documentación debe reflejar el comportamiento validado del sistema y no anti
 
 # Estado arquitectónico
 
-La arquitectura base de v1.1 permanece como fundamento de v2.0/v2.1.
+La arquitectura base de v1.1 permanece como fundamento de v2.0, v2.1 y v2.2.
 
 v2.0 introdujo una evolución estructural y operativa que incluye:
 
@@ -774,11 +774,18 @@ v2.0 introdujo una evolución estructural y operativa que incluye:
 * interfaz de administración ARE ADMIN;
 * Policy Engine reconstruido con evaluación por categoría.
 
-v2.1, en desarrollo, extiende esta base con:
+v2.1 extendió esa base con:
 
 * administración avanzada de perfiles (exportar/importar entre servidores);
 * modelo de reputación extensible sin migración de esquema;
 * visibilidad temporal de la actividad del sistema;
 * persistencia del Firewall Backend a través de reinicios.
+
+v2.2 extiende esa base con:
+
+* segundo sensor por adaptador (SpamAssassin, categoría SOCIAL), estableciendo el patrón de "adaptador por fuente" dentro del Sensor Framework — la extracción de datos varía según el origen (hoy: Exim), pero el contrato de reporte hacia el Reputation Engine permanece único;
+* catálogo de categorías de reputación completo, con umbral definido para las 9 categorías;
+* visibilidad temporal ampliada (desglose por categoría, exportación a CSV);
+* primera capa de distribución del producto (empaquetado con verificación de integridad, publicación automatizada por versión etiquetada, instalación remota sin depender de clonar el repositorio) — el Installer Engine en sí no fue modificado, esta capa opera exclusivamente antes de la instalación.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.
