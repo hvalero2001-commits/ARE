@@ -49,6 +49,27 @@ Revisar y normalizar la documentación oficial de ARE para garantizar que reflej
 * `docs/TODO.md`
 * `docs/CHANGELOG.md`
 
+**Progreso registrado (sesión IDEA-007, v2.2)**
+
+Avance concreto sobre el alcance "sincronizar versiones" y "separar
+trabajo histórico de trabajo pendiente" de este TASK, sin cerrarlo
+del todo — el alcance sigue siendo más amplio que lo tocado en esta
+sesión:
+
+* `VERSION`, `config/config.conf::VERSION` y
+  `manifest/product.sh::PRODUCT_VERSION` estaban desincronizados
+  (`2.1.0` en los dos primeros, `2.2.0` en el manifiesto desde
+  RFC-016) — alineados los tres a la versión real de desarrollo.
+* `RFC-013` documentaba dos pendientes ya resueltos en el mismo
+  commit que los implementó — actualizada su sección Pendiente con
+  el detalle real.
+* `BUG-014` corregido de encabezado (`#` → `##`) y reubicado a su
+  posición cronológica, en vez de aparecer fuera de secuencia al
+  final del historial.
+* `BUG-002` (observación abierta desde v1.x) cerrado con evidencia
+  real acumulada, movido de la sección de bugs activos al historial
+  resuelto.
+
 ---
 
 ## TASK-015
@@ -207,23 +228,22 @@ coincide con la configuración activa.
 
 **Título:** Completar catálogo de categorías y umbrales faltantes en `policy.conf`
 
-**Estado:** En progreso
+**Estado:** ✔ Resuelto
 
 **Prioridad:** Media
 
 **Descripción**
 
 `config/policy.conf` define umbrales de categoría (`*_THRESHOLD`) para
-`RECON`, `EXPLOIT`, `CREDENTIAL`, `PROTOCOL`, `BOT`, `ANOMALY` y `DOS`.
-`MALWARE` y `SOCIAL` permanecen sin umbral, a la espera de que exista un
-jail/sensor real que reporte a esas categorías (ver RFC-006).
+las 9 categorías del catálogo (`RECON`, `EXPLOIT`, `CREDENTIAL`,
+`PROTOCOL`, `BOT`, `ANOMALY`, `DOS`, `MALWARE`, `SOCIAL`).
 
 Como parte de la implementación de ARE ADMIN (ver FEAT-005), se incorporó
 la variable `REPUTATION_CATEGORIES` a `policy.conf` como catálogo
 explícito y única fuente de verdad de las categorías soportadas, consumida
 por `admin/categories.sh`.
 
-**Umbrales calibrados en esta sesión**
+**Umbrales calibrados**
 
 * `ANOMALY_THRESHOLD=40` — señal heurística blanda (ModSecurity generic
   anomaly), calibrada entre `RECON`(80) y `PROTOCOL`(20): necesita
@@ -231,12 +251,29 @@ por `admin/categories.sh`.
 * `DOS_THRESHOLD=30` — amenaza confirmada (umbral determinístico de
   `mod_evasive`, no heurística), calibrada al mismo nivel que
   `CREDENTIAL`(30): pocos eventos bastan para disparar.
+* `SOCIAL_THRESHOLD=40` (v2.2, RFC-016) — mismo nivel que `ANOMALY`:
+  heurística de spam vía SpamAssassin, con el mismo riesgo de falso
+  positivo (mensaje legítimo mal puntuado) que un heurístico de
+  ModSecurity. Calibrado con sensor real (`sensors/spamassassin.sh`)
+  ya reportando en producción.
+* `MALWARE_THRESHOLD=30` — mismo nivel que `CREDENTIAL`/`DOS`,
+  calibrado **sin sensor local reportando todavía** (excepción
+  deliberada al criterio general de "no definir umbrales
+  especulativos sin evidencia"): este servidor no tiene superficie
+  real de malware (tráfico de e-commerce, sin ClamAV/escaneo de
+  archivos activo — ver IDEA sobre recolección de perfiles de
+  colegas), pero dejar el umbral indefinido resolvería únicamente el
+  problema de este servidor puntual, no el de ARE como motor
+  genérico. Un colega que sume un sensor real de malware (ClamAV,
+  Imunify360, maldet) encuentra el umbral ya funcionando via
+  `jail_profile`, sin tener que definirlo él mismo. Pendiente de
+  validación con datos reales el día que exista un sensor, propio o
+  de un tercero.
 
 Calibración basada en `weight × confidence` de los jails reales
 asignados a cada categoría y en el número de eventos que ese cálculo
-implica para cruzar el umbral, siguiendo el mismo criterio ya aplicado a
-las categorías existentes (amenaza confirmada = umbral bajo, señal
-heurística = umbral alto).
+implica para cruzar el umbral, siguiendo el mismo criterio ya aplicado
+consistentemente en las 9 categorías.
 
 **Alcance**
 
@@ -245,14 +282,53 @@ heurística = umbral alto).
   catálogo y los umbrales dinámicamente; muestra `N/D` cuando el umbral no
   está definido.
 * ✔ `ANOMALY_THRESHOLD` y `DOS_THRESHOLD` definidos y calibrados.
-* Pendiente: `MALWARE_THRESHOLD`, `SOCIAL_THRESHOLD` — depende de que
-  esas categorías tengan primero un jail/sensor real reportando (ver
-  RFC-006). No se definen umbrales especulativos sin evidencia.
+* ✔ `SOCIAL_THRESHOLD` definido y calibrado con sensor real (RFC-016).
+* ✔ `MALWARE_THRESHOLD` definido y calibrado, sin sensor local — ver
+  justificación arriba.
 
 **Archivos relacionados**
 
 * `config/policy.conf`
 * `admin/categories.sh`
+
+---
+
+## TASK-019
+
+**Título:** Higiene de repositorio previa a IDEA-007 (empaquetado)
+
+**Estado:** ✔ Resuelto
+
+**Prioridad:** Baja
+
+**Versión:** v2.2 (en desarrollo)
+
+**Descripción**
+
+Dos limpiezas menores de repositorio, encontradas al inspeccionar el
+contenido real del primer `.tar.gz` generado por
+`scripts/build-package.sh` (IDEA-007) — ninguna afectaba el
+funcionamiento de ARE, ambas afectaban la calidad de lo distribuido a
+un colega nuevo.
+
+**Alcance**
+
+* `.gitignore` — `*.tar.gz`/`*.tar.gz.sha256` no estaban ignorados;
+  cada build local ensuciaba `git status` con un binario nuevo.
+* Eliminados 5 archivos placeholder vacíos (0 bytes) en `sensors/`
+  (`apache.sh`, `crowdsec.sh`, `modsecurity.sh`, `suricata.sh`,
+  `zeek.sh`), dejados como recordatorio de intención futura —
+  viajaban en el paquete distribuible sin ninguna distinción visual
+  respecto a los sensores reales y funcionales. La intención que
+  representaban ya está documentada en `ROADMAP.md`, sección
+  "Próximas líneas de trabajo"; mantenerlos hubiera obligado a
+  excluirlos a mano del empaquetado cada vez que se agregara un
+  placeholder nuevo.
+
+**Archivos relacionados**
+
+* `.gitignore`
+* `sensors/`
 
 ---
 
