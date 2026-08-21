@@ -16,22 +16,6 @@ Se organiza en:
 
 # BUGS
 
-## BUG-002
-
-**Título:** Verificar sincronización Backend ↔ Fail2Ban
-
-**Estado:** En observación
-
-**Prioridad:** Media
-
-**Descripción**
-
-Continuar validando durante la operación en producción que todas las acciones generadas por Fail2Ban sean procesadas correctamente por ARE.
-
-El objetivo es garantizar que la transición entre los eventos generados por Fail2Ban y las decisiones ejecutadas por ARE permanezca sincronizada.
-
----
-
 # TASKS
 
 ## TASK-013
@@ -2425,6 +2409,77 @@ MySQL propia, no archivo plano) antes de poder diseñar el sensor.
 
 ---
 
+## IDEA-007
+
+**Título:** Empaquetado y distribución del Installer Engine
+
+El Installer Engine existe desde v1.1 (`install`/`upgrade`/`repair`/
+`verify`/`uninstall`, completo y probado), pero la propia
+documentación lo aclara explícito: "el mecanismo actual no incorpora
+generación, descarga, extracción ni staging automático de paquetes
+externos". Hay motor de instalación, pero no paquete distribuible —
+para instalar ARE en un servidor nuevo hace falta el árbol fuente ya
+copiado a mano (clonar el repo, o copiar carpeta por carpeta) antes
+de poder correr `are-installer install`.
+
+Esto ya es una fricción real, no hipotética: el software se está
+replicando a colegas y otros servidores de la flota, y cada vez que
+eso pasa hoy, alguien clona git a mano en vez de bajar un paquete de
+una release y correr un instalador.
+
+Propuesta, capa liviana sobre lo que ya existe, sin tocar el
+Installer Engine en sí:
+
+* **Empaquetado** — script que arme un `.tar.gz` a partir del árbol
+  fuente (excluyendo `.git`, respetando lo que ya define
+  `manifest/product.sh` como componentes administrados), con
+  checksum.
+* **Distribución** — subirlo como asset de la misma GitHub Release
+  que ya se genera en cada cierre de versión (`v2.0.0`, `v2.1.0`...),
+  no un mecanismo nuevo de publicación.
+* **Bootstrap de una línea** — un script descargable
+  (`curl ... | bash`) que baje el `.tar.gz`, lo extraga, y llame a
+  `are-installer install` — el motor que ya existe, solo que ahora
+  accesible sin git.
+
+Coherente con "reutilización antes que duplicación": cero cambios al
+Installer Engine, solo la pieza que falta para que deje de depender
+de que alguien clone el repo a mano.
+
+---
+
+## IDEA-008
+
+**Título:** Detección de anomalías en tendencias
+
+Extensión directa de RFC-013 (desglose de tendencias por categoría).
+La noche de implementación de RFC-016 se encontraron dos anomalías
+reales revisando la tabla a mano (`EXPLOIT=1461` el 15 de agosto,
+`CREDENTIAL=3332` el 20 de agosto) — ambas visibles solo porque un
+humano estaba mirando la tabla en ese momento. Sin esa revisión
+activa, ninguna de las dos se hubiera notado.
+
+Propuesta: que ARE marque automáticamente cuando una categoría, en
+un día dado, se aleja significativamente de su propio promedio
+histórico reciente (por ejemplo, N veces el promedio de los últimos
+7 días) — visible en `Tendencias por categoría` o mencionado en
+`Estadísticas`.
+
+Por qué encaja con los principios ya establecidos del proyecto:
+
+* No inventa ningún valor de riesgo — es puramente estadístico
+  (promedio o desvío sobre datos ya existentes), no toca
+  `policy.conf` ni el modelo de decisión.
+* Reutiliza datos existentes — la tabla `events` y el patrón de
+  consulta ya escrito en `dashboard_trends_by_category()` (RFC-016).
+* Es observabilidad, no automatización de bloqueo — no banea nada,
+  no cambia comportamiento del sistema, solo hace visible algo que
+  ya estaba en los datos.
+* Da una primera forma concreta a `IDEA-004` (Dashboard avanzado),
+  que hoy es solo una intención general.
+
+---
+
 # HISTORIAL DE BUGS RESUELTOS
 
 Las siguientes incidencias forman parte del historial técnico de ARE y se conservan para trazabilidad.
@@ -2440,6 +2495,36 @@ Las siguientes incidencias forman parte del historial técnico de ARE y se conse
 **Corrección**
 
 Se incorporó `handle_unban()` para completar el flujo de liberación de direcciones IP.
+
+---
+
+## BUG-002
+
+**Título:** Verificar sincronización Backend ↔ Fail2Ban
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.2 (cierre de una observación abierta desde v1.x)
+
+**Descripción original**
+
+Continuar validando durante la operación en producción que todas las
+acciones generadas por Fail2Ban sean procesadas correctamente por
+ARE — garantizar que la transición entre los eventos generados por
+Fail2Ban y las decisiones ejecutadas por ARE permanezca sincronizada.
+
+**Validación**
+
+Cerrado con evidencia acumulada de múltiples sesiones de producción,
+confirmada de forma extensiva durante la implementación de RFC-016:
+decenas de eventos reales de distintos jails de Fail2Ban
+(`modsec-bruteforce`, `modsec-scanner`, `modsec-bots`, `recidive`,
+`modsec-protocol`, `modsec-anomaly`) procesados correctamente de
+punta a punta (`FOUND → Score → POLICY → APPLY`), incluyendo un caso
+de correlación multi-categoría sobre una misma IP
+(`216.180.246.162`) y acumulación correcta entre eventos repetidos
+(`96.127.160.85`). Sin ningún caso de desincronización detectado en
+ninguna de las revisiones.
 
 ---
 
@@ -2800,6 +2885,56 @@ Resuelta como parte de RFC-009: `anomaly.sh` reescrita con el contrato
 **Archivos relacionados**
 
 * `policy/rules/anomaly.sh`
+
+---
+
+## BUG-014
+
+**Título:** Bloque de código huérfano en `dashboard/events.sh`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.0 (en desarrollo)
+
+**Problema**
+
+`dashboard/events.sh` contenía un bloque `db_exec("SELECT COUNT(*) FROM
+events WHERE date(fecha,'unixepoch')=date('now')")` ubicado fuera del
+cuerpo de la función `dashboard_events()`, después de su cierre `}`. Al
+estar a nivel de archivo, se ejecutaba en cada `source` del módulo (por
+ejemplo, cada carga de `bootstrap.sh`), no cuando se invocaba la función.
+
+**Impacto**
+
+Overhead silencioso en cada carga del módulo. La misma lógica ya existía
+correctamente implementada como función independiente:
+`db_count_events_today()` en `database.sh`, consumida por
+`dashboard/stats.sh`. El bloque suelto era una copia abandonada, sin
+consumidor.
+
+**Evidencia**
+
+```bash
+grep -rn "eventos_hoy\|events_today\|date('now')" --include="*.sh" .
+# ./dashboard/stats.sh:31:    TODAY=$(db_count_events_today)
+# ./dashboard/events.sh:29:        WHERE date(fecha, 'unixepoch') = date('now');
+# ./database.sh:665:db_count_events_today() {
+```
+
+**Corrección**
+
+Se eliminó el bloque huérfano de `dashboard/events.sh`, dejando únicamente
+la definición de `dashboard_events()`.
+
+**Validación**
+
+```bash
+./are.sh events 45.148.10.238
+./are.sh events 5.5.5.5
+```
+
+Ambos casos confirmados en producción, comportamiento idéntico al previo
+a la corrección.
 
 ---
 
@@ -3210,55 +3345,65 @@ las 5 se aplicaron correctamente, sin ningún error de bloqueo.
 
 ---
 
-# BUG-014
+## BUG-023
 
-**Título:** Bloque de código huérfano en `dashboard/events.sh`
+**Título:** `PRODUCT_EXECUTABLE_FILES` incompleto tras RFC-016 — sensores nuevos sin permiso de ejecución en instalación limpia
 
 **Estado:** ✔ Resuelto
 
-**Versión:** v2.0 (en desarrollo)
+**Versión:** v2.2 (en desarrollo)
 
 **Problema**
 
-`dashboard/events.sh` contenía un bloque `db_exec("SELECT COUNT(*) FROM
-events WHERE date(fecha,'unixepoch')=date('now')")` ubicado fuera del
-cuerpo de la función `dashboard_events()`, después de su cierre `}`. Al
-estar a nivel de archivo, se ejecutaba en cada `source` del módulo (por
-ejemplo, cada carga de `bootstrap.sh`), no cuando se invocaba la función.
+El commit de RFC-016 agregó `sensors/spamassassin.sh` y las unidades
+systemd correspondientes, pero no actualizó
+`manifest/product.sh::PRODUCT_EXECUTABLE_FILES`. `sensors/` ya estaba
+declarado en `PRODUCT_DIRS` (copia automática de directorio completo),
+pero eso solo copia los archivos — los permisos de ejecución se
+asignan aparte, únicamente a lo listado en
+`PRODUCT_EXECUTABLE_FILES`. `sensors/apache_evasive.sh` tampoco
+estaba, desde antes de RFC-016.
 
 **Impacto**
 
-Overhead silencioso en cada carga del módulo. La misma lógica ya existía
-correctamente implementada como función independiente:
-`db_count_events_today()` en `database.sh`, consumida por
-`dashboard/stats.sh`. El bloque suelto era una copia abandonada, sin
-consumidor.
-
-**Evidencia**
-
-```bash
-grep -rn "eventos_hoy\|events_today\|date('now')" --include="*.sh" .
-# ./dashboard/stats.sh:31:    TODAY=$(db_count_events_today)
-# ./dashboard/events.sh:29:        WHERE date(fecha, 'unixepoch') = date('now');
-# ./database.sh:665:db_count_events_today() {
-```
+En una instalación nueva o un `upgrade`, `install_permissions()`
+aplica `chmod 0644` a todos los archivos y solo despliega `0755`
+sobre los declarados en `PRODUCT_EXECUTABLE_FILES`. Sin la entrada,
+`spamassassin.sh` y `apache_evasive.sh` quedarían copiados pero sin
+permiso de ejecución — falla silenciosa: el timer de systemd
+fallaría (`Permission denied`) sin ningún error visible durante la
+instalación misma. Detectado antes de que afectara a ningún colega,
+al correr `are-installer verify` de forma preventiva en este
+servidor.
 
 **Corrección**
 
-Se eliminó el bloque huérfano de `dashboard/events.sh`, dejando únicamente
-la definición de `dashboard_events()`.
+Se agregaron las dos entradas faltantes a `PRODUCT_EXECUTABLE_FILES`:
+
+```bash
+PRODUCT_EXECUTABLE_FILES=(
+    are-installer
+    are.sh
+    sensors/fail2ban.sh
+    sensors/apache_evasive.sh
+    sensors/spamassassin.sh
+)
+```
 
 **Validación**
 
 ```bash
-./are.sh events 45.148.10.238
-./are.sh events 5.5.5.5
+bash -n manifest/product.sh
+./are-installer verify
 ```
 
-Ambos casos confirmados en producción, comportamiento idéntico al previo
-a la corrección.
+`are-installer verify` confirmado limpio: 11/11 checks en OK
+(Integridad, Enlaces, Comandos oficiales, Permisos, Base de datos,
+IPSet, Firewall, Systemd, Logrotate, Runtime).
 
----
+**Archivos relacionados**
+
+* `manifest/product.sh`
 
 ---
 
