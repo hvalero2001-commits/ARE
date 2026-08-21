@@ -1,2 +1,4 @@
 *.bak
 *.bak.*
+*.tar.gz
+*.tar.gz.sha256
