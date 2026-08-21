@@ -2227,6 +2227,118 @@ Volver` sigue funcionando sin cambios en su comportamiento original.
 
 ---
 
+## RFC-016
+
+**Título:** Sensor SpamAssassin — categoría SOCIAL
+
+**Estado:** ✔ Implementada y validada en producción
+
+**Versión:** v2.2 (en desarrollo)
+
+**Descripción**
+
+Primera funcionalidad de la línea v2.2. Surge de completar una
+categoría que ya existía en el modelo desde RFC-009
+(`REPUTATION_CATEGORIES`, regla `policy_rule_social()`) pero sin
+ningún sensor real que la alimentara — `SOCIAL_THRESHOLD` estaba
+vacío y la regla, aunque escrita, nunca se ejecutaba.
+
+Se evaluó primero MALWARE como candidato de la misma naturaleza (sin
+sensor), pero se descartó por falta de superficie real en este
+servidor (tráfico es e-commerce → clientes, sin ClamAV/escaneo de
+malware activo) — queda como IDEA para publicación/comunidad, no como
+tarea de v2.2. SpamAssassin, en cambio, sí tiene tráfico real
+(mensajería de e-commerce saliente vía Exim), y quedó como la
+categoría con datos disponibles para calibrar sin depender de
+terceros.
+
+**Decisiones de diseño**
+
+* **Bandas en vez de score variable por evento.** Se descartó pasar
+  el score de SpamAssassin como peso variable directo (rompería el
+  contrato de `handle_found()`, que toma weight/confidence fijos del
+  `jail_profile`). En su lugar, tres jails virtuales por rango de
+  score (`spamassassin-low` 5.0–9.99, `spamassassin-med` 10.0–14.99,
+  `spamassassin-high` ≥15.0), cada uno con su propio perfil — cero
+  cambios en `database.sh` ni en `policy/`.
+* **Adaptador por MTA.** El sensor (`sensors/spamassassin.sh`) aísla
+  la extracción de IP+score en una función por MTA
+  (`extract_spam_event_<mta>`, seleccionada por `SPAMASSASSIN_MTA` en
+  `config.conf`). Único adaptador implementado y validado: `exim`.
+  Sumar otro MTA es agregar una función, no reescribir el sensor.
+* **Separación config.conf / policy.conf.** `SPAMASSASSIN_MTA` y
+  `SPAMASSASSIN_LOG_FILE` (infraestructura) quedan en `config.conf`;
+  `SPAMASSASSIN_MIN_SCORE` y los límites de banda (calibración de
+  decisión, mismo tipo de valor que un `*_THRESHOLD`) quedan en
+  `policy.conf`. Diferencia estructural real respecto a
+  `sensors/fail2ban.sh`: ese sensor no necesita leer `policy.conf`
+  porque no clasifica nada, reenvía el evento crudo; este sí clasifica
+  antes de reportar, así que necesita ambos archivos.
+* **`SOCIAL_THRESHOLD=40`**, calibrado por criterio (sin volumen
+  histórico propio para basarse, a diferencia de `ANOMALY`/`DOS`) —
+  mismo nivel que `ANOMALY`, por tratarse de una señal heurística
+  igual de propensa a falsos positivos (spam mal clasificado, SPF
+  roto), no una confirmación binaria como `CREDENTIAL`/`DOS`.
+
+**Implementación**
+
+* `sensors/spamassassin.sh` — patrón polling (offset por línea,
+  mismo esquema que `sensors/fail2ban.sh`), filtro dinámico contra
+  `jail_profile` (mismo criterio que TASK-016), `$ARE_BIN found`
+  para reportar.
+* 3 `jail_profile` nuevos, categoría `SOCIAL`:
+  `spamassassin-low` (10 / 0.6), `spamassassin-med` (25 / 0.75),
+  `spamassassin-high` (50 / 0.9).
+* Automatización: `are-spamassassin.service` + `are-spamassassin.timer`
+  (systemd, cada 1 min, `After=/Requires=exim.service` en vez de
+  `fail2ban.service` — dependencia adaptada a la fuente real de
+  datos). Sin symlink en `PRODUCT_EXECUTABLE_LINKS` (los sensores no
+  se invocan manualmente).
+* Alta en `manifest/product.sh` → `PRODUCT_SYSTEMD_UNITS`.
+* `policy/rules/social.sh` no requirió ningún cambio — ya existía
+  desde RFC-009 con el contrato correcto, esperando que
+  `SOCIAL_THRESHOLD` dejara de estar vacío.
+
+**Bug encontrado y corregido durante la implementación**
+
+Al crear `spamassassin-high` en ARE ADMIN, quedó con weight=25 en vez
+de 50 (igual al de `spamassassin-med`), sin diferenciar la banda alta
+de la media. Detectado al validar los primeros 7 eventos reales
+contra la fórmula real de `handle_found()`
+(`score = round(weight × confidence × 0.25)`, confirmada leyendo
+`are.sh` en vez de asumida) — los 3 primeros eventos `high` dieron
+score 6, idéntico al esperado para `med`. Corregido en ARE ADMIN antes
+de automatizar con systemd. Los 3 eventos ya aplicados con el weight
+incorrecto no se revirtieron: `SOCIAL_THRESHOLD` todavía no existía
+en ese momento, no afectaron ninguna decisión real.
+
+**Validación**
+
+Probado en producción contra el `mainlog` real de Exim:
+* `--dry-run` inicial: 7 eventos reales clasificados correctamente en
+  sus 3 bandas.
+* `--execute` manual: pipeline completo confirmado
+  (`FOUND → Score → POLICY → APPLY`), incluida acumulación correcta
+  entre eventos de la misma IP (`96.127.160.85`: dos hits de
+  `spamassassin-high`, `RAW_TOTAL` 6→12).
+* Automatización con systemd verificada (`systemctl list-timers`,
+  `journalctl -u are-spamassassin.service`).
+* `./are.sh admin` → Política → Validar: 9/9 categorías con regla
+  activa (antes de este RFC, `SOCIAL` estaba en la lista pero sin
+  ejercer ningún efecto real).
+* Primer día completo de datos reales (2026-08-20): 1 evento
+  registrado en tendencias por categoría — volumen bajo, coherente
+  con la calibración conservadora elegida.
+
+**Pendiente**
+
+* Adaptador para otro MTA (Postfix), sin caso de uso real todavía en
+  la flota.
+* Recalibrar bandas/umbral con más volumen histórico una vez pase
+  más tiempo (igual criterio que `ANOMALY`/`DOS` en su momento).
+
+---
+
 
 
 # IDEAS
@@ -2266,6 +2378,50 @@ Evaluar ampliaciones del dashboard, incluyendo:
 * consultas avanzadas;
 * análisis temporal;
 * evolución de reputación.
+
+---
+
+## IDEA-005
+
+**Título:** Detección de compromiso de cuenta de correo (autenticación exitosa tras fuerza bruta)
+
+Surge del análisis de `SOCIAL`/`CREDENTIAL`: un ataque de fuerza
+bruta que logra autenticarse contra una cuenta de correo (IMAP/POP)
+no genera ninguna señal hoy si el número de intentos fallidos no
+llega a cruzar el umbral del jail de Fail2Ban correspondiente — el
+caso más grave (cuenta comprometida) puede pasar invisible.
+
+Requeriría un sensor nuevo (no extensión de `dovecot` ni de
+`spamassassin.sh`) que correlacione fallos y éxitos por usuario en
+una ventana corta, parseando el log crudo de dovecot. Sin datos reales
+de ningún caso (ni de compromiso ni de falso positivo por typo
+humano) para calibrar un umbral de intentos — no tiene sentido
+diseñarlo hasta contar con evidencia real.
+
+Además, el modelo de acción de ARE (WATCH/FILTER/TEMP_BAN/PERMANENT_BAN,
+todo a nivel de IP) no resuelve este escenario: banear la IP atacante
+no revoca el acceso ya obtenido a la cuenta. Requeriría una acción
+nueva (alerta a admin), no solo un sensor nuevo — ARE hoy no tiene
+ningún mecanismo de notificación.
+
+Se descartó depender de cpHulk (ya implementado en este servidor
+puntual vía cPanel) como sustituto: ARE no puede asumir capas de
+seguridad específicas de un stack que un colega puede no tener.
+cpHulk queda como IDEA aparte (IDEA-006), fuente opcional, no
+requisito.
+
+---
+
+## IDEA-006
+
+**Título:** Integrar cpHulk como sensor CREDENTIAL
+
+Mismo patrón que `mod_evasive` (RFC-010): una herramienta externa que
+ya defiende por su cuenta (bloqueo de fuerza bruta cross-servicio en
+cPanel/WHM), reportando a ARE para sumar a reputación/decay/ban
+lifecycle en vez de operar aislada. Categoría `CREDENTIAL`. Pendiente
+de identificar dónde loguea cpHulk sus bloqueos (típicamente tabla
+MySQL propia, no archivo plano) antes de poder diseñar el sensor.
 
 ---
 
