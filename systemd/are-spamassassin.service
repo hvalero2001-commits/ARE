@@ -1,0 +1,10 @@
+[Unit]
+Description=ARE SpamAssassin FOUND Sensor
+After=exim.service
+Requires=exim.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/are/sensors/spamassassin.sh --execute
+User=root
+Group=root

@@ -11,7 +11,7 @@
 
 PRODUCT_NAME="ARE"
 PRODUCT_DESCRIPTION="Abuse Reputation Engine"
-PRODUCT_VERSION="2.0.0"
+PRODUCT_VERSION="2.2.0"
 PRODUCT_LICENSE="GPL-3.0"
 
 ##################################################
@@ -88,6 +88,8 @@ PRODUCT_SYSTEMD_UNITS=(
     are-fail2ban-decay.service
     are-fail2ban-decay.timer
     are-restore-ipsets.service
+    are-spamassassin.service
+    are-spamassassin.timer
 )
 
 ##################################################

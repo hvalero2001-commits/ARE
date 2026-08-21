@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ARE SpamAssassin FOUND Sensor every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=are-spamassassin.service
+
+[Install]
+WantedBy=timers.target
+
