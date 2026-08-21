@@ -1940,9 +1940,9 @@ validación con tráfico real de flood permanece pendiente.
 
 **Título:** Visibilidad temporal — tendencias diarias de actividad
 
-**Estado:** ✔ Implementada
+**Estado:** ✔ Implementada — pendientes cerrados en v2.2
 
-**Versión:** v2.1 (en desarrollo)
+**Versión:** v2.1 (en desarrollo) — cierre de pendientes en v2.2
 
 **Descripción**
 
@@ -1974,14 +1974,27 @@ Probado en producción con los 7 días reales más recientes. Reveló de
 inmediato un pico real no detectado previamente: el 2026-08-15
 registró 5767 eventos (vs. un rango normal de 500-1300 en los demás
 días de la muestra), con un volumen de `EXTERNAL_UNBAN` (1518)
-desproporcionado respecto al resto de la semana — queda anotado como
-punto a investigar por separado, sin bloquear el cierre de esta RFC.
+desproporcionado respecto al resto de la semana — investigado por
+separado durante la sesión de RFC-016: misma causa que un pico
+posterior de `CREDENTIAL`/`EXPLOIT`, ambos coincidentes con ventanas
+sin Cloudflare Under Attack Mode.
 
-**Pendiente**
+**Pendientes cerrados en v2.2**
 
-* Desglose por categoría dentro de la misma ventana temporal
-  (extensión natural, mismo patrón de consulta).
-* Exportación a CSV, reutilizando el patrón ya validado en RFC-011.
+* **Desglose por categoría** — `dashboard_trends_by_category(dias)`:
+  mismo patrón de agrupación por día, con `JOIN` contra
+  `jail_profile` para resolver la categoría de cada evento a partir
+  de su `jail`. El `JOIN` (inner) excluye automáticamente eventos
+  internos sin jail administrado (mismo mecanismo implícito que ya
+  usa `TOP JAILS`), sin necesidad de una lista de exclusión aparte.
+  Opción "6) Tendencias por categoría" en el mismo menú.
+* **Exportación a CSV** — `dashboard_trends_export(dias)`: mismo
+  patrón de archivo con timestamp en `${ARE_DATA}/backups/trends/`
+  ya validado en RFC-011. Opción "7) Exportar tendencias (CSV)".
+* Validación en producción de ambos: el desglose por categoría reveló
+  un segundo pico real (`CREDENTIAL=3332` el 2026-08-20, contra un
+  rango normal de 40-90), confirmando la misma causa raíz que el pico
+  de `EXTERNAL_UNBAN` del 15 de agosto.
 
 ---
 
