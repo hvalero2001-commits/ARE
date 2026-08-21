@@ -1,0 +1,36 @@
+name: Build release package
+
+# Se dispara solo con tags de release (v*.*.*), mismo formato ya
+# usado en todos los tags existentes (v1.0.0 ... v2.1.0) — no con
+# cada push a una rama de desarrollo.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build package
+        run: |
+          chmod +x scripts/build-package.sh
+          ./scripts/build-package.sh
+
+      - name: Verify checksum
+        run: sha256sum -c are-v*.tar.gz.sha256
+
+      - name: Upload assets to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            are-v*.tar.gz \
+            are-v*.tar.gz.sha256 \
+            --clobber
