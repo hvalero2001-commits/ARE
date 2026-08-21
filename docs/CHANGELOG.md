@@ -6,6 +6,64 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.2.0
+
+**Fecha:** 2026-08-21
+
+## Resumen
+
+Versión enfocada en incorporar una nueva fuente de datos real al modelo de reputación, completar el catálogo de categorías, y resolver la fricción de distribución del producto hacia otros servidores de la flota.
+
+## Sensor SpamAssassin
+
+Primera categoría heurística de la línea v2.2. `SOCIAL` cuenta ahora con un sensor real, alimentado por scores de SpamAssassin sobre tráfico de correo saliente, clasificados en tres bandas de severidad calibradas por jail_profile.
+
+* Arquitectura por adaptador de MTA — único adaptador implementado y validado: Exim. Sumar otro MTA es agregar una función, no reescribir el sensor.
+* Automatización vía systemd timer, con dependencia explícita del servicio de correo real en vez del genérico usado por el resto de los sensores.
+* `policy/rules/social.sh`, existente desde una fase anterior del proyecto sin umbral definido, queda activo por primera vez.
+
+## Catálogo de categorías completo
+
+Las 9 categorías del modelo de reputación cuentan ahora con umbral definido — incluida `MALWARE`, calibrada de forma proactiva pese a no contar con sensor local, como decisión consciente de motor genérico: útil para cualquier servidor con superficie de malware real, no solo el propio.
+
+## Visibilidad temporal ampliada
+
+La vista de tendencias diarias, incorporada en la versión anterior, se extiende con desglose por categoría y exportación a CSV — sin instrumentación nueva, reutilizando exclusivamente los datos ya existentes.
+
+* El desglose por categoría reveló picos de actividad reales previamente indetectables, correlacionados con ventanas de exposición directa sin protección de borde.
+
+## Empaquetado y distribución
+
+El motor de instalación, existente desde versiones anteriores, incorpora su primera capa de distribución real.
+
+* Script de empaquetado que genera un artefacto distribuible a partir del manifiesto del producto, con verificación de integridad.
+* Automatización de la generación y publicación del paquete en cada versión etiquetada.
+* Instalación remota de una sola línea, sin depender de clonar el repositorio.
+
+## Correcciones
+
+* Observación de sincronización entre Fail2Ban y el motor de decisión, abierta desde una versión temprana del proyecto, cerrada con evidencia acumulada de operación real sostenida.
+* Manifiesto del producto incompleto tras la incorporación del sensor de SpamAssassin: dos archivos quedaban sin permiso de ejecución en una instalación nueva — corregido y verificado antes de afectar ninguna instalación real.
+
+## Documentación
+
+Revisión de consistencia entre entradas del historial técnico: reordenamiento de una entrada fuera de secuencia, cierre de pendientes ya resueltos que seguían documentados como abiertos, y sincronización del número de versión entre las distintas fuentes del dato.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync.
+
+---
+
 # v2.1.0
 
 **Fecha:** 2026-08-20
