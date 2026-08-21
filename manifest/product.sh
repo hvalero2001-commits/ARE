@@ -132,4 +132,6 @@ PRODUCT_EXECUTABLE_FILES=(
     are-installer
     are.sh
     sensors/fail2ban.sh
+    sensors/apache_evasive.sh
+    sensors/spamassassin.sh
 )
