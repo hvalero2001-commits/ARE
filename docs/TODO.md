@@ -2411,40 +2411,84 @@ MySQL propia, no archivo plano) antes de poder diseñar el sensor.
 
 ## IDEA-007
 
-**Título:** Empaquetado y distribución del Installer Engine
+**Título:** Empaquetado, distribución y auto-actualización del Installer Engine
 
 El Installer Engine existe desde v1.1 (`install`/`upgrade`/`repair`/
 `verify`/`uninstall`, completo y probado), pero la propia
-documentación lo aclara explícito: "el mecanismo actual no incorpora
+documentación aclaraba explícito: "el mecanismo actual no incorpora
 generación, descarga, extracción ni staging automático de paquetes
-externos". Hay motor de instalación, pero no paquete distribuible —
-para instalar ARE en un servidor nuevo hace falta el árbol fuente ya
+externos". Había motor de instalación, pero no paquete distribuible —
+para instalar ARE en un servidor nuevo hacía falta el árbol fuente ya
 copiado a mano (clonar el repo, o copiar carpeta por carpeta) antes
 de poder correr `are-installer install`.
 
-Esto ya es una fricción real, no hipotética: el software se está
-replicando a colegas y otros servidores de la flota, y cada vez que
-eso pasa hoy, alguien clona git a mano en vez de bajar un paquete de
-una release y correr un instalador.
+Fricción real, no hipotética: el software se está replicando a
+colegas y otros servidores de la flota, y cada vez que eso pasaba,
+alguien clonaba git a mano en vez de bajar un paquete de una release
+y correr un instalador.
 
-Propuesta, capa liviana sobre lo que ya existe, sin tocar el
-Installer Engine en sí:
+**Fase 1 — Empaquetado manual: ✔ Implementada**
 
-* **Empaquetado** — script que arme un `.tar.gz` a partir del árbol
-  fuente (excluyendo `.git`, respetando lo que ya define
-  `manifest/product.sh` como componentes administrados), con
-  checksum.
-* **Distribución** — subirlo como asset de la misma GitHub Release
-  que ya se genera en cada cierre de versión (`v2.0.0`, `v2.1.0`...),
-  no un mecanismo nuevo de publicación.
-* **Bootstrap de una línea** — un script descargable
-  (`curl ... | bash`) que baje el `.tar.gz`, lo extraga, y llame a
-  `are-installer install` — el motor que ya existe, solo que ahora
-  accesible sin git.
+* `scripts/build-package.sh` — genera un `.tar.gz` a partir de
+  `PRODUCT_VERSION` y `PRODUCT_EXCLUDED` del manifiesto (reutilizados,
+  sin duplicar esa lista en un segundo lugar). `VERSION` se sincroniza
+  automáticamente desde `PRODUCT_VERSION` en cada build, en vez de
+  mantenerse a mano — evita el tipo de desincronización encontrada y
+  corregida esta misma sesión (`VERSION`/`config.conf` en 2.1.0
+  mientras `PRODUCT_VERSION` ya estaba en 2.2.0).
+* Probado en producción: `are-v2.2.0.tar.gz` (132K, 121 archivos),
+  confirmado sin rastro de `.git`, `testing`, `tmp`,
+  `database-test.sh`.
+* Efecto colateral positivo: al inspeccionar el contenido del paquete
+  generado, se encontraron 5 archivos placeholder vacíos en
+  `sensors/` (`apache.sh`, `crowdsec.sh`, `modsecurity.sh`,
+  `suricata.sh`, `zeek.sh`) que viajaban sin distinción junto a los
+  sensores reales — eliminados, la intención que representaban ya
+  está documentada en `ROADMAP.md`.
 
-Coherente con "reutilización antes que duplicación": cero cambios al
-Installer Engine, solo la pieza que falta para que deje de depender
-de que alguien clone el repo a mano.
+**Fase 2 — Automatización y distribución: pendiente**
+
+* GitHub Actions, disparado por tag (`v*.*.*`, mismo formato ya usado
+  en todos los tags existentes), que corra `build-package.sh` y suba
+  el `.tar.gz` + `.sha256` como asset de la release — reutilizando el
+  script de Fase 1 tal cual, sin reescribir la lógica en YAML.
+* **Bootstrap de una línea** — script descargable
+  (`curl ... | bash`) que baje el paquete de la última release,
+  verifique el checksum, lo extraiga, y llame a
+  `are-installer install` — el motor que ya existe, accesible sin
+  git.
+
+**Fase 3 — Auto-actualización estilo repositorio de paquetes: idea**
+
+Inspirado en el patrón de `apt`/`yum`/`dnf`: hoy, sin ninguna de las
+fases anteriores, un servidor corriendo v2.0 no tiene forma de
+enterarse de que existe v2.1 disponible — `installer_upgrade()` asume
+que el operador ya bajó la versión nueva y está parado en ese
+directorio; no hay comparación de versión contra ningún origen
+remoto.
+
+Propuesta: un modo nuevo del instalador (`are-installer
+upgrade --remote`, a definir si es opt-in o default con fallback
+local) que:
+
+1. Consulte la API de GitHub (`/repos/.../releases/latest`).
+2. Compare la versión remota contra el `VERSION` instalado localmente.
+3. Descargue el `.tar.gz` de la última release y verifique su
+   `.sha256` (mismo criterio de integridad ya aplicado en todo el
+   proyecto).
+4. Extraiga a un directorio temporal y lo use como `SOURCE_DIR` —
+   recién ahí invocando la misma `install_copy_files()`/
+   `installer_upgrade()` que ya existe, sin duplicar esa lógica.
+
+Depende por completo de que la Fase 2 esté resuelta primero — sin
+releases publicadas con paquete adjunto, no hay nada contra qué
+comparar ni qué descargar.
+
+Coherente con "reutilización antes que duplicación" en las tres
+fases: ningún cambio al núcleo del Installer Engine, solo las piezas
+que faltan para que deje de depender de que alguien clone el repo a
+mano, y eventualmente para que el propio sistema se entere solo de
+que hay una versión nueva.
 
 ---
 
