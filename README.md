@@ -75,7 +75,7 @@ Entre las capacidades actuales de ARE se encuentran:
 * Evaluación histórica del comportamiento de cada dirección IP.
 * Motor de estados para el ciclo de vida de las IP.
 * Policy Engine separado del mecanismo de detección, con evaluación por categoría y umbrales configurables.
-* Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive).
+* Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive), incluyendo un sensor real para señales heurísticas de correo (SpamAssassin).
 * Persistencia mediante SQLite, con modelo de reputación extensible sin migración de esquema.
 * Interfaz de administración por línea de comandos (ARE ADMIN), con auditoría de operaciones.
 * Dashboard operativo para reputación, eventos, estadísticas y tendencias temporales.
@@ -84,7 +84,7 @@ Entre las capacidades actuales de ARE se encuentran:
 * Soporte para IPv4 e IPv6.
 * Decay de reputación, con redistribución proporcional entre categorías.
 * Gestión de sanciones mediante Ban Lifecycle Engine.
-* Installer Engine para instalación y mantenimiento.
+* Installer Engine para instalación y mantenimiento, con empaquetado y distribución para instalación remota sin depender de clonar el repositorio.
 
 Las categorías de reputación utilizadas actualmente son:
 
@@ -104,9 +104,9 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.0.0** (estable, liberada) — **v2.1 en desarrollo activo**
+**ARE v2.1.0** (estable, liberada) — **v2.2 en desarrollo activo**
 
-La versión 2.0 consolidó la identidad propia del producto (migración desde la estructura histórica `f2b-ipset` hacia `/opt/are`), incorporó la interfaz de administración ARE ADMIN, y reconstruyó el Policy Engine hacia un modelo de evaluación por categoría. La versión 2.1, en desarrollo, extiende la administración de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios.
+La versión 2.1 consolidó la administración de perfiles entre servidores, migró el modelo de reputación a un esquema normalizado extensible sin migración de estructura, incorporó visibilidad temporal de la actividad del sistema, y robusteció la persistencia del Firewall Backend a través de reinicios. La versión 2.2, en desarrollo, incorpora un sensor real para la categoría SOCIAL (SpamAssassin), completa el catálogo de umbrales de todas las categorías de reputación, y da los primeros pasos hacia la distribución del producto como paquete instalable, en vez de depender de clonar el repositorio.
 
 ## Instalación
 

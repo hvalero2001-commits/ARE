@@ -138,23 +138,31 @@ Administra el ciclo de vida del producto.
 
 # Estado actual
 
-Versión estable:
+Versión estable liberada:
 
 ```text
-v1.1
+v2.1.0
+```
+
+Versión en desarrollo activo:
+
+```text
+v2.2 (rama v2.2-dev)
 ```
 
 Capacidades implementadas.
 
-- Reputation Engine.
+- Reputation Engine, con modelo de reputación por categoría extensible sin migración de esquema.
 - State Engine.
-- Policy Engine.
+- Policy Engine, con evaluación de riesgo por categoría.
 - Ban Lifecycle Engine.
-- Sensor Framework.
+- Sensor Framework, con los patrones polling y callback.
 - Fail2Ban Sensor.
-- Firewall Backend.
-- Dashboard.
-- Installer Engine.
+- Apache/mod_evasive Sensor.
+- SpamAssassin Sensor (categoría SOCIAL).
+- Firewall Backend (IPSet), con restauración automática al arrancar el sistema.
+- Dashboard, con estadísticas y tendencias temporales por categoría.
+- Installer Engine, con empaquetado y distribución de paquetes.
 - SQLite.
 - Integración con ModSecurity.
 - Integración con Fail2Ban.

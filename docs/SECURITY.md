@@ -14,9 +14,10 @@ El objetivo es garantizar una gestión responsable de los incidentes de segurida
 
 | Versión | Estado |
 |---------|:------:|
-| 2.1.x (en desarrollo) | ✅ Soportada |
-| 2.0.x | ✅ Soportada |
-| 1.1.x | ✅ Soporte limitado |
+| 2.2.x (en desarrollo) | ✅ Soportada |
+| 2.1.x | ✅ Soportada |
+| 2.0.x | ✅ Soporte limitado |
+| 1.1.x | ❌ No soportada |
 | 1.0.x | ❌ No soportada |
 | < 1.0 | ❌ No soportada |
 

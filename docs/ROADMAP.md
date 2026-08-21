@@ -17,13 +17,13 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.0.0
+v2.1.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.1 (rama v2.1-dev)
+v2.2 (rama v2.2-dev)
 ```
 
 Estado:
@@ -32,7 +32,7 @@ Estado:
 Producción
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.1-dev`, documentado en detalle en `docs/TODO.md`.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.2-dev`, documentado en detalle en `docs/TODO.md`.
 
 ---
 
@@ -172,7 +172,7 @@ Reemplazan y superan lo originalmente previsto para `v1.2`/`v1.3` en este mismo 
 
 ---
 
-# v2.1 (en desarrollo)
+# v2.1
 
 ## Objetivo
 
@@ -180,9 +180,9 @@ Administración avanzada de perfiles, extensibilidad del modelo de reputación, 
 
 ## Estado
 
-En progreso — rama `v2.1-dev`
+✔ Completado — liberado como release oficial (`v2.1.0`)
 
-## Funcionalidades incorporadas hasta el momento
+## Funcionalidades incorporadas
 
 ### Jails / Perfiles
 
@@ -208,11 +208,45 @@ En progreso — rama `v2.1-dev`
 * Restauración automática del estado del firewall (`ipset`) desde la base de datos al arrancar el sistema, preservando el tiempo restante exacto de sanciones temporales activas — antes, un reinicio del servidor podía perder sanciones activas sin cumplir su plazo
 * Corrección de un límite de rango no controlado en `ipset`, que impedía aplicar correctamente sanciones de larga duración (nivel más alto de reincidencia previo a la sanción permanente)
 
-## Pendiente en la rama actual
+---
 
-* Exportación de tendencias a CSV
-* Desglose de tendencias por categoría
-* Definir umbrales de riesgo para las categorías `MALWARE` y `SOCIAL`, a la espera de un jail o sensor real que reporte a esas categorías
+# v2.2
+
+## Objetivo
+
+Incorporar una nueva fuente de datos real al modelo de reputación (categoría SOCIAL), completar el catálogo de umbrales de categoría, y resolver la fricción de distribución del producto hacia otros servidores de la flota.
+
+## Estado
+
+✔ Completado — liberado como release oficial (`v2.2.0`)
+
+## Funcionalidades incorporadas
+
+### Sensor SpamAssassin
+
+* Categoría `SOCIAL` con sensor real, alimentado por scores de SpamAssassin sobre tráfico de correo saliente, clasificados en tres bandas de severidad calibradas por `jail_profile`
+* Arquitectura por adaptador de MTA — único adaptador implementado y validado: Exim
+* `policy/rules/social.sh`, existente desde una fase anterior del proyecto sin umbral definido, activo por primera vez
+
+### Catálogo de categorías
+
+* Las 9 categorías del modelo de reputación cuentan con umbral definido — incluida `MALWARE`, calibrada de forma proactiva pese a no contar con sensor local, como decisión de motor genérico útil para cualquier servidor con superficie de malware real
+
+### Dashboard
+
+* Desglose de tendencias por categoría y exportación a CSV, extendiendo la vista temporal incorporada en v2.1
+
+### Empaquetado y distribución
+
+* Script de empaquetado que genera un artefacto distribuible a partir del manifiesto del producto, con verificación de integridad
+* Automatización de la generación y publicación del paquete en cada versión etiquetada
+* Instalación remota de una sola línea, sin depender de clonar el repositorio
+
+## Pendiente, fuera del alcance de esta versión
+
+* Fase de auto-actualización del Installer contra el repositorio de releases (estilo `apt`/`yum`), dependiente de que la distribución vía paquete esté en uso real
+* Habilitar/deshabilitar sensores desde ARE ADMIN, con auto-provisión de `jail_profile` al activar
+* Integración completa de `mod_evasive` como única vía de bloqueo — investigación en curso sugiere que el patrón de amenaza real de servidores detrás de un proxy como Cloudflare (tráfico distribuido, no floods concentrados de una sola IP) puede no coincidir con lo que este sensor está diseñado para detectar; sin evidencia real de disparo hasta la fecha
 * Eliminación de las columnas de categoría redundantes en `reputation` (pospuesta por limitación de versión de SQLite en el servidor de producción, sin fecha)
 
 ---
@@ -227,14 +261,15 @@ Previstos, sin implementación iniciada:
 * Suricata
 * Zeek
 * CrowdSec
-* Syslog genérico
 * DNS
 * APIs externas
 
+Evaluado y descartado: un sensor "syslog genérico" con contrato propio de mensaje (`ip=X jail=Y`). Le pediría a cada herramienta externa reformatear su salida a un formato inventado por ARE, duplicando estructuras de logueo que cada herramienta ya tiene — el mismo problema que ARE existe para evitar, no para resolver. El camino correcto para sumar una herramienta nueva sigue siendo un sensor que lea el log real de esa herramienta tal cual es (mismo criterio que `spamassassin.sh` con el log de Exim), no pedirle que hable el idioma de ARE.
+
 ## Motor de decisión
 
-* Regla propia para las categorías `MALWARE` y `SOCIAL`, cuando exista una fuente real de datos
-* Integración completa de `mod_evasive` como única vía de bloqueo (hoy corre en modo doble escritura, ipset directo + reporte a ARE, como medida de transición)
+* Regla propia para la categoría `MALWARE`, cuando exista una fuente real de datos que la alimente — el umbral (`MALWARE_THRESHOLD`) ya está calibrado de forma proactiva desde v2.2, a la espera del sensor
+* Integración completa de `mod_evasive` como única vía de bloqueo (hoy corre en modo doble escritura, ipset directo + reporte a ARE, como medida de transición) — ver nota de investigación en la sección v2.2
 
 ---
 
