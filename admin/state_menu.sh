@@ -18,6 +18,8 @@ state_menu() {
         echo "  3) Top"
         echo "  4) Estadísticas"
         echo "  5) Tendencias"
+	echo "  6) Tendencias por categoría"
+	echo "  7) Exportar tendencias (CSV)"
         echo "  0) Volver"
         echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
@@ -28,6 +30,8 @@ state_menu() {
             3) state_top ;;
             4) state_stats ;;
             5) state_trends ;;
+	    6) state_trends_category ;;
+	    7) state_trends_export ;;
             0) return 0 ;;
             x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
@@ -65,5 +69,25 @@ state_trends() {
         dias=7
     fi
     dashboard_trends "$dias"
+    admin_pause
+}
+state_trends_category() {
+    read -rp "  Cantidad de días a mostrar [default 7]: " dias
+    dias="${dias:-7}"
+    if ! [[ "$dias" =~ ^[0-9]+$ ]] || [ "$dias" -lt 1 ]; then
+        echo "  Valor inválido, usando 7 días por defecto."
+        dias=7
+    fi
+    dashboard_trends_by_category "$dias"
+    admin_pause
+}
+state_trends_export() {
+    read -rp "  Cantidad de días a exportar [default 7]: " dias
+    dias="${dias:-7}"
+    if ! [[ "$dias" =~ ^[0-9]+$ ]] || [ "$dias" -lt 1 ]; then
+        echo "  Valor inválido, usando 7 días por defecto."
+        dias=7
+    fi
+    dashboard_trends_export "$dias"
     admin_pause
 }
