@@ -14,10 +14,22 @@
 #   validado hasta el momento: exim. Sumar otro MTA es agregar una
 #   funcion nueva, sin tocar el resto del sensor.
 #
+#   NOTA: si se observa un salto grande de eventos concentrado en un
+#   solo dia en las tendencias, verificar si corresponde al backlog
+#   inicial del sensor — db_add_event()/db_add_score() registran la
+#   fecha de PROCESAMIENTO, no la fecha real de la linea del log. La
+#   primera corrida con offset=0 reprocesa todo el historial de una
+#   sola vez, y todo queda con la fecha de ese dia. No es un bug.
+#
 # Dependencies
 #   - config/config.conf (ARE_DATA, ARE_BIN, DB_FILE, SPAMASSASSIN_*)
 #   - sqlite3 (consulta directa a jail_profile, mismo criterio que
 #     sensors/fail2ban.sh — sensor liviano, sin cargar bootstrap.sh)
+#   - flock (protege contra corridas solapadas — timer de systemd
+#     cada 60s superpuesto con una corrida manual, u offset tocado
+#     a mano mientras el timer sigue activo, puede reprocesar el
+#     mismo tramo del log dos veces sin esta proteccion — ver BUG,
+#     encontrado y corregido en esta misma sesion)
 #
 # Exports
 #   (no exporta funciones; script de ejecucion directa via
@@ -45,6 +57,7 @@ source "$POLICY"
 SPAMASSASSIN_MTA="${SPAMASSASSIN_MTA:-exim}"
 LOG_FILE="${SPAMASSASSIN_LOG_FILE:-/var/log/exim_mainlog}"
 OFFSET_FILE="$ARE_DATA/spamassassin.offset"
+LOCK_FILE="$ARE_DATA/spamassassin.lock"
 
 # --- Calibración de decisión (policy.conf) ---
 # Umbral minimo para considerar el evento (default: required_score
@@ -65,6 +78,18 @@ if [ ! -f "$LOG_FILE" ]; then
 fi
 
 mkdir -p "$(dirname "$OFFSET_FILE")"
+
+# Protección contra corridas solapadas: si otra instancia ya tiene
+# el lock (timer de systemd corriendo, u otra corrida manual), esta
+# corrida se cierra sin hacer nada, en vez de leer el log a partir
+# de un offset que la otra instancia todavía no terminó de escribir.
+# --dry-run también respeta el lock, para no leer un offset a medio
+# escribir por una corrida --execute en curso.
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    echo "Otra instancia del sensor ya está corriendo — se omite esta corrida."
+    exit 0
+fi
 
 TOTAL_LINES=$(wc -l < "$LOG_FILE")
 LAST_LINE=0
@@ -89,14 +114,19 @@ extract_spam_event_exim() {
     # Formato real observado en produccion:
     #   ... H=(host) [IP]:port ... Warning: "SpamAssassin as X detected message as spam (SCORE)"
     #
-    # El filtro por "as spam (" (no solo "spam (") excluye las lineas
-    # "detected message as NOT spam (...)" sin negacion explicita: el
-    # substring "as spam (" no aparece dentro de "as NOT spam (".
+    # El filtro por "detected message as spam (" excluye las lineas
+    # "detected message as NOT spam (...)" (veredicto real de
+    # SpamAssassin) y las lineas "rejected after DATA" (mensaje de
+    # rechazo generico de Exim, que reutiliza la frase "message as
+    # spam" incluso cuando el veredicto real fue NOT spam — no
+    # filtrarlo por el texto completo genera falsos positivos en
+    # cualquier grep de verificacion manual, aunque el sensor en si
+    # nunca los proceso mal).
     case "$line" in
         *"detected message as spam ("*)
             local ip score
             ip=$(echo "$line" | grep -oP '\[\K[0-9a-fA-F:.]+(?=\]:)' | head -1)
-            score=$(echo "$line" | grep -oP 'detected message as spam \(\K[0-9.\-]+(?=\))')
+            score=$(echo "$line" | grep -oP 'message as spam \(\K[0-9.\-]+(?=\))')
             if [ -n "$ip" ] && [ -n "$score" ]; then
                 echo "${ip}|${score}"
             fi

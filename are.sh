@@ -135,6 +135,8 @@ handle_unban() {
     unbanIP "$ban_set" "$ip"
     unbanIP "$filter_set" "$ip"
 
+    db_register_sanction_unban "$ip"
+
     db_add_event "$ip" "UNBAN" "fail2ban" "0"
 
     INFO "UNBAN aplicado a $ip"
