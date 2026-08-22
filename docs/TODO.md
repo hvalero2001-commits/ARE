@@ -2411,7 +2411,7 @@ Probado en producción contra el `mainlog` real de Exim:
 
 **Título:** Activar/desactivar sensores desde ARE ADMIN, con registro dinámico
 
-**Estado:** Propuesta (diseño, sin implementar)
+**Estado:** Fase 1 implementada y validada en producción; Fase 2 pendiente
 
 **Versión:** v2.3 (en desarrollo)
 
@@ -2493,16 +2493,56 @@ CREATE TABLE sensor_registry (
 
 **Pendiente de decidir antes de implementar**
 
-* ¿El hook de auto-provisión también debería ofrecer la opción
-  simétrica al desactivar (eliminar los jails, o solo dejar de
-  reportarles) — y si elimina, qué pasa con la reputación histórica ya
-  acumulada en esos jails? Quedó como pregunta explícitamente sin
-  resolver en una sesión anterior ("verificar que la información que
-  quede en la base de datos siga persistiendo").
+**Pregunta de diseño resuelta durante la implementación**
+
+Qué pasa con la reputación histórica al desactivar un sensor con
+auto-provisión (SpamAssassin): **no hace falta tocar `jail_profile`
+en absoluto.** El sensor y el jail son independientes por diseño
+(`RFC-007`) — desactivar el sensor solo detiene la generación de
+eventos nuevos (`systemctl disable` del timer); los `jail_profile`
+existentes y toda su reputación histórica quedan intactos, sin
+necesidad de ningún flag adicional. Coherente con `PHILOSOPHY.md`:
+"el conocimiento no desaparece... permanece disponible para futuras
+decisiones". La única condición real es que el hook de
+auto-provisión (todavía no implementado) sea idempotente al
+reactivar — no debe recrear ni resetear jails que ya existan.
+
+**Fase 1 — Implementada y validada**
+
+* `database.sh`: tabla `sensor_registry` (`name`, `pattern`,
+  `enabled`, `systemd_timer`, `description`), poblada en `db_init()`
+  con los 3 sensores reales. Funciones de acceso:
+  `db_list_sensor_registry()`, `db_get_sensor()`,
+  `db_sensor_exists()`, `db_set_sensor_enabled()`.
+* `admin/sensors_menu.sh`: `sensors_status()` reescrita para leer
+  `sensor_registry` dinámicamente en vez de texto fijo por sensor —
+  un sensor nuevo aparece solo, sin código nuevo en este archivo.
+  Nueva opción `3) Activar/Desactivar`, con `systemctl enable/disable
+  --now` real sobre el timer correspondiente para sensores de
+  polling. Para `apache_evasive` (callback), el toggle solo marca el
+  registro y avisa explícitamente que todavía no tiene efecto real,
+  a la espera de la Fase 2 — no se simula un comportamiento que no
+  existe.
+* `sensors_config()` recibió el bloque de SpamAssassin que le
+  faltaba (hallazgo de esta sesión: nunca se había agregado, pese a
+  existir desde `RFC-016`); queda estático por ahora, hacerlo
+  dinámico del todo excede el alcance decidido en este RFC.
+
+**Fase 2 — Sensor de callback** (`apache_evasive`): flag de estado
+chequeado por el propio script al arrancar. Más delicado porque toca
+el sensor en sí, no solo el menú — se aborda por separado, sin
+bloquear la Fase 1.
+
+**Pendiente de decidir antes de implementar la Fase 2**
+
 * Formato exacto del flag de estado para el patrón callback (¿archivo
   en `${ARE_DATA}`? ¿columna en `sensor_registry` que el script
   consulta con `sqlite3` en cada invocación, con el costo que eso
   implica corriendo por cada request de Apache?).
+* El hook de auto-provisión de perfiles (`<sensor>_on_enable()`) para
+  SpamAssassin, mencionado en el diseño original, todavía no se
+  implementó — los 3 `jail_profile` de SpamAssassin ya existían de
+  antes de esta sesión, así que no hizo falta para validar la Fase 1.
 
 ---
 
@@ -3751,6 +3791,112 @@ producción" antes de ejecutarla.
 **Archivos relacionados**
 
 * `scripts/install.sh`
+
+---
+
+## BUG-026
+
+**Título:** `sensors/spamassassin.sh` sin protección contra corridas solapadas — reprocesamiento duplicado del log
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.3 (en desarrollo)
+
+**Problema**
+
+El sensor no tenía ningún mecanismo de bloqueo (`flock`) entre lectura
+del offset, procesamiento del log, y escritura del nuevo offset. Si
+dos instancias corrían solapadas — el timer de systemd (cada 60s) en
+paralelo con una corrida manual, o el archivo de offset tocado a mano
+mientras el timer seguía activo, como ocurrió durante una sesión de
+diagnóstico de esta misma noche — ambas instancias podían leer el
+mismo offset viejo, procesar el mismo tramo del log dos o más veces,
+y generar eventos `FOUND` duplicados con la fecha de cada corrida
+extra, no la fecha real del evento original.
+
+**Impacto real confirmado en producción**
+
+`96.127.160.85` (dos eventos reales legítimos, del 16 y 17 de agosto)
+terminó con `SOCIAL=78` en vez de `22` — 6 eventos duplicados de una
+misma corrida solapada, sumados encima de los 2 reales. La reputación
+inflada disparó una decisión `TEMP_BAN` real, aplicada al firewall
+sobre datos falsos — ver `BUG-027` para la segunda mitad del
+problema (por qué el `unban` posterior no revirtió esa sanción de
+forma persistente).
+
+**Corrección**
+
+`flock` no bloqueante sobre un archivo de lock dedicado
+(`$ARE_DATA/spamassassin.lock`), envolviendo la lectura del offset,
+el procesamiento del log, y la escritura del offset nuevo. Si otra
+instancia ya tiene el lock, la corrida nueva se cierra sin hacer
+nada, en vez de leer un offset que la otra instancia todavía no
+terminó de escribir. Aplica tanto a `--execute` como `--dry-run`,
+para que un diagnóstico manual no pueda corromper el estado de una
+corrida real en curso.
+
+**Validación**
+
+Reprocesamiento completo del historial (`offset=0`,
+`sensors/spamassassin.sh --execute`) tras la corrección: 8 eventos
+reales procesados, cero duplicados — coincide exacto con el conteo
+manual de líneas `Warning` reales del log completo.
+
+**Archivos relacionados**
+
+* `sensors/spamassassin.sh`
+
+---
+
+## BUG-027
+
+**Título:** `handle_unban()` no persiste el unban en `sanction_state`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.3 (en desarrollo)
+
+**Problema**
+
+`handle_unban()` en `are.sh` quita la IP de los conjuntos `ipset`
+(`ban_set`, `filter_set`) y registra el evento `UNBAN` en `events`,
+pero nunca llama a `db_register_sanction_unban()` — la función que
+existe en `database.sh` para exactamente este propósito
+(`ban_until=0`, `last_unban=NOW`). La fila de `sanction_state` queda
+exactamente igual que antes del unban.
+
+**Impacto**
+
+El unban funciona en caliente (la IP sale del firewall real de
+inmediato), pero la persistencia miente: `sanction_state` sigue
+diciendo que hay una sanción vigente hasta una fecha futura.
+`are-restore-ipsets.service`, que repuebla el firewall al arrancar el
+sistema a partir de `sanction_state` (no de un snapshot del firewall
+en sí — ver `BAN_LIFECYCLE.md`), volvería a aplicar el ban ya
+revertido si el servidor se reinicia antes de que esa fecha pase.
+Encontrado al revertir el ban falso generado por `BUG-026`: el
+`unban` reportó éxito, pero `sanction_state` seguía mostrando
+`last_unban=0` y `ban_until` sin cambios.
+
+**Corrección**
+
+Una línea agregada a `handle_unban()`, antes del registro del evento:
+
+```bash
+db_register_sanction_unban "$ip"
+```
+
+**Validación**
+
+Confirmado en producción con `96.127.160.85`: antes de la corrección,
+`sanction_state` mostraba `ban_until=1787372819, last_unban=0` pese a
+un `unban` ya ejecutado. Tras la corrección y un segundo `unban`,
+`ban_until=0, last_unban=1787440100` (timestamp real) — persistencia
+ahora consistente con el estado real del firewall.
+
+**Archivos relacionados**
+
+* `are.sh`
 
 ---
 

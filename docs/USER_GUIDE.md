@@ -119,7 +119,15 @@ Consulta de solo lectura del catálogo de categorías de reputación y sus umbra
 
 ## Sensores
 
-Estado y configuración de los sensores activos (Fail2Ban por polling, `apache_evasive` por callback).
+Estado y configuración de los sensores activos (Fail2Ban y SpamAssassin por polling, `apache_evasive` por callback), leídos dinámicamente desde el registro de sensores.
+
+```text
+1) Estado
+2) Configuración
+3) Activar/Desactivar
+```
+
+`Activar/Desactivar` habilita o deshabilita un sensor. Para sensores de patrón polling, controla directamente su timer de systemd. Para sensores de patrón callback (`apache_evasive`), el registro queda marcado, pero el efecto real todavía depende de configuración externa a ARE (ver Roadmap).
 
 ## Política
 
@@ -414,6 +422,10 @@ EXTERNAL_UNBAN
 ```
 
 El sensor utiliza un cursor persistente para procesar nuevos eventos, y valida dinámicamente cada jail contra `jail_profile` — un jail sin perfil administrado se descarta.
+
+## SpamAssassin (patrón polling)
+
+ARE mantiene un sensor para SpamAssassin que lee el log del MTA de forma periódica (adaptador implementado y validado: Exim). Clasifica los mensajes marcados como spam en tres bandas de severidad según su score, cada una con su propio perfil administrado. Reporta a la categoría `SOCIAL`.
 
 ## Apache / mod_evasive (patrón callback)
 
