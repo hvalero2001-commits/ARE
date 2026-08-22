@@ -17,13 +17,13 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.1.0
+v2.2.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.2 (rama v2.2-dev)
+v2.3 (rama v2.3-dev)
 ```
 
 Estado:
@@ -32,7 +32,7 @@ Estado:
 Producción
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.2-dev`, documentado en detalle en `docs/TODO.md`.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.3-dev`, documentado en detalle en `docs/TODO.md`.
 
 ---
 

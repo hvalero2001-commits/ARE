@@ -141,13 +141,13 @@ Administra el ciclo de vida del producto.
 Versión estable liberada:
 
 ```text
-v2.1.0
+v2.2.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.2 (rama v2.2-dev)
+v2.3 (rama v2.3-dev)
 ```
 
 Capacidades implementadas.

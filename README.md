@@ -104,9 +104,9 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.1.0** (estable, liberada) — **v2.2 en desarrollo activo**
+**ARE v2.2.0** (estable, liberada) — **v2.3 en desarrollo activo**
 
-La versión 2.1 consolidó la administración de perfiles entre servidores, migró el modelo de reputación a un esquema normalizado extensible sin migración de estructura, incorporó visibilidad temporal de la actividad del sistema, y robusteció la persistencia del Firewall Backend a través de reinicios. La versión 2.2, en desarrollo, incorpora un sensor real para la categoría SOCIAL (SpamAssassin), completa el catálogo de umbrales de todas las categorías de reputación, y da los primeros pasos hacia la distribución del producto como paquete instalable, en vez de depender de clonar el repositorio.
+La versión 2.1 consolidó la administración de perfiles entre servidores, migró el modelo de reputación a un esquema normalizado extensible sin migración de estructura, incorporó visibilidad temporal de la actividad del sistema, y robusteció la persistencia del Firewall Backend a través de reinicios. La versión 2.2 incorporó un sensor real para la categoría SOCIAL (SpamAssassin), completó el catálogo de umbrales de todas las categorías de reputación, y dio los primeros pasos hacia la distribución del producto como paquete instalable, en vez de depender de clonar el repositorio.
 
 ## Instalación
 

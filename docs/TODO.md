@@ -3540,6 +3540,44 @@ IPSet, Firewall, Systemd, Logrotate, Runtime).
 
 ---
 
+## BUG-024
+
+**Título:** Workflow de release fallaba si la Release de GitHub no existía
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.3 (en desarrollo)
+
+**Problema**
+
+`gh release upload` (usado en `.github/workflows/release-package.yml`,
+IDEA-007 Fase 2) requiere que la Release ya exista en GitHub — solo
+sube assets a algo creado previamente, no crea nada. El primer disparo
+real del workflow, con el tag `v2.2.0`, falló con `release not found`:
+nunca se había creado una Release manualmente antes de ese tag.
+
+**Corrección**
+
+El paso final del workflow ahora verifica primero si la Release
+existe (`gh release view`); si existe, sube los assets como antes
+(`--clobber`); si no, la crea con `gh release create` en el mismo
+paso, con los assets adjuntos directamente en la creación.
+
+**Validación**
+
+Confirmado en producción: el primer intento con `v2.2.0` falló
+exactamente como se documenta arriba; con la Release creada a mano
+como corrección puntual, `Re-run failed jobs` completó los 4 pasos
+sin error, con ambos assets (`.tar.gz` + `.sha256`) visibles en la
+Release. Esta corrección elimina la dependencia del paso manual para
+cualquier tag futuro.
+
+**Archivos relacionados**
+
+* `.github/workflows/release-package.yml`
+
+---
+
 # OBSERVACIONES
 
 La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
@@ -3562,10 +3600,9 @@ Las ideas no constituyen compromisos de implementación.
 La versión estable documentada actualmente es:
 
 ```text
-v1.1.0
+v2.2.0
 ```
 
-La versión v2.0 se encuentra en desarrollo activo, incluyendo la
-implementación de ARE ADMIN (FEAT-005).
+La versión v2.3 se encuentra en desarrollo activo.
 
 El trabajo futuro deberá incorporarse al Roadmap antes de convertirse en una línea formal de desarrollo.

@@ -8,7 +8,7 @@ La arquitectura separa la observación de los eventos, la construcción de reput
 
 ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1 y v2.2 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.1.0 constituye la última versión estable liberada. v2.2 se encuentra en desarrollo y validación sobre esa base.
+La versión v2.2.0 constituye la última versión estable liberada. v2.3 se encuentra en desarrollo y validación sobre esa base.
 
 ---
 
@@ -101,7 +101,7 @@ Entre los elementos heredados se encuentran:
 * Ban Lifecycle Engine.
 * Installer Engine.
 
-La evolución hacia v2.0 incorporó una reorganización de identidad, estructura operativa, instalación y mantenimiento, la interfaz de administración ARE ADMIN, y la reconstrucción del Policy Engine hacia un modelo de evaluación por categoría (ver Sección "Policy Engine" más abajo). v2.1 extendió esa base con administración avanzada de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios. v2.2, en desarrollo, incorpora un sensor real para la categoría SOCIAL, completa el catálogo de umbrales de categoría, y da los primeros pasos hacia la distribución del producto como paquete instalable.
+La evolución hacia v2.0 incorporó una reorganización de identidad, estructura operativa, instalación y mantenimiento, la interfaz de administración ARE ADMIN, y la reconstrucción del Policy Engine hacia un modelo de evaluación por categoría (ver Sección "Policy Engine" más abajo). v2.1 extendió esa base con administración avanzada de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios. v2.2 incorporó un sensor real para la categoría SOCIAL, completó el catálogo de umbrales de categoría, y dio los primeros pasos hacia la distribución del producto como paquete instalable.
 
 La arquitectura v2 mantiene como principio que las nuevas capacidades deben integrarse sin duplicar responsabilidades existentes.
 
@@ -781,7 +781,7 @@ v2.1 extendió esa base con:
 * visibilidad temporal de la actividad del sistema;
 * persistencia del Firewall Backend a través de reinicios.
 
-v2.2 extiende esa base con:
+v2.2 extendió esa base con:
 
 * segundo sensor por adaptador (SpamAssassin, categoría SOCIAL), estableciendo el patrón de "adaptador por fuente" dentro del Sensor Framework — la extracción de datos varía según el origen (hoy: Exim), pero el contrato de reporte hacia el Reputation Engine permanece único;
 * catálogo de categorías de reputación completo, con umbral definido para las 9 categorías;
