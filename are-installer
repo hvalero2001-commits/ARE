@@ -58,6 +58,25 @@ install_error() {
     exit 1
 }
 
+#############################################################
+# Function : installer_check_updates()
+#
+# Responsibility
+#   Consultar la última release publicada en GitHub y compararla
+#   contra PRODUCT_VERSION (la versión instalada localmente, leída
+#   del propio manifiesto), informando si hay una versión más
+#   reciente disponible. No descarga, no instala, no modifica
+#   nada del sistema — es de solo lectura (IDEA-007, Fase 3).
+#
+# Dependencies
+#   - curl
+#   - sort -V (GNU coreutils, comparación semántica de versiones)
+#   - PRODUCT_VERSION (definido en manifest/product.sh)
+#
+# Exports
+#   installer_check_updates() — invocada desde main() vía
+#   "are-installer check-updates"
+#############################################################
 installer_check_updates() {
 
     local repo="hvalero2001-commits/ARE"
@@ -454,6 +473,38 @@ install_finish() {
     install_log "Instalación inicial completada"
 }
 
+#############################################################
+# Function : installer_upgrade_remote()
+#
+# Responsibility
+#   Wrapper delgado sobre scripts/install.sh — reutiliza el
+#   bootstrap ya existente (descarga, verificación de checksum,
+#   extracción, invocación de are-installer) en vez de duplicar
+#   esa lógica dentro del propio Installer Engine. No agrega
+#   ningún mecanismo nuevo de descarga; solo ahorra tener que
+#   recordar la URL completa del curl (IDEA-007, Fase 3).
+#
+# Dependencies
+#   - scripts/install.sh, instalado en $INSTALL_HOME/scripts/
+#     (ver PRODUCT_DIRS en manifest/product.sh)
+#
+# Exports
+#   installer_upgrade_remote() — invocada desde main() vía
+#   "are-installer upgrade --remote"
+#############################################################
+installer_upgrade_remote() {
+
+    local bootstrap="$INSTALL_HOME/scripts/install.sh"
+
+    if [ ! -x "$bootstrap" ]; then
+        install_error "scripts/install.sh no encontrado o sin permiso de ejecución: $bootstrap"
+    fi
+
+    install_log "Delegando en scripts/install.sh (descarga, verificación, extracción, upgrade)"
+
+    "$bootstrap" upgrade
+}
+
 installer_usage() {
 
     cat <<'EOF'
@@ -461,6 +512,7 @@ Uso:
 
   are-installer install
   are-installer upgrade
+  are-installer upgrade --remote
   are-installer repair
   are-installer verify
   are-installer uninstall
@@ -1075,7 +1127,11 @@ main() {
         ;;
 
         upgrade)
-            installer_upgrade
+            if [ "${2:-}" = "--remote" ]; then
+                installer_upgrade_remote
+            else
+                installer_upgrade
+            fi
         ;;
 
         repair)

@@ -41,6 +41,7 @@ PRODUCT_DIRS=(
     infrastructure
     manifest
     policy
+    scripts
     sensors
     stats
     systemd

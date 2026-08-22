@@ -2562,14 +2562,23 @@ Inspirado en el patrón de `apt`/`yum`/`dnf`.
   "versión instalada", `PRODUCT_VERSION` ya lo es en el momento en
   que corre el comando) usando `sort -V` para orden semántico, e
   informa si hay una versión más reciente sin tocar nada del sistema.
-* **`are-installer upgrade --remote` — pendiente.** Descargar el
-  `.tar.gz` de la última release, verificar su `.sha256`, extraer a
-  un directorio temporal, y usarlo como `SOURCE_DIR` para invocar la
-  misma `install_copy_files()`/`installer_upgrade()` que ya existe,
-  sin duplicar esa lógica. Reutiliza gran parte de lo ya construido en
-  `scripts/install.sh` (Fase 2); lo que falta ahí es la comparación
-  de versión antes de actuar, que `check-updates` ya resuelve como
-  pieza de solo lectura.
+* **`are-installer upgrade --remote` — ✔ Implementada.** Wrapper
+  delgado en `are-installer` que delega en `scripts/install.sh
+  upgrade` (Fase 2) — sin duplicar la lógica de descarga/checksum/
+  extracción, coherente con "reutilización antes que duplicación".
+  Requirió agregar `scripts` a `PRODUCT_DIRS` en el manifiesto (no
+  estaba, así que `install.sh` nunca se copiaba a una instalación
+  real, solo vivía en el repo fuente). Validado en producción real
+  tras corregir `BUG-025` (`/tmp` con `noexec` rompía la extracción).
+  **Gap conocido, no bloqueante:** el comando no compara versión
+  antes de aplicar — baja o sube el código a lo que sea la última
+  release publicada, sin verificar contra `PRODUCT_VERSION` local
+  (a diferencia de `check-updates`, que sí compara). Corrido en una
+  rama de desarrollo más nueva que la última release, esto downgradea
+  el código sin aviso — comportamiento observado y confirmado durante
+  la validación (ver `BUG-025`). Quedaría como mejora natural
+  encadenar `check-updates` antes de `upgrade --remote` y pedir
+  confirmación si la versión instalada ya es igual o más nueva.
 
 Coherente con "reutilización antes que duplicación" en las tres
 fases: ningún cambio al núcleo del Installer Engine, solo las piezas
@@ -3573,6 +3582,81 @@ cualquier tag futuro.
 **Archivos relacionados**
 
 * `.github/workflows/release-package.yml`
+
+---
+
+## BUG-025
+
+**Título:** `scripts/install.sh` fallaba en servidores con `/tmp` montado `noexec`
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.3 (en desarrollo)
+
+**Problema**
+
+`WORK_DIR="$(mktemp -d)"` usa el directorio temporal por defecto del
+sistema (`/tmp`). En este servidor, `/tmp` y `/var/tmp` están
+montados con la opción `noexec` (hardening estándar, común en
+entornos cPanel — confirmado con `mount | grep -i tmp`, mismo
+dispositivo `/usr/tmpDSK` montado en ambos puntos). El paquete
+descargado y extraído ahí tenía el bit de ejecución correcto
+(`-rwxr-xr-x`, confirmado con `ls -la` y por extracción manual), pero
+el punto de montaje bloquea la ejecución de todos modos, a nivel de
+kernel, sin importar los permisos del archivo — el chequeo
+`[ -x "./are-installer" ]` daba falso, con el mensaje "are-installer
+no encontrado o sin permiso de ejecución", que llevaba a sospechar
+del paquete cuando el paquete estaba bien.
+
+**Diagnóstico**
+
+Confirmado con `bash -x` sobre el script real y con extracción manual
+paso a paso en un `mktemp -d` sin el `trap cleanup` que borra la
+evidencia — mismo `.tar.gz`, mismo checksum verificado en ambos
+casos, resultado distinto según el punto de montaje del directorio de
+trabajo.
+
+**Corrección**
+
+`WORK_DIR` movido de `/tmp` a `/root` (el `$HOME` de root, que el
+script ya exige como usuario obligatorio) — sin restricción `noexec`
+en la evidencia disponible, y consistente con que `upgrade`/`install`
+ya requieren privilegios de root de todos modos.
+
+```bash
+WORK_DIR="$(mktemp -d /root/.are-install.XXXXXX)"
+```
+
+Se evaluó `/opt` como alternativa antes de decidir `/root` — se
+descartó por convención: `/opt` está reservado para software
+instalado de forma permanente (el propio `/opt/are` cumple ese rol),
+no para directorios de trabajo transitorios.
+
+**Validación**
+
+Confirmado en producción real: `are-installer upgrade --remote`
+completó los 30+ pasos de `installer_upgrade()` sin error
+(descarga, checksum, extracción, copia de Core, configuración,
+enlaces, permisos, base de datos, systemd, logrotate, validación
+final — `are-installer verify` 11/11 en OK después).
+
+Efecto colateral de la prueba, no relacionado con el bug en sí: al
+correr `upgrade --remote` con la única release publicada (`v2.2.0`)
+estando en una rama de desarrollo más nueva (`v2.3-dev`), el comando
+sobrescribió el código local sin comparar versiones — comportamiento
+esperado del diseño actual (no compara, solo aplica lo último
+publicado), pero sin aviso previo del riesgo antes de ejecutarlo en
+el servidor de producción real, en vez de en un entorno aislado.
+Recuperado sin pérdida de datos (`git checkout -- .`, con `events` y
+`jail_profile` verificados intactos en la base — ni `install_copy_files`
+ni `install_database` tocan datos persistentes). Queda como lección
+de proceso: cualquier prueba de `upgrade --remote` en este servidor
+debe advertirse explícitamente como "toca el código real de
+producción" antes de ejecutarla.
+
+**Archivos relacionados**
+
+* `scripts/install.sh`
 
 ---
 

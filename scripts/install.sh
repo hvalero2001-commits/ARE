@@ -60,7 +60,7 @@ DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${TAG}"
 log "Release encontrada: $TAG"
 log "Paquete: $PACKAGE_NAME"
 
-WORK_DIR="$(mktemp -d)"
+WORK_DIR="$(mktemp -d /root/.are-install.XXXXXX)"
 cleanup() {
     rm -rf "$WORK_DIR"
 }
