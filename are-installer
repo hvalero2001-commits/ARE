@@ -1,4 +1,30 @@
 #!/bin/bash
+#############################################################
+# Module : are-installer (Installer Engine)
+#
+# Responsibility
+#   Administrar el ciclo de vida de instalación de ARE: install,
+#   upgrade, repair, verify, uninstall y check-updates. Utiliza
+#   manifest/product.sh como fuente única de los componentes
+#   administrados por el producto (PRODUCT_DIRS, PRODUCT_FILES,
+#   PRODUCT_CONFIG_FILES, PRODUCT_SYSTEMD_UNITS,
+#   PRODUCT_EXECUTABLE_LINKS, PRODUCT_EXECUTABLE_FILES,
+#   PRODUCT_DATA_FILES).
+#
+#   El árbol fuente utilizado por install/upgrade/repair debe ser
+#   distinto del directorio de instalación activa (SOURCE_DIR
+#   distinto de INSTALL_HOME) — evita copiar el Core de una
+#   instalación sobre sí misma.
+#
+# Dependencies
+#   - manifest/product.sh (definición del producto)
+#   - bash, sqlite3, ipset, iptables, ip6tables, systemctl
+#   - curl (únicamente para check-updates)
+#
+# Exports
+#   (script de ejecución directa; ver installer_usage() para las
+#   acciones soportadas)
+#############################################################
 
 set -o errexit
 set -o nounset
@@ -30,6 +56,43 @@ install_log() {
 install_error() {
     printf '[ERROR] %s\n' "$*" >&2
     exit 1
+}
+
+installer_check_updates() {
+
+    local repo="hvalero2001-commits/ARE"
+    local api_url="https://api.github.com/repos/${repo}/releases/latest"
+    local release_json
+    local remote_tag
+    local remote_version
+    local local_version="$PRODUCT_VERSION"
+    local newest
+
+    command -v curl >/dev/null 2>&1 || install_error "curl no disponible — requerido para consultar releases."
+
+    install_log "Versión instalada: $local_version"
+    install_log "Consultando última versión disponible..."
+
+    release_json="$(curl -fsSL "$api_url")" || install_error "No se pudo consultar GitHub. Verifique conectividad."
+
+    remote_tag="$(echo "$release_json" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
+    [ -n "$remote_tag" ] || install_error "No se pudo determinar la versión remota."
+
+    remote_version="${remote_tag#v}"
+
+    if [ "$local_version" = "$remote_version" ]; then
+        install_log "ARE está actualizado ($local_version)."
+        return 0
+    fi
+
+    newest="$(printf '%s\n%s\n' "$local_version" "$remote_version" | sort -V | tail -1)"
+
+    if [ "$newest" = "$remote_version" ]; then
+        install_log "Hay una versión más reciente disponible: $remote_tag (instalada: v$local_version)"
+        install_log "Para actualizar: are-installer upgrade --remote"
+    else
+        install_log "La versión instalada ($local_version) es más reciente que la última release publicada ($remote_tag)."
+    fi
 }
 
 install_verify_root() {
@@ -122,7 +185,7 @@ install_logrotate() {
     for file in "${PRODUCT_LOGROTATE_FILES[@]}"; do
 
         source="$INSTALL_HOME/templates/logrotate/$file"
-	target="$INSTALL_LOGROTATE/$file"
+        target="$INSTALL_LOGROTATE/$file"
 
         if [ ! -f "$source" ]; then
             install_error "Plantilla logrotate no encontrada: $source"
@@ -138,7 +201,7 @@ install_copy_files() {
 
     local dir
     local file
-    
+
     local SOURCE_REAL
     local TARGET_REAL
 
@@ -148,7 +211,7 @@ install_copy_files() {
     if [ "$SOURCE_REAL" = "$TARGET_REAL" ]; then
         install_error "El paquete fuente y la instalación activa son el mismo directorio."
     fi
-    
+
     install_log "Copiando Core"
 
     for dir in "${PRODUCT_DIRS[@]}"; do
@@ -401,6 +464,7 @@ Uso:
   are-installer repair
   are-installer verify
   are-installer uninstall
+  are-installer check-updates
 EOF
 }
 
@@ -449,7 +513,7 @@ install_verify_logrotate() {
     local failed=0
 
     for file in "${PRODUCT_LOGROTATE_FILES[@]}"; do
-	if [ ! -f "$INSTALL_LOGROTATE/$file" ]; then
+        if [ ! -f "$INSTALL_LOGROTATE/$file" ]; then
             install_log "Configuración logrotate faltante: $file"
             failed=1
         fi
@@ -471,7 +535,7 @@ installer_upgrade() {
     case "$state" in
 
         INSTALLED)
-	    install_log "Instalación existente detectada"
+            install_log "Instalación existente detectada"
 
             install_copy_files
             install_install_configs upgrade
@@ -781,7 +845,7 @@ installer_verify() {
         ;;
 
         INSTALLED)
-	    if ! install_verify_integrity; then
+            if ! install_verify_integrity; then
                 install_error "La instalación presenta componentes faltantes."
             fi
 
@@ -793,11 +857,11 @@ installer_verify() {
 
             install_log "Enlaces: OK"
 
-	    if ! install_verify_command_path; then
-		install_error "Uno o más comandos oficiales no son ejecutables."
+            if ! install_verify_command_path; then
+                install_error "Uno o más comandos oficiales no son ejecutables."
             fi
 
-	    install_log "Comandos oficiales: OK"
+            install_log "Comandos oficiales: OK"
 
             if ! install_verify_permissions; then
                 install_error "La instalación presenta permisos incorrectos."
@@ -805,13 +869,13 @@ installer_verify() {
 
             install_log "Permisos: OK"
 
-	    if ! install_verify_database; then
+            if ! install_verify_database; then
                 install_error "La base de datos presenta tablas faltantes."
             fi
 
             install_log "Base de datos: OK"
-            
-	    if ! install_verify_ipset; then
+
+            if ! install_verify_ipset; then
                 install_error "Faltan conjuntos IPSet requeridos."
             fi
 
@@ -829,13 +893,13 @@ installer_verify() {
 
             install_log "Systemd: OK"
 
-	    if ! install_verify_logrotate; then
+            if ! install_verify_logrotate; then
                 install_error "La instalación presenta problemas de logrotate."
             fi
 
             install_log "Logrotate: OK"
 
-	    if ! install_verify_runtime; then
+            if ! install_verify_runtime; then
                 install_error "El runtime de ARE no responde correctamente."
             fi
 
@@ -974,7 +1038,7 @@ install_verify_systemd() {
             continue
         fi
 
-	if [ "$SYSTEMD_DIR" != "/etc/systemd/system" ]; then
+        if [ "$SYSTEMD_DIR" != "/etc/systemd/system" ]; then
             continue
         fi
 
@@ -1006,23 +1070,27 @@ main() {
 
     case "$ACTION" in
 
-	install)
+        install)
             installer_install
         ;;
 
-	upgrade)
+        upgrade)
             installer_upgrade
         ;;
 
-	repair)
+        repair)
             installer_repair
         ;;
-	verify)
+        verify)
             installer_verify
         ;;
 
         uninstall)
-	    installer_uninstall
+            installer_uninstall
+        ;;
+
+        check-updates)
+            installer_check_updates
         ;;
 
         *)
@@ -1034,3 +1102,4 @@ main() {
 }
 
 main "$@"
+

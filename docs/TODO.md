@@ -2535,43 +2535,41 @@ y correr un instalador.
   sensores reales — eliminados, la intención que representaban ya
   está documentada en `ROADMAP.md`.
 
-**Fase 2 — Automatización y distribución: pendiente**
+**Fase 2 — Automatización y distribución: ✔ Implementada**
 
-* GitHub Actions, disparado por tag (`v*.*.*`, mismo formato ya usado
-  en todos los tags existentes), que corra `build-package.sh` y suba
-  el `.tar.gz` + `.sha256` como asset de la release — reutilizando el
-  script de Fase 1 tal cual, sin reescribir la lógica en YAML.
-* **Bootstrap de una línea** — script descargable
-  (`curl ... | bash`) que baje el paquete de la última release,
-  verifique el checksum, lo extraiga, y llame a
-  `are-installer install` — el motor que ya existe, accesible sin
-  git.
+* `.github/workflows/release-package.yml` — disparado por tag
+  (`v*.*.*`), corre `build-package.sh` y publica el `.tar.gz` +
+  `.sha256` como asset de la release, reutilizando el script de
+  Fase 1 tal cual.
+* `scripts/install.sh` — bootstrap de una línea
+  (`curl ... | bash`): descarga el paquete de la última release (o
+  una versión específica vía `ARE_VERSION`), verifica el checksum,
+  extrae, y delega en `are-installer install`.
+* Primera prueba real, con el tag `v2.2.0`: el workflow falló
+  (`release not found`) porque `gh release upload` requiere que la
+  Release ya exista — nunca se había creado una manualmente antes de
+  taggear. Corregido en `BUG-024`: el workflow ahora crea la Release
+  si no existe, en el mismo paso.
 
-**Fase 3 — Auto-actualización estilo repositorio de paquetes: idea**
+**Fase 3 — Auto-actualización estilo repositorio de paquetes**
 
-Inspirado en el patrón de `apt`/`yum`/`dnf`: hoy, sin ninguna de las
-fases anteriores, un servidor corriendo v2.0 no tiene forma de
-enterarse de que existe v2.1 disponible — `installer_upgrade()` asume
-que el operador ya bajó la versión nueva y está parado en ese
-directorio; no hay comparación de versión contra ningún origen
-remoto.
+Inspirado en el patrón de `apt`/`yum`/`dnf`.
 
-Propuesta: un modo nuevo del instalador (`are-installer
-upgrade --remote`, a definir si es opt-in o default con fallback
-local) que:
-
-1. Consulte la API de GitHub (`/repos/.../releases/latest`).
-2. Compare la versión remota contra el `VERSION` instalado localmente.
-3. Descargue el `.tar.gz` de la última release y verifique su
-   `.sha256` (mismo criterio de integridad ya aplicado en todo el
-   proyecto).
-4. Extraiga a un directorio temporal y lo use como `SOURCE_DIR` —
-   recién ahí invocando la misma `install_copy_files()`/
-   `installer_upgrade()` que ya existe, sin duplicar esa lógica.
-
-Depende por completo de que la Fase 2 esté resuelta primero — sin
-releases publicadas con paquete adjunto, no hay nada contra qué
-comparar ni qué descargar.
+* **`are-installer check-updates` — ✔ Implementada.** Solo lectura,
+  sin root: consulta la API de GitHub (`/releases/latest`), compara
+  contra `PRODUCT_VERSION` (leído del propio manifiesto de la
+  instalación activa — no hizo falta ningún mecanismo nuevo de
+  "versión instalada", `PRODUCT_VERSION` ya lo es en el momento en
+  que corre el comando) usando `sort -V` para orden semántico, e
+  informa si hay una versión más reciente sin tocar nada del sistema.
+* **`are-installer upgrade --remote` — pendiente.** Descargar el
+  `.tar.gz` de la última release, verificar su `.sha256`, extraer a
+  un directorio temporal, y usarlo como `SOURCE_DIR` para invocar la
+  misma `install_copy_files()`/`installer_upgrade()` que ya existe,
+  sin duplicar esa lógica. Reutiliza gran parte de lo ya construido en
+  `scripts/install.sh` (Fase 2); lo que falta ahí es la comparación
+  de versión antes de actuar, que `check-updates` ya resuelve como
+  pieza de solo lectura.
 
 Coherente con "reutilización antes que duplicación" en las tres
 fases: ningún cambio al núcleo del Installer Engine, solo las piezas
