@@ -3,7 +3,7 @@
 #
 # F2B-IPSET
 # Database Module
-# Version 2.0.1
+# Version 2.3.0
 #
 #############################################################
 
@@ -177,31 +177,31 @@ db_init() {
 
     db_exec "
     CREATE TABLE IF NOT EXISTS reputation(
-    	ip TEXT PRIMARY KEY,
-    	recon_score INTEGER DEFAULT 0,
-    	exploit_score INTEGER DEFAULT 0,
-    	credential_score INTEGER DEFAULT 0,
-    	protocol_score INTEGER DEFAULT 0,
-    	bot_score INTEGER DEFAULT 0,
-	anomaly_score INTEGER DEFAULT 0,
-	malware_score INTEGER DEFAULT 0,
-	dos_score INTEGER DEFAULT 0,
-	social_score INTEGER DEFAULT 0,
-	last_decay INTEGER DEFAULT 0,
-    	total_score INTEGER DEFAULT 0,
-	status TEXT NOT NULL DEFAULT 'NEW',
-    	updated INTEGER
+        ip TEXT PRIMARY KEY,
+        recon_score INTEGER DEFAULT 0,
+        exploit_score INTEGER DEFAULT 0,
+        credential_score INTEGER DEFAULT 0,
+        protocol_score INTEGER DEFAULT 0,
+        bot_score INTEGER DEFAULT 0,
+        anomaly_score INTEGER DEFAULT 0,
+        malware_score INTEGER DEFAULT 0,
+        dos_score INTEGER DEFAULT 0,
+        social_score INTEGER DEFAULT 0,
+        last_decay INTEGER DEFAULT 0,
+        total_score INTEGER DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'NEW',
+        updated INTEGER
     );
     "
 
     db_exec "
     CREATE TABLE IF NOT EXISTS jail_profile(
-    	name TEXT PRIMARY KEY,
-    	category TEXT,
-    	weight REAL,
-    	confidence REAL,
-    	decay REAL,
-    	description TEXT
+        name TEXT PRIMARY KEY,
+        category TEXT,
+        weight REAL,
+        confidence REAL,
+        decay REAL,
+        description TEXT
     );
     "
 
@@ -233,6 +233,28 @@ db_init() {
         last_unban INTEGER DEFAULT 0,
         updated INTEGER
     );
+    "
+
+    #############################################################
+    # RFC-017: Registro de sensores, activar/desactivar
+    #############################################################
+
+    db_exec "
+    CREATE TABLE IF NOT EXISTS sensor_registry(
+        name TEXT PRIMARY KEY,
+        pattern TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        systemd_timer TEXT,
+        description TEXT
+    );
+    "
+
+    db_exec "
+    INSERT OR IGNORE INTO sensor_registry(name, pattern, enabled, systemd_timer, description)
+    VALUES
+    ('fail2ban','polling',1,'are-fail2ban-found.timer','Sensor Fail2Ban, offset persistente, filtro dinámico contra jail_profile'),
+    ('spamassassin','polling',1,'are-spamassassin.timer','Sensor SpamAssassin, categoría SOCIAL, 3 bandas por score'),
+    ('apache_evasive','callback',1,NULL,'Sensor Apache/mod_evasive, invocado por DOSSystemCommand, sin timer systemd');
     "
 }
 
@@ -1117,4 +1139,75 @@ db_merge_comma_duplicates() {
     done
 
     INFO "Fusión de IPs duplicadas completada."
+}
+
+#############################################################
+# RFC-017: Registro de sensores, activar/desactivar
+#############################################################
+
+#############################################################
+# Listar todos los sensores registrados
+#############################################################
+
+db_list_sensor_registry() {
+
+    db_exec "
+        SELECT
+            name || '|' ||
+            pattern || '|' ||
+            enabled || '|' ||
+            COALESCE(systemd_timer, '') || '|' ||
+            COALESCE(description, '')
+        FROM sensor_registry
+        ORDER BY name;
+    "
+}
+
+#############################################################
+# Obtener un sensor puntual
+#############################################################
+
+db_get_sensor() {
+
+    local NAME="$1"
+
+    db_exec "
+        SELECT
+            pattern || '|' ||
+            enabled || '|' ||
+            COALESCE(systemd_timer, '') || '|' ||
+            COALESCE(description, '')
+        FROM sensor_registry
+        WHERE name='$NAME';
+    "
+}
+
+#############################################################
+# ¿Existe este sensor en el registro?
+#############################################################
+
+db_sensor_exists() {
+
+    local NAME="$1"
+
+    local RESULT
+    RESULT=$(db_exec "SELECT COUNT(*) FROM sensor_registry WHERE name='$NAME';")
+
+    [ "$RESULT" -gt 0 ]
+}
+
+#############################################################
+# Activar / desactivar un sensor
+#############################################################
+
+db_set_sensor_enabled() {
+
+    local NAME="$1"
+    local ENABLED="$2"
+
+    db_exec "
+        UPDATE sensor_registry
+        SET enabled = $ENABLED
+        WHERE name = '$NAME';
+    "
 }
