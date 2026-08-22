@@ -72,106 +72,6 @@ sesión:
 
 ---
 
-## TASK-015
-
-**Título:** Eliminar duplicación de `db_get_sanction()` en `database.sh`
-
-**Estado:** ✔ Resuelto
-
-**Prioridad:** Baja
-
-**Versión:** v2.1 (en desarrollo)
-
-**Descripción**
-
-`db_get_sanction()` estaba definida dos veces en `database.sh`, con
-contenido idéntico. No generaba comportamiento incorrecto (la segunda
-definición sobrescribía a la primera sin cambiar el resultado), pero
-era ruido que dificultaba la lectura y mantenimiento del archivo.
-
-**Corrección**
-
-Confirmado con `grep -n "^db_get_sanction()" database.sh` que la
-función aparece una única vez — la duplicación fue eliminada como
-parte de alguna de las reorganizaciones de `database.sh` realizadas
-durante RFC-007/RFC-008, sin haber quedado registrada explícitamente
-en su momento como resolución de esta tarea puntual.
-
-**Archivos relacionados**
-
-* `database.sh`
-
----
-
-## TASK-016
-
-**Título:** Centralizar `LOG_FILE` del sensor Fail2Ban en `config.conf`, y reemplazar el filtro de jails fijo por consulta dinámica a `jail_profile`
-
-**Estado:** ✔ Resuelto
-
-**Prioridad:** Media
-
-**Versión:** v2.1 (en desarrollo)
-
-**Descripción**
-
-`sensors/fail2ban.sh` definía `LOG_FILE="/var/log/fail2ban.log"` como
-valor fijo dentro del script, en lugar de tomarlo de
-`config/config.conf`. Inconsistente con el principio de centralización
-de rutas ya aplicado en TASK-012 para el resto de las variables
-operativas.
-
-**Hallazgo adicional durante la resolución**
-
-El mismo archivo tenía un segundo problema del mismo tipo, más
-relevante: un filtro fijo de jails permitidos
-(`modsec-*|recidive|sshd|telnet`) que determinaba qué eventos `FOUND`
-procesar en el camino de polling. Esta lista quedó desactualizada tras
-la implementación de RFC-007 (CRUD de `jail_profile`): los perfiles
-creados desde entonces (`dovecot`, `postfix-sasl`, `mysqld-auth`,
-`apache-badbots`, `mod_evasive`) no estaban en la lista, por lo que sus
-eventos `FOUND` se descartaban silenciosamente en el camino de
-polling — sin log de error, sin aviso — aunque el jail ya tuviera
-perfil administrado en ARE ADMIN.
-
-**Corrección**
-
-* `LOG_FILE` ahora se lee de `FAIL2BAN_LOG_FILE` en `config.conf`, con
-  default de compatibilidad (`/var/log/fail2ban.log`) si la variable
-  no está definida.
-* El filtro fijo de jails fue reemplazado por una consulta dinámica
-  contra `jail_profile` (`SELECT COUNT(*) FROM jail_profile WHERE
-  name='$JAIL'`) — cualquier jail con perfil administrado se procesa
-  automáticamente, sin necesidad de mantener ni actualizar una lista
-  en el código cada vez que se crea un perfil nuevo desde el admin.
-* Se agregó verificación de existencia del archivo de log antes de
-  arrancar, con mensaje de error explícito en vez de fallar
-  silenciosamente en el `wc -l`.
-
-**Validación**
-
-Probado en producción con `sqlite3` de referencia (entorno de
-desarrollo, sin `sqlite3` instalado directamente): confirmado que
-jails ya existentes (`sshd`, `modsec-rce`, `recidive`) siguen
-procesándose, jails nuevos que antes se descartaban (`dovecot`,
-`postfix-sasl`, `mod_evasive`, `apache-badbots`) ahora se aceptan, y
-un jail inventado sin perfil real se sigue descartando correctamente.
-Confirmado en el servidor real: `./sensors/fail2ban.sh --dry-run`
-corre sin error, y el timer (`are-fail2ban-found.timer`) sigue
-procesando eventos reales con normalidad tras el cambio.
-
-**Archivos relacionados**
-
-* `sensors/fail2ban.sh`
-* `config/config.conf`
-
-**Archivos relacionados**
-
-* `sensors/fail2ban.sh`
-* `config/config.conf`
-
----
-
 ## TASK-017
 
 **Título:** Sincronizar umbrales documentados en `ARCHITECTURE.md` con los valores reales de `policy.conf`
@@ -221,114 +121,6 @@ coincide con la configuración activa.
 
 * `docs/ARCHITECTURE.md`
 * `config/policy.conf`
-
----
-
-## TASK-018
-
-**Título:** Completar catálogo de categorías y umbrales faltantes en `policy.conf`
-
-**Estado:** ✔ Resuelto
-
-**Prioridad:** Media
-
-**Descripción**
-
-`config/policy.conf` define umbrales de categoría (`*_THRESHOLD`) para
-las 9 categorías del catálogo (`RECON`, `EXPLOIT`, `CREDENTIAL`,
-`PROTOCOL`, `BOT`, `ANOMALY`, `DOS`, `MALWARE`, `SOCIAL`).
-
-Como parte de la implementación de ARE ADMIN (ver FEAT-005), se incorporó
-la variable `REPUTATION_CATEGORIES` a `policy.conf` como catálogo
-explícito y única fuente de verdad de las categorías soportadas, consumida
-por `admin/categories.sh`.
-
-**Umbrales calibrados**
-
-* `ANOMALY_THRESHOLD=40` — señal heurística blanda (ModSecurity generic
-  anomaly), calibrada entre `RECON`(80) y `PROTOCOL`(20): necesita
-  acumulación sostenida, pero menos que un simple escaneo.
-* `DOS_THRESHOLD=30` — amenaza confirmada (umbral determinístico de
-  `mod_evasive`, no heurística), calibrada al mismo nivel que
-  `CREDENTIAL`(30): pocos eventos bastan para disparar.
-* `SOCIAL_THRESHOLD=40` (v2.2, RFC-016) — mismo nivel que `ANOMALY`:
-  heurística de spam vía SpamAssassin, con el mismo riesgo de falso
-  positivo (mensaje legítimo mal puntuado) que un heurístico de
-  ModSecurity. Calibrado con sensor real (`sensors/spamassassin.sh`)
-  ya reportando en producción.
-* `MALWARE_THRESHOLD=30` — mismo nivel que `CREDENTIAL`/`DOS`,
-  calibrado **sin sensor local reportando todavía** (excepción
-  deliberada al criterio general de "no definir umbrales
-  especulativos sin evidencia"): este servidor no tiene superficie
-  real de malware (tráfico de e-commerce, sin ClamAV/escaneo de
-  archivos activo — ver IDEA sobre recolección de perfiles de
-  colegas), pero dejar el umbral indefinido resolvería únicamente el
-  problema de este servidor puntual, no el de ARE como motor
-  genérico. Un colega que sume un sensor real de malware (ClamAV,
-  Imunify360, maldet) encuentra el umbral ya funcionando via
-  `jail_profile`, sin tener que definirlo él mismo. Pendiente de
-  validación con datos reales el día que exista un sensor, propio o
-  de un tercero.
-
-Calibración basada en `weight × confidence` de los jails reales
-asignados a cada categoría y en el número de eventos que ese cálculo
-implica para cruzar el umbral, siguiendo el mismo criterio ya aplicado
-consistentemente en las 9 categorías.
-
-**Alcance**
-
-* ✔ Agregar `REPUTATION_CATEGORIES` a `policy.conf`.
-* ✔ `admin/categories.sh` (`categories_list`, `categories_scores`) lee el
-  catálogo y los umbrales dinámicamente; muestra `N/D` cuando el umbral no
-  está definido.
-* ✔ `ANOMALY_THRESHOLD` y `DOS_THRESHOLD` definidos y calibrados.
-* ✔ `SOCIAL_THRESHOLD` definido y calibrado con sensor real (RFC-016).
-* ✔ `MALWARE_THRESHOLD` definido y calibrado, sin sensor local — ver
-  justificación arriba.
-
-**Archivos relacionados**
-
-* `config/policy.conf`
-* `admin/categories.sh`
-
----
-
-## TASK-019
-
-**Título:** Higiene de repositorio previa a IDEA-007 (empaquetado)
-
-**Estado:** ✔ Resuelto
-
-**Prioridad:** Baja
-
-**Versión:** v2.2 (en desarrollo)
-
-**Descripción**
-
-Dos limpiezas menores de repositorio, encontradas al inspeccionar el
-contenido real del primer `.tar.gz` generado por
-`scripts/build-package.sh` (IDEA-007) — ninguna afectaba el
-funcionamiento de ARE, ambas afectaban la calidad de lo distribuido a
-un colega nuevo.
-
-**Alcance**
-
-* `.gitignore` — `*.tar.gz`/`*.tar.gz.sha256` no estaban ignorados;
-  cada build local ensuciaba `git status` con un binario nuevo.
-* Eliminados 5 archivos placeholder vacíos (0 bytes) en `sensors/`
-  (`apache.sh`, `crowdsec.sh`, `modsecurity.sh`, `suricata.sh`,
-  `zeek.sh`), dejados como recordatorio de intención futura —
-  viajaban en el paquete distribuible sin ninguna distinción visual
-  respecto a los sensores reales y funcionales. La intención que
-  representaban ya está documentada en `ROADMAP.md`, sección
-  "Próximas líneas de trabajo"; mantenerlos hubiera obligado a
-  excluirlos a mano del empaquetado cada vez que se agregara un
-  placeholder nuevo.
-
-**Archivos relacionados**
-
-* `.gitignore`
-* `sensors/`
 
 ---
 
@@ -1192,6 +984,209 @@ PRODUCT_CONFIG_FILES
 * detiene la instalación cuando falta una plantilla obligatoria.
 
 La implementación fue validada en laboratorio aislado y la instalación activa de producción no fue modificada durante esa validación.
+
+---
+
+## TASK-015
+
+**Título:** Eliminar duplicación de `db_get_sanction()` en `database.sh`
+
+**Estado:** ✔ Resuelto
+
+**Prioridad:** Baja
+
+**Versión:** v2.1 (en desarrollo)
+
+**Descripción**
+
+`db_get_sanction()` estaba definida dos veces en `database.sh`, con
+contenido idéntico. No generaba comportamiento incorrecto (la segunda
+definición sobrescribía a la primera sin cambiar el resultado), pero
+era ruido que dificultaba la lectura y mantenimiento del archivo.
+
+**Corrección**
+
+Confirmado con `grep -n "^db_get_sanction()" database.sh` que la
+función aparece una única vez — la duplicación fue eliminada como
+parte de alguna de las reorganizaciones de `database.sh` realizadas
+durante RFC-007/RFC-008, sin haber quedado registrada explícitamente
+en su momento como resolución de esta tarea puntual.
+
+**Archivos relacionados**
+
+* `database.sh`
+
+---
+
+## TASK-016
+
+**Título:** Centralizar `LOG_FILE` del sensor Fail2Ban en `config.conf`, y reemplazar el filtro de jails fijo por consulta dinámica a `jail_profile`
+
+**Estado:** ✔ Resuelto
+
+**Prioridad:** Media
+
+**Versión:** v2.1 (en desarrollo)
+
+**Descripción**
+
+`sensors/fail2ban.sh` definía `LOG_FILE="/var/log/fail2ban.log"` como
+valor fijo dentro del script, en lugar de tomarlo de
+`config/config.conf`. Inconsistente con el principio de centralización
+de rutas ya aplicado en TASK-012 para el resto de las variables
+operativas.
+
+**Hallazgo adicional durante la resolución**
+
+El mismo archivo tenía un segundo problema del mismo tipo, más
+relevante: un filtro fijo de jails permitidos
+(`modsec-*|recidive|sshd|telnet`) que determinaba qué eventos `FOUND`
+procesar en el camino de polling. Esta lista quedó desactualizada tras
+la implementación de RFC-007 (CRUD de `jail_profile`): los perfiles
+creados desde entonces (`dovecot`, `postfix-sasl`, `mysqld-auth`,
+`apache-badbots`, `mod_evasive`) no estaban en la lista, por lo que sus
+eventos `FOUND` se descartaban silenciosamente en el camino de
+polling — sin log de error, sin aviso — aunque el jail ya tuviera
+perfil administrado en ARE ADMIN.
+
+**Corrección**
+
+* `LOG_FILE` ahora se lee de `FAIL2BAN_LOG_FILE` en `config.conf`, con
+  default de compatibilidad (`/var/log/fail2ban.log`) si la variable
+  no está definida.
+* El filtro fijo de jails fue reemplazado por una consulta dinámica
+  contra `jail_profile` (`SELECT COUNT(*) FROM jail_profile WHERE
+  name='$JAIL'`) — cualquier jail con perfil administrado se procesa
+  automáticamente, sin necesidad de mantener ni actualizar una lista
+  en el código cada vez que se crea un perfil nuevo desde el admin.
+* Se agregó verificación de existencia del archivo de log antes de
+  arrancar, con mensaje de error explícito en vez de fallar
+  silenciosamente en el `wc -l`.
+
+**Validación**
+
+Probado en producción con `sqlite3` de referencia (entorno de
+desarrollo, sin `sqlite3` instalado directamente): confirmado que
+jails ya existentes (`sshd`, `modsec-rce`, `recidive`) siguen
+procesándose, jails nuevos que antes se descartaban (`dovecot`,
+`postfix-sasl`, `mod_evasive`, `apache-badbots`) ahora se aceptan, y
+un jail inventado sin perfil real se sigue descartando correctamente.
+Confirmado en el servidor real: `./sensors/fail2ban.sh --dry-run`
+corre sin error, y el timer (`are-fail2ban-found.timer`) sigue
+procesando eventos reales con normalidad tras el cambio.
+
+**Archivos relacionados**
+
+* `sensors/fail2ban.sh`
+* `config/config.conf`
+
+---
+
+## TASK-018
+
+**Título:** Completar catálogo de categorías y umbrales faltantes en `policy.conf`
+
+**Estado:** ✔ Resuelto
+
+**Prioridad:** Media
+
+**Descripción**
+
+`config/policy.conf` define umbrales de categoría (`*_THRESHOLD`) para
+las 9 categorías del catálogo (`RECON`, `EXPLOIT`, `CREDENTIAL`,
+`PROTOCOL`, `BOT`, `ANOMALY`, `DOS`, `MALWARE`, `SOCIAL`).
+
+Como parte de la implementación de ARE ADMIN (ver FEAT-005), se incorporó
+la variable `REPUTATION_CATEGORIES` a `policy.conf` como catálogo
+explícito y única fuente de verdad de las categorías soportadas, consumida
+por `admin/categories.sh`.
+
+**Umbrales calibrados**
+
+* `ANOMALY_THRESHOLD=40` — señal heurística blanda (ModSecurity generic
+  anomaly), calibrada entre `RECON`(80) y `PROTOCOL`(20): necesita
+  acumulación sostenida, pero menos que un simple escaneo.
+* `DOS_THRESHOLD=30` — amenaza confirmada (umbral determinístico de
+  `mod_evasive`, no heurística), calibrada al mismo nivel que
+  `CREDENTIAL`(30): pocos eventos bastan para disparar.
+* `SOCIAL_THRESHOLD=40` (v2.2, RFC-016) — mismo nivel que `ANOMALY`:
+  heurística de spam vía SpamAssassin, con el mismo riesgo de falso
+  positivo (mensaje legítimo mal puntuado) que un heurístico de
+  ModSecurity. Calibrado con sensor real (`sensors/spamassassin.sh`)
+  ya reportando en producción.
+* `MALWARE_THRESHOLD=30` — mismo nivel que `CREDENTIAL`/`DOS`,
+  calibrado **sin sensor local reportando todavía** (excepción
+  deliberada al criterio general de "no definir umbrales
+  especulativos sin evidencia"): este servidor no tiene superficie
+  real de malware (tráfico de e-commerce, sin ClamAV/escaneo de
+  archivos activo — ver IDEA sobre recolección de perfiles de
+  colegas), pero dejar el umbral indefinido resolvería únicamente el
+  problema de este servidor puntual, no el de ARE como motor
+  genérico. Un colega que sume un sensor real de malware (ClamAV,
+  Imunify360, maldet) encuentra el umbral ya funcionando via
+  `jail_profile`, sin tener que definirlo él mismo. Pendiente de
+  validación con datos reales el día que exista un sensor, propio o
+  de un tercero.
+
+Calibración basada en `weight × confidence` de los jails reales
+asignados a cada categoría y en el número de eventos que ese cálculo
+implica para cruzar el umbral, siguiendo el mismo criterio ya aplicado
+consistentemente en las 9 categorías.
+
+**Alcance**
+
+* ✔ Agregar `REPUTATION_CATEGORIES` a `policy.conf`.
+* ✔ `admin/categories.sh` (`categories_list`, `categories_scores`) lee el
+  catálogo y los umbrales dinámicamente; muestra `N/D` cuando el umbral no
+  está definido.
+* ✔ `ANOMALY_THRESHOLD` y `DOS_THRESHOLD` definidos y calibrados.
+* ✔ `SOCIAL_THRESHOLD` definido y calibrado con sensor real (RFC-016).
+* ✔ `MALWARE_THRESHOLD` definido y calibrado, sin sensor local — ver
+  justificación arriba.
+
+**Archivos relacionados**
+
+* `config/policy.conf`
+* `admin/categories.sh`
+
+---
+
+## TASK-019
+
+**Título:** Higiene de repositorio previa a IDEA-007 (empaquetado)
+
+**Estado:** ✔ Resuelto
+
+**Prioridad:** Baja
+
+**Versión:** v2.2 (en desarrollo)
+
+**Descripción**
+
+Dos limpiezas menores de repositorio, encontradas al inspeccionar el
+contenido real del primer `.tar.gz` generado por
+`scripts/build-package.sh` (IDEA-007) — ninguna afectaba el
+funcionamiento de ARE, ambas afectaban la calidad de lo distribuido a
+un colega nuevo.
+
+**Alcance**
+
+* `.gitignore` — `*.tar.gz`/`*.tar.gz.sha256` no estaban ignorados;
+  cada build local ensuciaba `git status` con un binario nuevo.
+* Eliminados 5 archivos placeholder vacíos (0 bytes) en `sensors/`
+  (`apache.sh`, `crowdsec.sh`, `modsecurity.sh`, `suricata.sh`,
+  `zeek.sh`), dejados como recordatorio de intención futura —
+  viajaban en el paquete distribuible sin ninguna distinción visual
+  respecto a los sensores reales y funcionales. La intención que
+  representaban ya está documentada en `ROADMAP.md`, sección
+  "Próximas líneas de trabajo"; mantenerlos hubiera obligado a
+  excluirlos a mano del empaquetado cada vez que se agregara un
+  placeholder nuevo.
+
+**Archivos relacionados**
+
+* `.gitignore`
+* `sensors/`
 
 ---
 
@@ -2409,6 +2404,105 @@ Probado en producción contra el `mainlog` real de Exim:
   la flota.
 * Recalibrar bandas/umbral con más volumen histórico una vez pase
   más tiempo (igual criterio que `ANOMALY`/`DOS` en su momento).
+
+---
+
+## RFC-017
+
+**Título:** Activar/desactivar sensores desde ARE ADMIN, con registro dinámico
+
+**Estado:** Propuesta (diseño, sin implementar)
+
+**Versión:** v2.3 (en desarrollo)
+
+**Descripción**
+
+Surge de una necesidad real: cuando el proyecto tenga varios sensores,
+no todos los colegas que instalen ARE van a querer usarlos todos —
+alguien sin SpamAssassin no debería tener ese sensor consumiendo
+recursos ni generando ruido. Hoy no existe ningún mecanismo para
+activar o desactivar un sensor desde ARE ADMIN; el único control es
+manual, a nivel de systemd (`systemctl disable`) o, en el caso de
+`apache_evasive`, comentando una línea en la configuración de Apache.
+
+**Decisiones de diseño**
+
+* **`jail_profile` no se toca.** `RFC-007` estableció explícitamente
+  que ese modelo es agnóstico del sensor de origen — "la existencia y
+  las propiedades de riesgo de un jail viven exclusivamente en
+  `jail_profile`... nunca hardcodeadas dentro del código de un sensor
+  particular". Mezclar el estado de un sensor ahí rompería esa
+  separación intencional.
+* **Registro nuevo, separado: tabla `sensor_registry`.** No una lista
+  fija en el código (mismo motivo que llevó a `jail_profile` a ser
+  dinámico en `TASK-016`) — un sensor nuevo, presente o futuro, se da
+  de alta como fila, no como código nuevo en el menú.
+* **`jail` y `sensor` son conceptos independientes, por diseño.** Un
+  sensor de polling como `fail2ban.sh` alimenta muchos jails a la vez
+  (`sshd`, `dovecot`, `mysqld-auth`, todos los `modsec-*`...) sin
+  relación explícita en la base — la relación vive en el propio script
+  del sensor (qué log lee, qué jails reporta), no en una tabla.
+  Activar/desactivar es a nivel de **sensor**, no de jail individual.
+* **Dos patrones de activación, según el tipo de sensor** (mismos dos
+  patrones que ya distingue el Sensor Framework — polling vs callback):
+  * **Polling** (`fail2ban`, `spamassassin`) — activar/desactivar es
+    `systemctl enable --now` / `systemctl disable --now` sobre el
+    `.timer` correspondiente. Mecanismo que ya existe, se reutiliza sin
+    cambios.
+  * **Callback** (`apache_evasive`) — no hay timer que tocar; Apache lo
+    invoca directo vía `DOSSystemCommand`. Requiere que el propio
+    script chequee un flag de estado al arrancar, y salga sin hacer
+    nada si está desactivado — cambio real dentro del sensor, no solo
+    en ARE ADMIN.
+* **Auto-provisión de perfiles: hook opcional por sensor, no
+  universal.** Solo `spamassassin.sh` necesita crear sus 3 jails
+  (`spamassassin-low/med/high`) al activarse — `fail2ban`/
+  `apache_evasive` no crean nada, sus jails ya se dan de alta a mano
+  por el administrador. Se resuelve con una función opcional que cada
+  sensor puede definir (`<sensor>_on_enable()`), no con lógica genérica
+  en el registro.
+
+**Esquema propuesto**
+
+```sql
+CREATE TABLE sensor_registry (
+    name TEXT PRIMARY KEY,       -- 'fail2ban', 'spamassassin', 'apache_evasive'
+    pattern TEXT NOT NULL,       -- 'polling' | 'callback'
+    enabled INTEGER NOT NULL DEFAULT 1,
+    systemd_timer TEXT,          -- NULL para sensores callback
+    description TEXT
+);
+```
+
+**Fases de implementación**
+
+* **Fase 1 — Sensores de polling** (`fail2ban`, `spamassassin`):
+  * Tabla `sensor_registry`, poblada al instalar/actualizar con los
+    sensores presentes en `sensors/*.sh`.
+  * `admin/sensors_menu.sh` corregido para leer dinámicamente (hoy
+    tiene texto fijo, sin mención al sensor de SpamAssassin — hallazgo
+    de esta sesión) y agregar opción de activar/desactivar.
+  * Wrapper sobre `systemctl enable/disable --now` del timer
+    correspondiente.
+  * Hook `<sensor>_on_enable()` para SpamAssassin (auto-provisión de
+    los 3 jails).
+* **Fase 2 — Sensor de callback** (`apache_evasive`): flag de estado
+  chequeado por el propio script al arrancar. Más delicado porque toca
+  el sensor en sí, no solo el menú — se aborda por separado, sin
+  bloquear la Fase 1.
+
+**Pendiente de decidir antes de implementar**
+
+* ¿El hook de auto-provisión también debería ofrecer la opción
+  simétrica al desactivar (eliminar los jails, o solo dejar de
+  reportarles) — y si elimina, qué pasa con la reputación histórica ya
+  acumulada en esos jails? Quedó como pregunta explícitamente sin
+  resolver en una sesión anterior ("verificar que la información que
+  quede en la base de datos siga persistiendo").
+* Formato exacto del flag de estado para el patrón callback (¿archivo
+  en `${ARE_DATA}`? ¿columna en `sensor_registry` que el script
+  consulta con `sqlite3` en cada invocación, con el costo que eso
+  implica corriendo por cada request de Apache?).
 
 ---
 
