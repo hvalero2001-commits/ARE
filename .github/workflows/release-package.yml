@@ -1,7 +1,7 @@
 name: Build release package
 
 # Se dispara solo con tags de release (v*.*.*), mismo formato ya
-# usado en todos los tags existentes (v1.0.0 ... v2.1.0) — no con
+# usado en todos los tags existentes (v1.0.0 ... v2.2.0) — no con
 # cada push a una rama de desarrollo.
 on:
   push:
@@ -26,11 +26,22 @@ jobs:
       - name: Verify checksum
         run: sha256sum -c are-v*.tar.gz.sha256
 
-      - name: Upload assets to release
+      - name: Publish release with assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.ref_name }}" \
-            are-v*.tar.gz \
-            are-v*.tar.gz.sha256 \
-            --clobber
+          TAG="${{ github.ref_name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG ya existe — subiendo assets"
+            gh release upload "$TAG" \
+              are-v*.tar.gz \
+              are-v*.tar.gz.sha256 \
+              --clobber
+          else
+            echo "Release $TAG no existe — creándola con los assets"
+            gh release create "$TAG" \
+              are-v*.tar.gz \
+              are-v*.tar.gz.sha256 \
+              --title "$TAG" \
+              --generate-notes
+          fi
