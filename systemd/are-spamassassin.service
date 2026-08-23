@@ -1,7 +1,6 @@
 [Unit]
 Description=ARE SpamAssassin FOUND Sensor
 After=exim.service
-Requires=exim.service
 
 [Service]
 Type=oneshot
