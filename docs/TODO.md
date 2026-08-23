@@ -4233,6 +4233,79 @@ score `6.2`) confirmado presente, clasificado `spamassassin-low`.
 
 ---
 
+## BUG-029
+
+**Título:** Dependencias systemd hardcodeadas y timer único habilitado — instalación se rompía sin Fail2Ban/Exim preinstalados
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.4 (en desarrollo)
+
+**Problema**
+
+Encontrado al probar la instalación real (`v2.3.0`, vía `curl | bash`)
+en Fedora y Kali — ninguno de los dos trae Fail2Ban preinstalado por
+defecto, un caso de uso completamente legítimo (ej. servidor de
+correo puro, sin Fail2Ban corriendo). Dos fallas distintas,
+descubiertas juntas por `are-installer verify` mostrando resultados
+distintos en cada servidor:
+
+1. **`Requires=` hardcodeado en 4 unidades `.service`**
+   (`are-fail2ban-found`, `are-fail2ban-decay`, `are-spamassassin`,
+   `are-restore-ipsets`) sobre servicios externos
+   (`fail2ban.service`, `exim.service`) que pueden no existir. El
+   timer fallaba al arrancar (`Failed to queue unit startup job: Unit
+   fail2ban.service not found`), en cascada: `are.sh` nunca corría
+   por primera vez, los conjuntos `ipset` nunca se creaban —
+   `verify` reportaba "Conjunto IPSet faltante" sin relación aparente
+   con la causa real.
+2. **`install_systemd()`/`installer_uninstall()` en `are-installer`
+   con `systemctl enable/disable --now are-fail2ban-found.timer`
+   hardcodeado a un solo timer**, en vez de recorrer todos los
+   `.timer` del manifiesto (`PRODUCT_SYSTEMD_UNITS`). Cualquier
+   instalación nueva dejaba SpamAssassin y Decay instalados pero sin
+   habilitar, sin que nadie lo notara salvo por `verify` — y la
+   desinstalación tenía el mismo problema al revés, dejando timers
+   corriendo tras el `uninstall`.
+
+**Impacto**
+
+Ambas fallas afectaban a cualquier instalación nueva, no algo
+específico de los entornos de prueba — el servidor de producción
+real (AlmaLinux) también tenía las mismas 4 unidades con `Requires=`
+hardcodeado, encontrado y corregido en paralelo por el propio Hernan
+antes de que llegara a revisarlas.
+
+**Corrección**
+
+* Las 4 unidades `.service` cambiadas de `Requires=`+`After=` a solo
+  `After=` (orden de arranque si el servicio existe, sin bloquear si
+  no) — coherente con que los propios sensores ya toleran limpiamente
+  la ausencia de su fuente externa (`sensors/fail2ban.sh` ya maneja
+  un log faltante sin crashear, por ejemplo).
+* `install_systemd()`/`installer_uninstall()` corregidas para
+  recorrer `PRODUCT_SYSTEMD_UNITS` completo, habilitando/
+  deshabilitando cualquier `*.timer` presente en el manifiesto, en
+  vez de un nombre fijo.
+
+**Validación**
+
+Instalación completa (`curl | bash`, `v2.3.0` real) validada en
+Fedora (`dnf`) y Kali (`apt`) con la corrección aplicada — ambos
+gestores de paquetes del auto-instalador de `TASK-020` confirmados
+funcionando de punta a punta en el mismo ciclo de prueba. Corrección
+aplicada también en el servidor de producción AlmaLinux.
+
+**Archivos relacionados**
+
+* `are-installer`
+* `systemd/are-fail2ban-found.service`
+* `systemd/are-fail2ban-decay.service`
+* `systemd/are-spamassassin.service`
+* `systemd/are-restore-ipsets.service`
+
+---
+
 # OBSERVACIONES
 
 La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
