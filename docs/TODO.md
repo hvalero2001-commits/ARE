@@ -4446,14 +4446,28 @@ del tag original todavía.
 
 **Validación**
 
-Instalación limpia completa en Kali (segunda vez, tras mover el tag):
-`install_ipsets()` corriendo dentro del propio `install`
-(`"Inicializando conjuntos ARE..."`, los 4 `ipset` creados) sin
-ningún comando manual. Pendiente confirmar el segundo fix
-(`init_backend` completo, con firewall) con una tercera instalación
-limpia — el hallazgo de las reglas de firewall faltantes se descubrió
-en la misma corrida que ya había limpiado los datos, sin una prueba
-adicional todavía después de este segundo fix.
+Cuatro instalaciones limpias en Kali en total, cada una exponiendo
+una capa nueva del problema hasta quedar realmente resuelto:
+
+1. Primera corrida — expuso la falta de `install_ipsets()` (`ipset`
+   inexistentes).
+2. Segunda corrida (tras el primer fix) — `ipset` creándose bien,
+   expuso que `init_ipsets()` sola no alcanza, faltaba
+   `init_firewall()` (`init_backend()` completo).
+3. Tercera corrida (tras el segundo fix) — `IPSet: OK` y
+   `Firewall: OK`, pero expuso que `BUG-029` (unidades `.service` sin
+   `Requires=`) nunca se había traído de `v2.4-dev` a `main` — el tag
+   `v2.3.0` salía de `main`, no de esa rama, y quedó desincronizado
+   sin que nadie lo notara hasta este punto.
+4. Cuarta corrida (tras traer `BUG-029` a `main` y mover el tag una
+   vez más) — **11/11 en `OK`, instalación limpia completa,
+   sin ningún comando manual entre el `curl \| bash` y `verify`.**
+
+Esta secuencia de cuatro corridas es la explicación honesta de por
+qué "instalación remota" se había documentado como cerrada en v2.3.0
+sin estarlo realmente — cada corrida previa validó una demo con
+intervención manual de por medio, no la instalación real y aislada
+que finalmente se logró acá.
 
 **Archivos relacionados**
 
