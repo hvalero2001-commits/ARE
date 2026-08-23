@@ -2772,6 +2772,10 @@ que hay una versión nueva.
 
 **Título:** Detección de anomalías en tendencias
 
+**Estado:** ✔ Implementada y validada en producción
+
+**Versión:** v2.3 (en desarrollo)
+
 Extensión directa de RFC-013 (desglose de tendencias por categoría).
 La noche de implementación de RFC-016 se encontraron dos anomalías
 reales revisando la tabla a mano (`EXPLOIT=1461` el 15 de agosto,
@@ -2779,17 +2783,25 @@ reales revisando la tabla a mano (`EXPLOIT=1461` el 15 de agosto,
 humano estaba mirando la tabla en ese momento. Sin esa revisión
 activa, ninguna de las dos se hubiera notado.
 
-Propuesta: que ARE marque automáticamente cuando una categoría, en
-un día dado, se aleja significativamente de su propio promedio
-histórico reciente (por ejemplo, N veces el promedio de los últimos
-7 días) — visible en `Tendencias por categoría` o mencionado en
-`Estadísticas`.
+**Implementación**
 
-Por qué encaja con los principios ya establecidos del proyecto:
+* `dashboard/trends.sh` — `dashboard_trends_anomalies(dias)`: para
+  cada una de las 9 categorías, compara el conteo de eventos de
+  **hoy** contra el promedio de los `dias` días previos (sin incluir
+  hoy). Marca con `⚠` cuando hoy es al menos 3 veces ese promedio,
+  con un piso mínimo (`hoy >= 10`) para no marcar ruido cuando los
+  números son chicos. Mismo patrón de `JOIN` contra `jail_profile`
+  que ya usa `dashboard_trends_by_category()` (RFC-016) — sin
+  instrumentación nueva, reutiliza `events` tal cual.
+* `admin/state_menu.sh` — opción `8) Anomalías en tendencias` en la
+  rama Estado/Reputación, mismo patrón que las opciones 5-7
+  (pedir días, validar, wrapper, `admin_pause`).
+
+**Por qué encaja con los principios ya establecidos del proyecto**
 
 * No inventa ningún valor de riesgo — es puramente estadístico
-  (promedio o desvío sobre datos ya existentes), no toca
-  `policy.conf` ni el modelo de decisión.
+  (promedio sobre datos ya existentes), no toca `policy.conf` ni el
+  modelo de decisión.
 * Reutiliza datos existentes — la tabla `events` y el patrón de
   consulta ya escrito en `dashboard_trends_by_category()` (RFC-016).
 * Es observabilidad, no automatización de bloqueo — no banea nada,
@@ -2797,6 +2809,23 @@ Por qué encaja con los principios ya establecidos del proyecto:
   ya estaba en los datos.
 * Da una primera forma concreta a `IDEA-004` (Dashboard avanzado),
   que hoy es solo una intención general.
+
+**Validación**
+
+Corrida en producción el día en que los números estaban dentro de lo
+normal — "sin anomalías detectadas", correcto. Validada por cálculo
+contra el caso histórico conocido: con el pico real de
+`CREDENTIAL=3332` del 2026-08-20 (promedio de los días previos
+visibles ~71), la función lo habría marcado sin dudas de haber
+corrido ese día — más de 46 veces el promedio, muy por encima del
+umbral `3×`. Limitación de diseño reconocida: es un chequeo del día
+actual, no una auditoría retroactiva — no puede señalar anomalías de
+días pasados si se corre después de que ya ocurrieron.
+
+**Archivos relacionados**
+
+* `dashboard/trends.sh`
+* `admin/state_menu.sh`
 
 ---
 
@@ -3943,6 +3972,88 @@ ahora consistente con el estado real del firewall.
 **Archivos relacionados**
 
 * `are.sh`
+
+---
+
+## BUG-028
+
+**Título:** `sensors/spamassassin.sh` descartaba mensajes con score alto clasificados "NOT spam" por SpamAssassin
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.3 (en desarrollo)
+
+**Problema**
+
+El sensor filtraba exclusivamente por el veredicto textual de
+SpamAssassin (`"detected message as spam ("`), delegando en el
+criterio interno de esa herramienta en vez de decidir por score
+propio contra `SPAMASSASSIN_MIN_SCORE`. Encontrado en producción: un
+mensaje real con score `6.2` (por encima de
+`SPAMASSASSIN_MIN_SCORE=5.0`) fue clasificado internamente por
+SpamAssassin como "NOT spam", pese a que el propio servidor de
+correo igual rechazó la entrega del mensaje — dos criterios internos
+de SpamAssassin/Exim desalineados entre sí (probablemente
+`required_score` interno de SpamAssassin más alto que el umbral real
+de rechazo de Exim), ninguno de los cuales ARE debía heredar
+ciegamente.
+
+**Decisión de diseño**
+
+ARE es un motor de riesgo propio — no delega su criterio de
+clasificación en el flag booleano interno de otra herramienta. El
+sensor ahora captura ambos veredictos (`"spam"` y `"NOT spam"`) y
+extrae el score de cualquiera de los dos; la decisión de si cuenta
+como evento real queda 100% del lado del propio pipeline de ARE
+(`SPAMASSASSIN_MIN_SCORE`, ya existente), no del texto del log.
+
+**Corrección**
+
+```bash
+case "$line" in
+    *"detected message as spam ("*|*"detected message as NOT spam ("*)
+        score=$(echo "$line" | grep -oP 'message as (NOT )?spam \(\K[0-9.\-]+(?=\))')
+        ...
+```
+
+La línea de rechazo genérico de Exim (`"rejected after DATA"`) sigue
+correctamente excluida — no tiene un score entre paréntesis inmediato
+después de "spam", el patrón no la matchea.
+
+**Incidente durante la corrección**
+
+Al resetear el offset a `0` antes de copiar el archivo corregido, el
+timer automático (todavía con el código viejo) procesó el backlog
+completo en esa ventana, descartando de nuevo el evento que estábamos
+corrigiendo. Y una segunda prueba, con el archivo ya corregido pero
+sin detener el timer primero, generó duplicados reales (mismo patrón
+de fondo que `BUG-026`, pese al `flock` — el `flock` protege contra
+corridas *simultáneas*, no contra que el timer normal consuma un
+offset reseteado a mano entre pruebas manuales). Ambos incidentes
+llevaron a un tercer y definitivo reprocesamiento completo del
+historial (`DELETE` de todos los eventos `spamassassin-*`, offset a
+`0`, timer detenido explícitamente durante todo el proceso).
+
+**Lección de proceso, reforzando `BUG-026`:** cualquier manipulación
+manual del offset de este sensor debe hacerse con el timer detenido
+(`systemctl stop are-spamassassin.timer`) desde el primer paso, no
+solo cuando se anticipa un choque directo — el timer corriendo cada
+60 segundos es suficiente para interferir con cualquier ventana de
+prueba, aunque nunca coincida literalmente en el mismo segundo que la
+corrida manual.
+
+**Validación**
+
+Reprocesamiento final limpio: 12 eventos totales, sin duplicados
+(`96.127.160.85` con 2 filas son sus dos eventos reales legítimos,
+no un error). Confirmado con consulta directa
+(`GROUP BY ip, jail HAVING COUNT(*) > 1` devuelve únicamente esa fila
+esperada). El mensaje que originó el hallazgo (`103.16.72.108`,
+score `6.2`) confirmado presente, clasificado `spamassassin-low`.
+
+**Archivos relacionados**
+
+* `sensors/spamassassin.sh`
 
 ---
 

@@ -113,20 +113,32 @@ extract_spam_event_exim() {
 
     # Formato real observado en produccion:
     #   ... H=(host) [IP]:port ... Warning: "SpamAssassin as X detected message as spam (SCORE)"
+    #   ... H=(host) [IP]:port ... Warning: "SpamAssassin as X detected message as NOT spam (SCORE)"
     #
-    # El filtro por "detected message as spam (" excluye las lineas
-    # "detected message as NOT spam (...)" (veredicto real de
-    # SpamAssassin) y las lineas "rejected after DATA" (mensaje de
+    # ARE es un motor de riesgo propio: decide por SCORE contra
+    # SPAMASSASSIN_MIN_SCORE (ver mas abajo en el pipeline
+    # principal), no delegando en el veredicto textual booleano de
+    # SpamAssassin. Encontrado en produccion: un mensaje real con
+    # score 6.2 (por encima de SPAMASSASSIN_MIN_SCORE=5.0) fue
+    # clasificado "NOT spam" por SpamAssassin internamente, pese a
+    # que el propio servidor de correo igual rechazo la entrega —
+    # dos criterios internos de SpamAssassin/Exim desalineados
+    # entre si, ninguno de los cuales queremos heredar ciegamente.
+    # Por eso este adaptador captura AMBOS veredictos y extrae el
+    # score de cualquiera de los dos; la decision real queda 100%
+    # del lado de ARE, no de SpamAssassin.
+    #
+    # Se excluyen las lineas "rejected after DATA" (mensaje de
     # rechazo generico de Exim, que reutiliza la frase "message as
-    # spam" incluso cuando el veredicto real fue NOT spam — no
-    # filtrarlo por el texto completo genera falsos positivos en
-    # cualquier grep de verificacion manual, aunque el sensor en si
-    # nunca los proceso mal).
+    # spam" incluso sobre mensajes NOT spam) porque no traen un
+    # score real entre parentesis en ese formato — el filtro por
+    # "message as (NOT )?spam (" ya las excluye de forma natural,
+    # esa frase no aparece en la linea de rechazo.
     case "$line" in
-        *"detected message as spam ("*)
+        *"detected message as spam ("*|*"detected message as NOT spam ("*)
             local ip score
             ip=$(echo "$line" | grep -oP '\[\K[0-9a-fA-F:.]+(?=\]:)' | head -1)
-            score=$(echo "$line" | grep -oP 'message as spam \(\K[0-9.\-]+(?=\))')
+            score=$(echo "$line" | grep -oP 'message as (NOT )?spam \(\K[0-9.\-]+(?=\))')
             if [ -n "$ip" ] && [ -n "$score" ]; then
                 echo "${ip}|${score}"
             fi

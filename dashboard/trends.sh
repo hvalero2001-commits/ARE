@@ -13,6 +13,9 @@
 #
 # Exports
 #   dashboard_trends()
+#   dashboard_trends_by_category()
+#   dashboard_trends_export()
+#   dashboard_trends_anomalies()
 #############################################################
 
 dashboard_trends() {
@@ -101,4 +104,71 @@ dashboard_trends_export() {
 
     INFO "Tendencias exportadas: $OUTFILE"
     echo "Archivo generado: $OUTFILE"
+}
+
+#############################################################
+# IDEA-008: Detección de anomalías en tendencias
+#
+# Compara el valor de HOY de cada categoría contra el promedio
+# de los N días anteriores (sin incluir hoy). Marca con ⚠
+# cuando hoy es al menos 3 veces ese promedio, con un piso
+# mínimo (hoy >= 10) para no marcar ruido cuando los números
+# son chicos. Puramente estadístico sobre datos ya existentes
+# — no toca policy.conf ni el modelo de decisión, no bloquea
+# nada, solo hace visible algo que ya estaba en events.
+#############################################################
+dashboard_trends_anomalies() {
+    local DIAS="${1:-7}"
+    local MULTIPLIER="3"
+    local MIN_TODAY="10"
+
+    INFO "========== ANOMALÍAS EN TENDENCIAS (hoy vs. promedio de ${DIAS} días previos) =========="
+    echo ""
+
+    local categories="RECON EXPLOIT CREDENTIAL PROTOCOL BOT ANOMALY MALWARE DOS SOCIAL"
+    local found_any=0
+
+    local cat
+    for cat in $categories; do
+
+        local today avg
+        today=$(db_exec "
+            SELECT COUNT(*)
+            FROM events e
+            JOIN jail_profile jp ON jp.name = e.jail
+            WHERE jp.category='$cat'
+              AND date(e.fecha,'unixepoch') = date('now');
+        ")
+        today="${today:-0}"
+
+        avg=$(db_exec "
+            SELECT COALESCE(ROUND(AVG(daily_count), 1), 0)
+            FROM (
+                SELECT COUNT(*) AS daily_count
+                FROM events e
+                JOIN jail_profile jp ON jp.name = e.jail
+                WHERE jp.category='$cat'
+                  AND date(e.fecha,'unixepoch') < date('now')
+                  AND e.fecha >= strftime('%s','now') - ($DIAS * 86400)
+                GROUP BY date(e.fecha,'unixepoch')
+            );
+        ")
+        avg="${avg:-0}"
+
+        [ "$today" -lt "$MIN_TODAY" ] && continue
+
+        local is_anomaly
+        is_anomaly=$(awk -v t="$today" -v a="$avg" -v m="$MULTIPLIER" 'BEGIN{print (a == 0 || t >= a * m) ? 1 : 0}')
+
+        if [ "$is_anomaly" -eq 1 ]; then
+            printf "  ⚠  %-12s hoy=%-6s promedio(%sd previos)=%-8s\n" "$cat" "$today" "$DIAS" "$avg"
+            found_any=1
+        fi
+    done
+
+    if [ "$found_any" -eq 0 ]; then
+        echo "  Sin anomalías detectadas — ninguna categoría se aleja del patrón reciente."
+    fi
+
+    echo ""
 }
