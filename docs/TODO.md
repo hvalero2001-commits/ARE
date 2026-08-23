@@ -72,56 +72,6 @@ sesión:
 
 ---
 
-## TASK-017
-
-**Título:** Sincronizar umbrales documentados en `ARCHITECTURE.md` con los valores reales de `policy.conf`
-
-**Estado:** Pendiente
-
-**Prioridad:** Media
-
-**Descripción**
-
-`docs/ARCHITECTURE.md` documenta los umbrales efectivos de política como:
-
-```text
-Score ≥ 200 → TEMP_BAN
-Score ≥ 150 → BAN
-Score ≥ 100 → WATCH
-Score < 100 → ALLOW
-```
-
-Mientras que `config/policy.conf`, que es la configuración real cargada en
-producción, define:
-
-```text
-WATCH_SCORE=20
-TEMP_BAN_SCORE=60
-PERMANENT_BAN_SCORE=100
-```
-
-Son dos escalas distintas. La documentación describe un modelo que no
-coincide con la configuración activa.
-
-**Alcance**
-
-* ✔ Confirmado (ver RFC-009): el motor real (`policy/decision_engine.sh`)
-  no lee `WATCH_SCORE`, `TEMP_BAN_SCORE` ni `PERMANENT_BAN_SCORE` de
-  `policy.conf`. Usa umbrales fijos hardcodeados en el código
-  (`80`/`50`/`20`), que no coinciden con ninguno de los dos esquemas
-  documentados hasta ahora (ni el de `ARCHITECTURE.md` ni el de
-  `policy.conf`).
-* Actualizar `docs/ARCHITECTURE.md`, Sección "Policy Engine", para
-  reflejar el comportamiento real, o postergar esta actualización hasta
-  resolver RFC-009 si el rediseño va a cambiar nuevamente estos valores.
-
-**Relacionada con:** RFC-009.
-
-**Archivos relacionados**
-
-* `docs/ARCHITECTURE.md`
-* `config/policy.conf`
-
 ---
 
 # FEATURES
@@ -1079,6 +1029,51 @@ procesando eventos reales con normalidad tras el cambio.
 
 * `sensors/fail2ban.sh`
 * `config/config.conf`
+
+---
+
+## TASK-017
+
+**Título:** Sincronizar umbrales documentados en `ARCHITECTURE.md` con los valores reales de `policy.conf`
+
+**Estado:** ✔ Resuelta — de forma incidental, no por acción directa
+
+**Prioridad:** Media
+
+**Descripción original**
+
+`docs/ARCHITECTURE.md` documentaba los umbrales efectivos de política
+como una tabla fija (`Score ≥ 200 → TEMP_BAN`...), mientras que
+`config/policy.conf` define umbrales por variable
+(`WATCH_SCORE=20`, `TEMP_BAN_SCORE=60`, `PERMANENT_BAN_SCORE=100`) —
+dos escalas distintas, documentación que no coincidía con la
+configuración activa. En su momento se agregó además la sospecha
+(sin confirmar entonces) de que el motor real ni siquiera leía esos
+valores de `policy.conf`, sino que usaba umbrales hardcodeados
+(`80`/`50`/`20`) — un tercer esquema, distinto a los otros dos.
+
+**Resolución**
+
+Verificado en esta sesión, con el código real delante:
+`policy/decision_engine.sh` sí lee `WATCH_SCORE`, `TEMP_BAN_SCORE` y
+`PERMANENT_BAN_SCORE` de `policy.conf` — no hay ningún `80/50/20`
+hardcodeado. La sospecha de un tercer esquema quedó descartada.
+
+Y sobre el problema original: `docs/ARCHITECTURE.md`, sección
+"Policy Engine", **ya no contiene** la tabla de umbrales fijos que
+esta tarea reportaba — describe correctamente la evaluación por
+categoría, con umbrales configurables en `policy.conf` por regla
+(`policy/rules/<categoria>.sh`). El documento fue corregido en algún
+punto posterior a cuando se escribió esta tarea (probablemente junto
+con la reescritura del motor a evaluación por categoría, `RFC-009`),
+pero nadie volvió a cerrar esta entrada para reflejarlo — quedó
+pendiente en el papel mucho después de estar resuelta en los hechos.
+
+**Archivos relacionados**
+
+* `docs/ARCHITECTURE.md`
+* `config/policy.conf`
+* `policy/decision_engine.sh`
 
 ---
 
