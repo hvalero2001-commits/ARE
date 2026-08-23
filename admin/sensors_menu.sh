@@ -141,12 +141,16 @@ sensors_toggle() {
             echo "Sensor '$target' deshabilitado — timer '$current_timer' detenido."
         fi
     elif [ "$current_pattern" = "callback" ]; then
-        echo "Sensor '$target' marcado como $([ "$new_state" = "1" ] && echo habilitado || echo deshabilitado) en el registro."
-        echo "AVISO: los sensores de patrón callback todavía no verifican este"
-        echo "estado por sí mismos (RFC-017, Fase 2 pendiente) — para"
-        echo "desactivar '$target' de verdad, hay que retirar la invocación"
-        echo "correspondiente en su configuración externa (por ejemplo,"
-        echo "DOSSystemCommand en mod_evasive.conf para apache_evasive)."
+        local flag_file="$ARE_DATA/${target}.disabled"
+        if [ "$new_state" = "1" ]; then
+            rm -f "$flag_file"
+            echo "Sensor '$target' habilitado — bloqueo directo y reporte a ARE restaurados."
+        else
+            touch "$flag_file"
+            echo "Sensor '$target' deshabilitado — no se aplicará bloqueo ni se reportará"
+            echo "reputación para nuevas detecciones. Se sigue enviando un email"
+            echo "informativo por cada detección, sin acción tomada sobre la IP."
+        fi
     fi
 
     if command -v admin_log >/dev/null 2>&1; then

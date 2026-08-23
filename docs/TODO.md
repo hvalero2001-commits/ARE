@@ -2411,7 +2411,7 @@ Probado en producción contra el `mainlog` real de Exim:
 
 **Título:** Activar/desactivar sensores desde ARE ADMIN, con registro dinámico
 
-**Estado:** Fase 1 implementada y validada en producción; Fase 2 pendiente
+**Estado:** ✔ Implementada y validada en producción (Fase 1 y Fase 2 completas)
 
 **Versión:** v2.3 (en desarrollo)
 
@@ -2528,21 +2528,55 @@ reactivar — no debe recrear ni resetear jails que ya existan.
   existir desde `RFC-016`); queda estático por ahora, hacerlo
   dinámico del todo excede el alcance decidido en este RFC.
 
-**Fase 2 — Sensor de callback** (`apache_evasive`): flag de estado
-chequeado por el propio script al arrancar. Más delicado porque toca
-el sensor en sí, no solo el menú — se aborda por separado, sin
-bloquear la Fase 1.
+**Fase 2 — Sensor de callback (`apache_evasive`): ✔ Implementada y validada en producción**
 
-**Pendiente de decidir antes de implementar la Fase 2**
+* Flag de estado por **archivo** (`$ARE_DATA/apache_evasive.disabled`),
+  no columna de `sensor_registry` consultada por `sqlite3` — decisión
+  tomada por costo: este script puede invocarse con mucha frecuencia
+  durante un flood real, y una consulta a la base en cada invocación
+  sería cara justo en el peor momento. Mismo criterio que ya aplica
+  el resto del framework (los sensores de polling ya evitan cargar
+  `bootstrap.sh` completo, por la misma razón de liviandad).
+* **Alcance del "desactivado" acotado deliberadamente**: solo se
+  detiene el bloqueo (`ipset add`) y el reporte a ARE (`are.sh ban`).
+  No se toca la configuración de Apache/`mod_evasive` en sí — eso
+  sería entrar en un sistema ajeno al proyecto. En vez de bloquear
+  sin avisar o quedar completamente mudo, se envía igual un email
+  informativo ("actividad detectada, sin acción tomada"), evitando
+  que el correo original mienta sobre un bloqueo que no ocurrió.
+* **Hallazgo de higiene aprovechado en el mismo cambio**: el script
+  nunca había alineado con la convención de `config.conf` que ya usan
+  `fail2ban.sh`/`spamassassin.sh` desde que se movió a `sensors/` en
+  `RFC-012` (cambio mínimo en ese momento, solo ruta). Ahora sourcea
+  `config.conf` y usa `$ARE_DATA`/`$ARE_BIN` en vez de rutas fijas
+  hardcodeadas — sin tocar nada de lo específico del mecanismo de
+  notificación (emails, `BANNEDTIME`, directorio de logs de
+  `mod_evasive`), fuera de alcance de este cambio.
+* `admin/sensors_menu.sh`: el bloque `callback` de `sensors_toggle()`
+  pasó de solo avisar a escribir/borrar el archivo flag real.
 
-* Formato exacto del flag de estado para el patrón callback (¿archivo
-  en `${ARE_DATA}`? ¿columna en `sensor_registry` que el script
-  consulta con `sqlite3` en cada invocación, con el costo que eso
-  implica corriendo por cada request de Apache?).
+**Validación**
+
+Probado de punta a punta con el camino de invocación real de
+producción (`DOSSystemCommand "sudo /opt/are/sensors/apache_evasive.sh
+%s"`, corrido como `nobody` vía `sudo` hacia `root` — confirmado con
+`sudo -l -U nobody`), no con una simulación aproximada:
+
+* Sensor deshabilitado: IP de prueba (rango `RFC 5737`) sin bloqueo
+  en `ipset`, sin reputación registrada (`TOTAL=0`), email informativo
+  correcto generado.
+* Sensor rehabilitado: segunda IP de prueba con ban real aplicado
+  (`ipset` confirma el bloqueo, `DOS=66`, `TEMP_BAN` con sanción
+  vigente nivel 1) — confirma que reactivar no rompió el
+  comportamiento normal.
+
+**Pendiente**
+
 * El hook de auto-provisión de perfiles (`<sensor>_on_enable()`) para
-  SpamAssassin, mencionado en el diseño original, todavía no se
-  implementó — los 3 `jail_profile` de SpamAssassin ya existían de
-  antes de esta sesión, así que no hizo falta para validar la Fase 1.
+  SpamAssassin, mencionado en el diseño original de Fase 1, todavía
+  no se implementó — los 3 `jail_profile` de SpamAssassin ya existían
+  de antes de esta sesión, así que no hizo falta para validar
+  ninguna de las dos fases.
 
 ---
 
