@@ -83,6 +83,36 @@ sensors_config() {
     echo "=================================================="
     admin_pause
 }
+#############################################################
+# RFC-017: Auto-provisión de jail_profile al habilitar
+# SpamAssassin desde ARE ADMIN. Duplicada respecto a la lista
+# semilla de database.sh::db_init() en vez de sourcear
+# sensors/spamassassin.sh — evita ejecutar por efecto
+# secundario la lógica de procesamiento del sensor (lectura de
+# log, flock, offset) solo por querer esta función puntual.
+# Idempotente: si el jail ya existe, no lo toca.
+#############################################################
+sensors_provision_spamassassin() {
+
+    local jails=(
+        "spamassassin-low|SOCIAL|10|0.6|0.95|Rango de score SpamAssassin 5.0 – 9.99"
+        "spamassassin-med|SOCIAL|25|0.75|0.95|Rango de score SpamAssassin 10.0 – 14.99"
+        "spamassassin-high|SOCIAL|50|0.9|0.95|Rango de score SpamAssassin ≥ 15.0"
+    )
+
+    local entry name category weight confidence decay description
+
+    for entry in "${jails[@]}"; do
+        IFS='|' read -r name category weight confidence decay description <<< "$entry"
+
+        if db_jail_profile_exists "$name"; then
+            continue
+        fi
+
+        db_create_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
+        echo "  Perfil creado: $name"
+    done
+}
 sensors_toggle() {
     echo "=================================================="
     echo "SENSORES - ACTIVAR/DESACTIVAR"
@@ -134,6 +164,9 @@ sensors_toggle() {
 
     if [ "$current_pattern" = "polling" ] && [ -n "$current_timer" ] && command -v systemctl >/dev/null 2>&1; then
         if [ "$new_state" = "1" ]; then
+            if [ "$target" = "spamassassin" ]; then
+                sensors_provision_spamassassin
+            fi
             systemctl enable --now "$current_timer" >/dev/null 2>&1
             echo "Sensor '$target' habilitado — timer '$current_timer' activado."
         else

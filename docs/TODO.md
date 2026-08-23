@@ -2565,13 +2565,30 @@ producción (`DOSSystemCommand "sudo /opt/are/sensors/apache_evasive.sh
   vigente nivel 1) — confirma que reactivar no rompió el
   comportamiento normal.
 
-**Pendiente**
+**Auto-provisión de perfiles — ✔ Implementada**
 
-* El hook de auto-provisión de perfiles (`<sensor>_on_enable()`) para
-  SpamAssassin, mencionado en el diseño original de Fase 1, todavía
-  no se implementó — los 3 `jail_profile` de SpamAssassin ya existían
-  de antes de esta sesión, así que no hizo falta para validar
-  ninguna de las dos fases.
+`sensors_provision_spamassassin()` en `admin/sensors_menu.sh`, con la
+lista de jails **duplicada** respecto a la semilla de
+`database.sh::db_init()`, en vez de sourcear
+`sensors/spamassassin.sh` para reutilizar una función ahí — esa
+alternativa se evaluó y se descartó, porque el script del sensor no
+está guardado tras un chequeo de ejecución directa (`BASH_SOURCE`
+vs `$0`); sourcearlo ejecutaría por efecto secundario toda su lógica
+de procesamiento (flock, lectura del log completo, offset) solo por
+querer la función de auto-provisión. Reestructurar el sensor para
+soportar ese guard era una opción, pero se descartó por tocar el
+flujo de ejecución de un sensor ya validado en producción sin
+necesidad real — duplicar una lista corta de 3 líneas es más seguro
+que ese riesgo.
+
+Invocada desde el bloque `polling` de `sensors_toggle()`, condicional
+al sensor específico (`spamassassin`), justo antes de reactivar su
+timer. Idempotente (`db_jail_profile_exists` antes de crear).
+
+**Validación:** con los 3 jails ya existentes en producción,
+deshabilitar y volver a habilitar el sensor no imprimió ningún
+"Perfil creado" y no modificó `weight`/`confidence`/`decay` de
+ninguno — confirmado por consulta directa a la base antes y después.
 
 ---
 
