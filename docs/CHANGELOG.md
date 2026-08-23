@@ -6,6 +6,59 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.3.0
+
+**Fecha:** 2026-08-23
+
+## Resumen
+
+Versión enfocada en administración operativa de sensores desde ARE ADMIN, cierre de la línea de auto-actualización del Installer Engine, y una ronda de correcciones de producción con impacto real confirmado y revertido.
+
+## Activar/desactivar sensores
+
+ARE ADMIN incorpora control operativo directo sobre cada sensor, con registro dinámico — un sensor nuevo aparece solo en el menú, sin código adicional.
+
+* Sensores de polling (Fail2Ban, SpamAssassin): activar/desactivar controla directamente su timer de systemd.
+* Sensor de callback (apache_evasive): activar/desactivar mediante archivo flag, sin tocar la configuración externa de Apache/mod_evasive.
+* Auto-provisión de perfiles al habilitar SpamAssassin, idempotente.
+* Nueva vista: jails de Fail2Ban con actividad real que todavía no tienen perfil administrado — solo lectura, sin creación automática de categoría ni peso.
+
+## Cierre de la línea de auto-actualización
+
+El Installer Engine completa su camino hacia la independencia de git: consulta de actualizaciones disponibles, actualización remota de una instalación existente, y auto-instalación de dependencias del sistema faltantes.
+
+## Visibilidad ampliada
+
+Detección automática de anomalías en las tendencias diarias por categoría, comparando la actividad del día contra el promedio reciente — sin instrumentación nueva, reutilizando datos ya existentes.
+
+## Correcciones
+
+* Workflow de publicación de release fallaba si la Release de GitHub no existía previamente.
+* Extracción del paquete de instalación remota fallaba en servidores con /tmp montado sin permiso de ejecución.
+* El sensor de SpamAssassin podía reprocesar el mismo tramo del log ante corridas solapadas, inflando la reputación de una IP.
+* Revertir una sanción no persistía el cambio en el estado de sanciones, exponiendo a que se reaplicara tras un reinicio del sistema.
+* El sensor de SpamAssassin delegaba en el veredicto interno de la herramienta en vez de decidir por su propio criterio de riesgo, perdiendo eventos reales con score por encima del umbral configurado.
+
+## Documentación
+
+Cierre de una tarea de sincronización de umbrales documentados, resuelta de forma incidental en una versión anterior sin que quedara registrado en su momento. Patrón de referencia documentado para futuros sensores de IDS externos.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.2.0
 
 **Fecha:** 2026-08-21
