@@ -3,7 +3,7 @@
 #
 # F2B-IPSET
 # Database Module
-# Version 2.3.0
+# Version 2.0.1
 #
 #############################################################
 
@@ -178,15 +178,6 @@ db_init() {
     db_exec "
     CREATE TABLE IF NOT EXISTS reputation(
         ip TEXT PRIMARY KEY,
-        recon_score INTEGER DEFAULT 0,
-        exploit_score INTEGER DEFAULT 0,
-        credential_score INTEGER DEFAULT 0,
-        protocol_score INTEGER DEFAULT 0,
-        bot_score INTEGER DEFAULT 0,
-        anomaly_score INTEGER DEFAULT 0,
-        malware_score INTEGER DEFAULT 0,
-        dos_score INTEGER DEFAULT 0,
-        social_score INTEGER DEFAULT 0,
         last_decay INTEGER DEFAULT 0,
         total_score INTEGER DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'NEW',
@@ -256,6 +247,13 @@ db_init() {
     ('spamassassin','polling',1,'are-spamassassin.timer','Sensor SpamAssassin, categoría SOCIAL, 3 bandas por score'),
     ('apache_evasive','callback',1,NULL,'Sensor Apache/mod_evasive, invocado por DOSSystemCommand, sin timer systemd');
     "
+
+    # RFC-008: reputation_scores es el almacenamiento real del score
+    # por categoría desde v2.1 — faltaba en toda instalación nueva,
+    # solo se creaba como parte de la migración v2.0->v2.1
+    # (db_migrate_reputation_scores), que una instalación nueva sin
+    # datos previos nunca ejecuta.
+    db_init_reputation_scores
 }
 
 #############################################################
@@ -513,13 +511,12 @@ db_add_score() {
 
 db_recalculate_total() {
 
-    local IP="$1"
-
-    db_exec "
-        UPDATE reputation
-        SET total_score = (SELECT COALESCE(SUM(score),0) FROM reputation_scores WHERE ip='$IP')
-        WHERE ip='$IP';
-    "
+    # RFC-008 Fase 4: total_score ya no existe como columna
+    # almacenada — se deriva siempre al vuelo en db_get_score() y
+    # en el resto de las funciones de estadísticas. Esta función se
+    # conserva vacía (no-op) para no tener que modificar cada punto
+    # de are.sh que la invoca después de cada evento.
+    return 0
 }
 
 #############################################################
@@ -531,8 +528,8 @@ db_get_score() {
     local IP="$1"
 
     db_exec "
-        SELECT total_score
-        FROM reputation
+        SELECT COALESCE(SUM(score),0)
+        FROM reputation_scores
         WHERE ip='$IP';
     "
 }
@@ -625,14 +622,26 @@ db_count_ips() {
     db_exec "SELECT COUNT(*) FROM reputation;"
 }
 
-#IPs con actividad (total_score > 0)
+#IPs con actividad (score total > 0)
 db_count_active_ips() {
-    db_exec "SELECT COUNT(*) FROM reputation WHERE total_score > 0;"
+    db_exec "
+        SELECT COUNT(DISTINCT ip)
+        FROM reputation_scores
+        WHERE score > 0;
+    "
 }
 
 #IPs baneadas (score alto)
 db_count_banned_ips() {
-    db_exec "SELECT COUNT(*) FROM reputation WHERE total_score >= 60;"
+    db_exec "
+        SELECT COUNT(*)
+        FROM (
+            SELECT ip, SUM(score) AS total
+            FROM reputation_scores
+            GROUP BY ip
+            HAVING total >= 60
+        );
+    "
 }
 
 #total de eventos
@@ -649,9 +658,17 @@ db_count_events_today() {
     "
 }
 
-#score promedio global
+#score promedio global (incluye IPs sin actividad, como el score 0)
 db_avg_score() {
-    db_exec "SELECT AVG(total_score) FROM reputation;"
+    db_exec "
+        SELECT AVG(t.total)
+        FROM (
+            SELECT r.ip, COALESCE(SUM(rs.score), 0) AS total
+            FROM reputation r
+            LEFT JOIN reputation_scores rs ON rs.ip = r.ip
+            GROUP BY r.ip
+        ) t;
+    "
 }
 
 #breakdown por categoría
@@ -716,10 +733,10 @@ db_count_decay_candidates() {
 
     db_exec "
         SELECT COUNT(*)
-        FROM reputation
-        WHERE total_score > 0
-          AND updated IS NOT NULL
-          AND ($NOW - updated) >= $MIN_AGE;
+        FROM reputation r
+        WHERE (SELECT COALESCE(SUM(score),0) FROM reputation_scores WHERE ip = r.ip) > 0
+          AND r.updated IS NOT NULL
+          AND ($NOW - r.updated) >= $MIN_AGE;
     "
 }
 

@@ -1634,9 +1634,9 @@ pausada, queda **implementada y confirmada en producción**.
 
 **Título:** Modelo de categorías extensible (columnas fijas → esquema normalizado)
 
-**Estado:** En progreso — Fases 1-3 completas, Fase 4 pospuesta (limitación de SQLite). Ver también BUG-019 (decay proporcional).
+**Estado:** Fases 1-4 completas — código validado en entorno con SQLite moderno; migración de datos reales de producción pendiente por limitación de SQLite en AlmaLinux 8. Ver también BUG-019 (decay proporcional).
 
-**Versión:** v2.1 (en desarrollo)
+**Versión:** v2.1 (Fases 1-3), v2.4 (Fase 4)
 
 **Descripción**
 
@@ -1701,26 +1701,51 @@ truncamiento deja de ser posible por diseño, no por parche.
      completo). Corregido envolviendo esa subconsulta en `COALESCE(...,
      0)`.
 
-4. **Fase 4 — Pospuesta, sin fecha, por limitación técnica real.**
-   Eliminar las columnas de categoría de `reputation` requiere
-   `ALTER TABLE ... DROP COLUMN`, soportado recién desde SQLite
-   3.35.0. El servidor de producción corre SQLite 3.26.0 (AlmaLinux 8,
-   `baseos`), que no ofrece actualización de este paquete por el
-   modelo de ABI estable de RHEL 8 — confirmado con `dnf check-update`.
-   En esta versión, eliminar columnas requeriría recrear la tabla
-   completa (crear nueva sin esas columnas, copiar datos, renombrar),
-   una operación bloqueante de mayor riesgo sobre una tabla con más de
-   2200 IPs reales en producción activa. Se evaluó y descartó
-   actualizar SQLite a nivel de sistema operativo por el riesgo que
-   implica para otros componentes del servidor (cPanel/WHM y
-   dependencias asociadas). Las columnas viejas no generan ningún
-   problema funcional mientras permanezcan sin uso — el sistema ya no
-   las lee ni las escribe (confirmado mediante `grep` exhaustivo; las
-   únicas referencias restantes son en `db_migrate_reputation_scores()`
-   y `db_merge_comma_duplicates()`, funciones de migración histórica
-   ya ejecutadas, que quedan como herramientas de referencia). Se
-   revisitará si el sistema operativo del servidor se actualiza en el
-   futuro.
+4. **Fase 4 — Código completo y validado; migración de datos reales en producción sigue pendiente.**
+
+   Hallazgo clave que reabrió esta fase: `CREATE TABLE ... DROP
+   COLUMN` requiere SQLite 3.35+, pero **simplificar el
+   `CREATE TABLE` para instalaciones nuevas no lo requiere** — es
+   sintaxis básica, válida en cualquier versión. Eso permitió avanzar
+   sin esperar a AlmaLinux:
+
+   * `database.sh::db_init()` — `CREATE TABLE reputation` reducido de
+     14 columnas a 4 (`ip`, `last_decay`, `status`, `updated`); las 9
+     de categoría y `total_score` ya no se crean en ninguna
+     instalación nueva, sin importar la versión de SQLite del
+     servidor.
+   * 6 funciones reescritas para calcular sobre `reputation_scores`
+     en vez de leer la columna eliminada: `db_get_score()`,
+     `db_count_active_ips()`, `db_count_banned_ips()`,
+     `db_avg_score()`, `db_count_decay_candidates()`.
+     `db_recalculate_total()` se conserva como no-op (evita modificar
+     cada punto de `are.sh` que la invoca tras cada evento).
+     `db_avg_score()` requirió cuidado especial: una primera reescritura
+     promediaba solo sobre IPs con actividad, cambiando el resultado
+     real respecto al original (que promediaba sobre *todas* las IPs
+     conocidas, incluidas las de score 0) — corregido con `LEFT JOIN`
+     antes de aplicar en ningún entorno real.
+   * Validado de punta a punta en un entorno con SQLite 3.51.2
+     (Fedora): `ALTER TABLE ... DROP COLUMN` real ejecutado sobre las
+     9 columnas de categoría y sobre `total_score`, en dos pasos
+     separados — el segundo solo después de confirmar que las 6
+     funciones corregidas ya no dependían de la columna. Flujo
+     completo probado tras cada paso (`found`, `score`, `stats`,
+     eventos múltiples acumulando sobre la misma IP) sin ninguna
+     regresión.
+
+   **Lo que sigue bloqueado:** la migración de los datos reales del
+   servidor de producción (más de 2200 IPs en AlmaLinux 8, SQLite
+   3.26.0) — ese `ALTER TABLE ... DROP COLUMN` específico sigue sin
+   poder ejecutarse ahí hasta que el sistema operativo o SQLite se
+   actualice. Diferencia importante respecto al estado anterior: el
+   código de ARE ya no depende de esas columnas en absoluto (ni para
+   instalaciones nuevas ni para las funciones de lectura/escritura),
+   así que cuando SQLite se actualice en producción, la migración
+   real va a ser un `ALTER TABLE` directo sin ningún cambio de código
+   adicional que preparar — el trabajo de código ya está terminado y
+   validado, solo falta el entorno para aplicarlo sobre los datos
+   reales existentes.
 
 **Hallazgo real durante la Fase 1: BUG-018**
 
@@ -4303,6 +4328,55 @@ aplicada también en el servidor de producción AlmaLinux.
 * `systemd/are-fail2ban-decay.service`
 * `systemd/are-spamassassin.service`
 * `systemd/are-restore-ipsets.service`
+
+---
+
+## BUG-030
+
+**Título:** `reputation_scores` nunca se creaba en una instalación genuinamente nueva
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.4 (en desarrollo)
+
+**Problema**
+
+`db_init_reputation_scores()` (la función que crea la tabla
+`reputation_scores`, el almacenamiento real del score por categoría
+desde `RFC-008`) solo se invocaba dentro de
+`db_migrate_reputation_scores()` — la migración de v2.0 a v2.1 para
+bases *ya existentes* con datos en el esquema viejo de columnas
+fijas. `db_init()`, la función que corre en cualquier instalación
+nueva, nunca la llamaba.
+
+**Impacto**
+
+Encontrado al probar la instalación real en Fedora (servidor sin
+datos previos, sin nada que migrar): cualquier operación que
+consultara `reputation_scores` fallaba con `"no such table"` —
+`are stats`, `are score`, y en general cualquier función que ya
+dependiera del esquema normalizado desde `RFC-008` Fase 2. Afecta a
+toda instalación nueva sobre cualquier sistema, no algo específico de
+Fedora — el bug estaba en `db_init()` en sí.
+
+**Corrección**
+
+Una línea agregada al final de `db_init()`:
+
+```bash
+db_init_reputation_scores
+```
+
+**Validación**
+
+Reinstalación completa en Fedora (`rm are.db`, `are stats` disparando
+`db_init()` de cero) con la corrección aplicada: `reputation_scores`
+presente desde el primer momento, flujo completo (`found`, `score`,
+`stats`) funcionando sin errores de SQLite.
+
+**Archivos relacionados**
+
+* `database.sh`
 
 ---
 
