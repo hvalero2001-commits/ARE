@@ -1185,6 +1185,68 @@ un colega nuevo.
 
 ---
 
+## TASK-020
+
+**Título:** Auto-instalación de dependencias faltantes en `are-installer`
+
+**Estado:** ✔ Implementada — pendiente de validación en entorno limpio
+
+**Prioridad:** Media
+
+**Versión:** v2.3 (en desarrollo)
+
+**Descripción**
+
+Surge al probar `scripts/install.sh` en una VM Kali limpia por primera
+vez: `install_verify_dependencies()` frenaba con `"Dependencia no
+encontrada: ipset"`, correcto pero sin ofrecer ningún camino de
+resolución automática — comportamiento coherente con proyectos que
+asumen un entorno ya preparado, pero poco amistoso para alguien
+instalando desde cero por primera vez.
+
+**Decisión de diseño**
+
+Automático completo, sin preguntar — coherente con el propio
+`scripts/install.sh` (`curl | bash`, sin interacción), y con la
+expectativa de otros instaladores de un solo comando ya conocidos.
+Dos exclusiones deliberadas, no automatizadas:
+
+* `bash` y `systemctl` quedan fuera del auto-instalador — su
+  ausencia implicaría un sistema roto a un nivel donde instalar a
+  ciegas es más riesgoso que útil. Siguen fallando con el mensaje
+  claro de siempre si faltan.
+* `ip6tables` se resuelve instalando el paquete `iptables` — no
+  existe un paquete `ip6tables` independiente en ninguna distro
+  común, mapeo 1 a 1 hubiera fallado.
+
+**Implementación**
+
+`install_auto_install_dependencies()` en `are-installer`, invocada
+antes de `install_verify_dependencies()` en los tres flujos que ya la
+usaban (`install`, `upgrade`, `repair`) — la verificación existente
+queda intacta como red de seguridad final, sin ocultar ningún fallo
+real si el auto-instalador no puede resolver algo. Detecta
+`apt-get`/`dnf`/`yum` en ese orden y usa el primero disponible.
+
+**Pendiente de validar**
+
+Escrito y verificado en sintaxis, sin probar todavía en un entorno
+real limpio — la VM Kali disponible para pruebas ya tiene el paquete
+`v2.2.0` extraído (sin este fix, que todavía no está taggeado);
+pisar el `are-installer` a mano ahí sería una prueba menos
+representativa que el camino real (`curl | bash` bajando la próxima
+release ya con este cambio incluido). Queda pendiente de validación
+real cuando exista un tag nuevo — la rama `dnf`/`yum` (AlmaLinux/RHEL)
+tampoco tiene entorno limpio disponible todavía para probarse
+(el servidor de producción ya tiene todas las dependencias, y no hay
+una AlmaLinux limpia aparte disponible por ahora).
+
+**Archivos relacionados**
+
+* `are-installer`
+
+---
+
 # RFC
 
 ## RFC-001

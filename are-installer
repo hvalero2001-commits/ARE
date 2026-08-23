@@ -118,6 +118,82 @@ install_verify_root() {
     [ "$(id -u)" -eq 0 ] || install_error "La instalación requiere privilegios de root."
 }
 
+#############################################################
+# Function : install_auto_install_dependencies()
+#
+# Responsibility
+#   Detectar dependencias faltantes (ipset, sqlite3, iptables/
+#   ip6tables) e instalarlas automáticamente, sin preguntar,
+#   usando el gestor de paquetes nativo del sistema (apt-get en
+#   Debian/Kali/Ubuntu, dnf/yum en AlmaLinux/RHEL/Fedora).
+#
+#   bash y systemctl quedan fuera del alcance de este auto-
+#   instalador — su ausencia implicaría un sistema roto a un
+#   nivel donde instalar a ciegas es más riesgoso que útil;
+#   siguen fallando con mensaje claro en
+#   install_verify_dependencies() si faltan.
+#
+#   ip6tables no es un paquete separado en ninguna distro común
+#   — viene incluido dentro del paquete "iptables". Tratado como
+#   caso especial, no como mapeo 1 a 1 con el nombre del comando.
+#
+# Dependencies
+#   - apt-get, dnf, o yum (al menos uno debe existir)
+#
+# Exports
+#   install_auto_install_dependencies() — invocada desde
+#   installer_install()/installer_upgrade()/installer_repair(),
+#   antes de install_verify_dependencies()
+#############################################################
+install_auto_install_dependencies() {
+
+    local dependency
+    local missing=()
+
+    for dependency in ipset sqlite3 iptables ip6tables; do
+        if ! command -v "$dependency" >/dev/null 2>&1; then
+            missing+=("$dependency")
+        fi
+    done
+
+    [ "${#missing[@]}" -eq 0 ] && return 0
+
+    # ip6tables se resuelve instalando el paquete "iptables" —
+    # no existe un paquete "ip6tables" independiente.
+    local packages=()
+    local item
+    for item in "${missing[@]}"; do
+        if [ "$item" = "ip6tables" ]; then
+            packages+=("iptables")
+        else
+            packages+=("$item")
+        fi
+    done
+
+    # Deduplicar (por si iptables e ip6tables faltaban ambos)
+    local unique_packages
+    unique_packages=($(printf '%s\n' "${packages[@]}" | sort -u))
+
+    install_log "Dependencias faltantes: ${missing[*]}"
+    install_log "Instalando automáticamente: ${unique_packages[*]}"
+
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -qq
+        apt-get install -y "${unique_packages[@]}"
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y "${unique_packages[@]}"
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y "${unique_packages[@]}"
+    else
+        install_error "No se encontró un gestor de paquetes soportado (apt-get/dnf/yum). Instale manualmente: ${unique_packages[*]}"
+    fi
+
+    if [ $? -ne 0 ]; then
+        install_error "Falló la instalación automática de dependencias."
+    fi
+
+    install_log "Dependencias instaladas correctamente."
+}
 install_verify_dependencies() {
 
     local dependency
@@ -525,6 +601,7 @@ installer_install() {
     local state
 
     install_verify_root
+    install_auto_install_dependencies
     install_verify_dependencies
 
     install_configure_root_path
@@ -579,6 +656,7 @@ installer_upgrade() {
     local state
 
     install_verify_root
+    install_auto_install_dependencies
     install_verify_dependencies
 
     install_configure_root_path
@@ -618,6 +696,7 @@ installer_repair() {
     local state
 
     install_verify_root
+    install_auto_install_dependencies
     install_verify_dependencies
 
     install_configure_root_path
