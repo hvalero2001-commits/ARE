@@ -495,12 +495,17 @@ install_ipsets() {
 
     install_load_runtime_config || return 1
     local ipset_module="$INSTALL_HOME/infrastructure/ipset.sh"
+    local firewall_module="$INSTALL_HOME/backend/firewall.sh"
+    local backend_init_module="$INSTALL_HOME/backend/init.sh"
+    local module
 
-    install_log "Inicializando conjuntos IPSet"
+    install_log "Inicializando IPSet y firewall"
 
-    if [ ! -f "$ipset_module" ]; then
-        install_error "Módulo de IPSet no encontrado: $ipset_module"
-    fi
+    for module in "$ipset_module" "$firewall_module" "$backend_init_module"; do
+        if [ ! -f "$module" ]; then
+            install_error "Módulo no encontrado: $module"
+        fi
+    done
 
     (
         INFO() {
@@ -508,11 +513,13 @@ install_ipsets() {
         }
 
         source "$ipset_module"
+        source "$firewall_module"
+        source "$backend_init_module"
 
-        init_ipsets
-    ) || install_error "No se pudieron inicializar los conjuntos IPSet."
+        init_backend
+    ) || install_error "No se pudo inicializar IPSet/firewall."
 
-    install_log "Conjuntos IPSet inicializados"
+    install_log "IPSet y firewall inicializados"
 }
 
 install_systemd() {

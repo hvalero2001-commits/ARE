@@ -1634,9 +1634,9 @@ pausada, queda **implementada y confirmada en producción**.
 
 **Título:** Modelo de categorías extensible (columnas fijas → esquema normalizado)
 
-**Estado:** En progreso — Fases 1-3 completas, Fase 4 pospuesta (limitación de SQLite). Ver también BUG-019 (decay proporcional).
+**Estado:** Fases 1-4 completas — código validado en entorno con SQLite moderno; migración de datos reales de producción pendiente por limitación de SQLite en AlmaLinux 8. Ver también BUG-019 (decay proporcional).
 
-**Versión:** v2.1 (en desarrollo)
+**Versión:** v2.1 (Fases 1-3), v2.4 (Fase 4)
 
 **Descripción**
 
@@ -1701,26 +1701,51 @@ truncamiento deja de ser posible por diseño, no por parche.
      completo). Corregido envolviendo esa subconsulta en `COALESCE(...,
      0)`.
 
-4. **Fase 4 — Pospuesta, sin fecha, por limitación técnica real.**
-   Eliminar las columnas de categoría de `reputation` requiere
-   `ALTER TABLE ... DROP COLUMN`, soportado recién desde SQLite
-   3.35.0. El servidor de producción corre SQLite 3.26.0 (AlmaLinux 8,
-   `baseos`), que no ofrece actualización de este paquete por el
-   modelo de ABI estable de RHEL 8 — confirmado con `dnf check-update`.
-   En esta versión, eliminar columnas requeriría recrear la tabla
-   completa (crear nueva sin esas columnas, copiar datos, renombrar),
-   una operación bloqueante de mayor riesgo sobre una tabla con más de
-   2200 IPs reales en producción activa. Se evaluó y descartó
-   actualizar SQLite a nivel de sistema operativo por el riesgo que
-   implica para otros componentes del servidor (cPanel/WHM y
-   dependencias asociadas). Las columnas viejas no generan ningún
-   problema funcional mientras permanezcan sin uso — el sistema ya no
-   las lee ni las escribe (confirmado mediante `grep` exhaustivo; las
-   únicas referencias restantes son en `db_migrate_reputation_scores()`
-   y `db_merge_comma_duplicates()`, funciones de migración histórica
-   ya ejecutadas, que quedan como herramientas de referencia). Se
-   revisitará si el sistema operativo del servidor se actualiza en el
-   futuro.
+4. **Fase 4 — Código completo y validado; migración de datos reales en producción sigue pendiente.**
+
+   Hallazgo clave que reabrió esta fase: `CREATE TABLE ... DROP
+   COLUMN` requiere SQLite 3.35+, pero **simplificar el
+   `CREATE TABLE` para instalaciones nuevas no lo requiere** — es
+   sintaxis básica, válida en cualquier versión. Eso permitió avanzar
+   sin esperar a AlmaLinux:
+
+   * `database.sh::db_init()` — `CREATE TABLE reputation` reducido de
+     14 columnas a 4 (`ip`, `last_decay`, `status`, `updated`); las 9
+     de categoría y `total_score` ya no se crean en ninguna
+     instalación nueva, sin importar la versión de SQLite del
+     servidor.
+   * 6 funciones reescritas para calcular sobre `reputation_scores`
+     en vez de leer la columna eliminada: `db_get_score()`,
+     `db_count_active_ips()`, `db_count_banned_ips()`,
+     `db_avg_score()`, `db_count_decay_candidates()`.
+     `db_recalculate_total()` se conserva como no-op (evita modificar
+     cada punto de `are.sh` que la invoca tras cada evento).
+     `db_avg_score()` requirió cuidado especial: una primera reescritura
+     promediaba solo sobre IPs con actividad, cambiando el resultado
+     real respecto al original (que promediaba sobre *todas* las IPs
+     conocidas, incluidas las de score 0) — corregido con `LEFT JOIN`
+     antes de aplicar en ningún entorno real.
+   * Validado de punta a punta en un entorno con SQLite 3.51.2
+     (Fedora): `ALTER TABLE ... DROP COLUMN` real ejecutado sobre las
+     9 columnas de categoría y sobre `total_score`, en dos pasos
+     separados — el segundo solo después de confirmar que las 6
+     funciones corregidas ya no dependían de la columna. Flujo
+     completo probado tras cada paso (`found`, `score`, `stats`,
+     eventos múltiples acumulando sobre la misma IP) sin ninguna
+     regresión.
+
+   **Lo que sigue bloqueado:** la migración de los datos reales del
+   servidor de producción (más de 2200 IPs en AlmaLinux 8, SQLite
+   3.26.0) — ese `ALTER TABLE ... DROP COLUMN` específico sigue sin
+   poder ejecutarse ahí hasta que el sistema operativo o SQLite se
+   actualice. Diferencia importante respecto al estado anterior: el
+   código de ARE ya no depende de esas columnas en absoluto (ni para
+   instalaciones nuevas ni para las funciones de lectura/escritura),
+   así que cuando SQLite se actualice en producción, la migración
+   real va a ser un `ALTER TABLE` directo sin ningún cambio de código
+   adicional que preparar — el trabajo de código ya está terminado y
+   validado, solo falta el entorno para aplicarlo sobre los datos
+   reales existentes.
 
 **Hallazgo real durante la Fase 1: BUG-018**
 
@@ -4230,6 +4255,209 @@ score `6.2`) confirmado presente, clasificado `spamassassin-low`.
 **Archivos relacionados**
 
 * `sensors/spamassassin.sh`
+
+---
+
+## BUG-029
+
+**Título:** Dependencias systemd hardcodeadas y timer único habilitado — instalación se rompía sin Fail2Ban/Exim preinstalados
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.4 (en desarrollo)
+
+**Problema**
+
+Encontrado al probar la instalación real (`v2.3.0`, vía `curl | bash`)
+en Fedora y Kali — ninguno de los dos trae Fail2Ban preinstalado por
+defecto, un caso de uso completamente legítimo (ej. servidor de
+correo puro, sin Fail2Ban corriendo). Dos fallas distintas,
+descubiertas juntas por `are-installer verify` mostrando resultados
+distintos en cada servidor:
+
+1. **`Requires=` hardcodeado en 4 unidades `.service`**
+   (`are-fail2ban-found`, `are-fail2ban-decay`, `are-spamassassin`,
+   `are-restore-ipsets`) sobre servicios externos
+   (`fail2ban.service`, `exim.service`) que pueden no existir. El
+   timer fallaba al arrancar (`Failed to queue unit startup job: Unit
+   fail2ban.service not found`), en cascada: `are.sh` nunca corría
+   por primera vez, los conjuntos `ipset` nunca se creaban —
+   `verify` reportaba "Conjunto IPSet faltante" sin relación aparente
+   con la causa real.
+2. **`install_systemd()`/`installer_uninstall()` en `are-installer`
+   con `systemctl enable/disable --now are-fail2ban-found.timer`
+   hardcodeado a un solo timer**, en vez de recorrer todos los
+   `.timer` del manifiesto (`PRODUCT_SYSTEMD_UNITS`). Cualquier
+   instalación nueva dejaba SpamAssassin y Decay instalados pero sin
+   habilitar, sin que nadie lo notara salvo por `verify` — y la
+   desinstalación tenía el mismo problema al revés, dejando timers
+   corriendo tras el `uninstall`.
+
+**Impacto**
+
+Ambas fallas afectaban a cualquier instalación nueva, no algo
+específico de los entornos de prueba — el servidor de producción
+real (AlmaLinux) también tenía las mismas 4 unidades con `Requires=`
+hardcodeado, encontrado y corregido en paralelo por el propio Hernan
+antes de que llegara a revisarlas.
+
+**Corrección**
+
+* Las 4 unidades `.service` cambiadas de `Requires=`+`After=` a solo
+  `After=` (orden de arranque si el servicio existe, sin bloquear si
+  no) — coherente con que los propios sensores ya toleran limpiamente
+  la ausencia de su fuente externa (`sensors/fail2ban.sh` ya maneja
+  un log faltante sin crashear, por ejemplo).
+* `install_systemd()`/`installer_uninstall()` corregidas para
+  recorrer `PRODUCT_SYSTEMD_UNITS` completo, habilitando/
+  deshabilitando cualquier `*.timer` presente en el manifiesto, en
+  vez de un nombre fijo.
+
+**Validación**
+
+Instalación completa (`curl | bash`, `v2.3.0` real) validada en
+Fedora (`dnf`) y Kali (`apt`) con la corrección aplicada — ambos
+gestores de paquetes del auto-instalador de `TASK-020` confirmados
+funcionando de punta a punta en el mismo ciclo de prueba. Corrección
+aplicada también en el servidor de producción AlmaLinux.
+
+**Archivos relacionados**
+
+* `are-installer`
+* `systemd/are-fail2ban-found.service`
+* `systemd/are-fail2ban-decay.service`
+* `systemd/are-spamassassin.service`
+* `systemd/are-restore-ipsets.service`
+
+---
+
+## BUG-030
+
+**Título:** `reputation_scores` nunca se creaba en una instalación genuinamente nueva
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.4 (en desarrollo)
+
+**Problema**
+
+`db_init_reputation_scores()` (la función que crea la tabla
+`reputation_scores`, el almacenamiento real del score por categoría
+desde `RFC-008`) solo se invocaba dentro de
+`db_migrate_reputation_scores()` — la migración de v2.0 a v2.1 para
+bases *ya existentes* con datos en el esquema viejo de columnas
+fijas. `db_init()`, la función que corre en cualquier instalación
+nueva, nunca la llamaba.
+
+**Impacto**
+
+Encontrado al probar la instalación real en Fedora (servidor sin
+datos previos, sin nada que migrar): cualquier operación que
+consultara `reputation_scores` fallaba con `"no such table"` —
+`are stats`, `are score`, y en general cualquier función que ya
+dependiera del esquema normalizado desde `RFC-008` Fase 2. Afecta a
+toda instalación nueva sobre cualquier sistema, no algo específico de
+Fedora — el bug estaba en `db_init()` en sí.
+
+**Corrección**
+
+Una línea agregada al final de `db_init()`:
+
+```bash
+db_init_reputation_scores
+```
+
+**Validación**
+
+Reinstalación completa en Fedora (`rm are.db`, `are stats` disparando
+`db_init()` de cero) con la corrección aplicada: `reputation_scores`
+presente desde el primer momento, flujo completo (`found`, `score`,
+`stats`) funcionando sin errores de SQLite.
+
+**Archivos relacionados**
+
+* `database.sh`
+
+---
+
+## BUG-031
+
+**Título:** `are-installer` nunca creaba IPSet ni reglas de firewall — la instalación remota documentada como validada nunca funcionó realmente limpia
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.3.1 (tag movido — ver nota de proceso)
+
+**Problema**
+
+`installer_install()`/`installer_upgrade()`/`installer_repair()`
+nunca invocaban `init_backend()` (que crea los 4 conjuntos IPSet y
+las 4 reglas de firewall correspondientes) — esa inicialización
+dependía por completo de que alguien ejecutara `are.sh` manualmente
+al menos una vez después de instalar. En producción (AlmaLinux) el
+bug quedó invisible porque Fail2Ban corre ahí desde el primer día y
+dispara `are.sh` solo. En la primera prueba de instalación remota
+(Fedora, sesión anterior) quedó igualmente invisible porque se
+corrieron comandos manuales (`are found`, `are stats`) durante las
+pruebas de `RFC-008`, sin validar la instalación limpia en sí — un
+error de proceso, no solo de código: el objetivo real de esa sesión
+(instalación remota funcionando sola) nunca se verificó de verdad, y
+quedó documentado como cerrado sin estarlo.
+
+**Cómo se descubrió correctamente esta vez**
+
+Instalación completamente limpia en Kali — `uninstall` +
+`rm -rf /var/lib/are` (para eliminar también los datos que
+`uninstall` conserva a propósito) + `curl | bash`, sin ningún comando
+manual entre la instalación y `are-installer verify`. Encontrado en
+dos capas, cada una expuesta al corregir la anterior:
+
+1. Los 4 `ipset` (`FILTER_SET4/6`, `BAN_SET4/6`) directamente no
+   existían — `install_ipsets()` (nueva) agregada, invocando
+   `init_ipsets()` de `infrastructure/ipset.sh`.
+2. Con los `ipset` ya creándose, `verify` seguía fallando —
+   `"Regla IPv4/IPv6 faltante"`. `init_ipsets()` sola no alcanza:
+   `backend/init.sh` ya tenía una función `init_backend()` que
+   orquesta `init_ipsets()` **y** `init_firewall()` (que crea las
+   reglas de `iptables`/`ip6tables`) — el primer fix la ignoró y
+   llamó solo a la mitad. Corregido para invocar `init_backend()`
+   completa.
+
+**Corrección final**
+
+`install_ipsets()` en `are-installer` sourcea `infrastructure/ipset.sh`,
+`backend/firewall.sh` y `backend/init.sh`, e invoca `init_backend()` —
+reutilizando la orquestación ya existente en vez de duplicarla,
+invocada junto a `install_database()` en los tres flujos
+(`install`/`upgrade`/`repair`).
+
+**Nota de proceso: el tag `v2.3.0` se movió, no se creó `v2.3.1`**
+
+Dado que `v2.3.0` se había taggeado el mismo día, sin consumidores
+externos reales todavía, y que `v2.4-dev` no tenía contenido propio
+como para justificar una release, se decidió corregir el tag
+existente (`git tag -f v2.3.0` + `git push --force`) en vez de abrir
+un patch release `v2.3.1` formal. El workflow de release, ya con
+`--clobber` desde `BUG-024`, actualizó los assets de la Release
+existente sin necesitar ningún cambio adicional. Práctica excepcional,
+no la convención habitual del proyecto (que no vuelve a tocar tags ya
+publicados) — justificada únicamente por no haber consumidores reales
+del tag original todavía.
+
+**Validación**
+
+Instalación limpia completa en Kali (segunda vez, tras mover el tag):
+`install_ipsets()` corriendo dentro del propio `install`
+(`"Inicializando conjuntos ARE..."`, los 4 `ipset` creados) sin
+ningún comando manual. Pendiente confirmar el segundo fix
+(`init_backend` completo, con firewall) con una tercera instalación
+limpia — el hallazgo de las reglas de firewall faltantes se descubrió
+en la misma corrida que ya había limpiado los datos, sin una prueba
+adicional todavía después de este segundo fix.
+
+**Archivos relacionados**
+
+* `are-installer`
 
 ---
 
