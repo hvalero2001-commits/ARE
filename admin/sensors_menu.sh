@@ -20,6 +20,7 @@ sensors_menu() {
         echo "  1) Estado"
         echo "  2) Configuración"
         echo "  3) Activar/Desactivar"
+        echo "  4) Jails sin perfil"
         echo "  0) Volver"
         echo "  x) Salir"
         read -rp "  Seleccione una opción: " opt
@@ -27,6 +28,7 @@ sensors_menu() {
             1) sensors_status ;;
             2) sensors_config ;;
             3) sensors_toggle ;;
+            4) sensors_detect_unmanaged_jails ;;
             0) return 0 ;;
             x|X) admin_exit ;;
             *) echo "Opción inválida." ;;
@@ -112,6 +114,51 @@ sensors_provision_spamassassin() {
         db_create_jail_profile "$name" "$category" "$weight" "$confidence" "$decay" "$description"
         echo "  Perfil creado: $name"
     done
+}
+#############################################################
+# Detectar jails de Fail2Ban activos (con actividad real en su
+# log) sin jail_profile administrado en ARE. Solo lectura — no
+# crea nada, no asigna categoría ni peso. La creación queda
+# 100% a mano del administrador, vía Jails/Perfiles → Crear.
+# Compara contra actividad real del log, no contra la
+# configuración de Fail2Ban — un jail configurado pero nunca
+# disparado no es ruido útil para esta lista.
+#############################################################
+sensors_detect_unmanaged_jails() {
+    local log_file="${FAIL2BAN_LOG_FILE:-/var/log/fail2ban.log}"
+
+    if [ ! -f "$log_file" ]; then
+        echo "Log de Fail2Ban no encontrado: $log_file"
+        admin_pause
+        return 0
+    fi
+
+    echo "=================================================="
+    echo "JAILS DE FAIL2BAN SIN PERFIL EN ARE"
+    echo "=================================================="
+
+    local active_jails jail found_any=0
+
+    active_jails=$(grep -oP '(?:INFO|NOTICE)\s+\K\[[a-zA-Z0-9_-]+\]' "$log_file" | tr -d '[]' | sort -u)
+
+    for jail in $active_jails; do
+        if ! db_jail_profile_exists "$jail"; then
+            echo "  - $jail"
+            found_any=1
+        fi
+    done
+
+    if [ "$found_any" -eq 0 ]; then
+        echo "  Ninguno — todos los jails activos ya tienen perfil administrado."
+    else
+        echo ""
+        echo "  Estos jails aparecen activos en el log de Fail2Ban, pero"
+        echo "  no tienen jail_profile en ARE — sus eventos se descartan"
+        echo "  en silencio. Para darlos de alta: Jails/Perfiles → Crear."
+    fi
+
+    echo "=================================================="
+    admin_pause
 }
 sensors_toggle() {
     echo "=================================================="

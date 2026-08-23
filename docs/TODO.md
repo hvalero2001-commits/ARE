@@ -1247,6 +1247,59 @@ una AlmaLinux limpia aparte disponible por ahora).
 
 ---
 
+## TASK-021
+
+**Título:** Detectar jails de Fail2Ban activos sin `jail_profile` administrado
+
+**Estado:** ✔ Implementada y validada en producción — encontró un caso real
+
+**Prioridad:** Media
+
+**Versión:** v2.3 (en desarrollo)
+
+**Descripción**
+
+Hoy, un jail de Fail2Ban activo pero sin perfil en ARE se descarta en
+silencio (`db_get_jail_profile()` vacío, `handle_found` lo ignora) —
+sin ningún aviso al administrador. Solo se descubre revisando logs a
+mano.
+
+**Decisión de diseño**
+
+Solo lectura, sin auto-creación — coherente con el principio ya
+establecido de no inventar categoría/peso/confianza por cuenta
+propia. Compara **actividad real** (jails que efectivamente aparecen
+en `fail2ban.log`), no la configuración teórica de Fail2Ban — un jail
+definido pero nunca disparado no es información útil para esta lista,
+solo generaría ruido.
+
+**Implementación**
+
+`sensors_detect_unmanaged_jails()` en `admin/sensors_menu.sh`, opción
+`4) Jails sin perfil` en el menú de Sensores. Extrae jails reales del
+log con `grep -oP '(?:INFO|NOTICE)\s+\K\[[a-zA-Z0-9_-]+\]'`
+(cuidado deliberado: cada línea del log tiene dos corchetes — el PID
+del proceso y el nombre del jail; el patrón apunta específicamente al
+segundo, inmediatamente después de `INFO`/`NOTICE`), compara contra
+`db_jail_profile_exists()` (ya existente).
+
+**Validación**
+
+Encontró un caso real en la primera prueba: el jail `modsecurity`
+(sin sufijo) generando bans reales en producción
+(`148.66.142.9` baneado el 22 de agosto), sin perfil administrado —
+descartándose en silencio. Investigado: resultó ser un jail
+renombrado en una migración anterior (reemplazado por
+`modsecurity-apache`, que sí tiene perfil), nunca desactivado en la
+configuración de Fail2Ban — corrección aplicada del lado de Fail2Ban
+(fuera del alcance de ARE), no del lado de ARE.
+
+**Archivos relacionados**
+
+* `admin/sensors_menu.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -2888,6 +2941,67 @@ días pasados si se corre después de que ya ocurrieron.
 
 * `dashboard/trends.sh`
 * `admin/state_menu.sh`
+
+---
+
+## IDEA-009
+
+**Título:** Patrón de sensor para IDS externos (Suricata, Snort, Zeek, Falco, Wazuh, etc.)
+
+**Estado:** Idea — arquitectura validada, sin sensor implementado
+
+**Descripción**
+
+Extensión natural de "Sensores adicionales" ya prevista en
+`ROADMAP.md`. Principio de diseño confirmado y correcto: un IDS
+externo actúa puramente como observador y emisor de telemetría — "vi
+este patrón en la IP X" — sin tomar decisiones de bloqueo por sí
+mismo. ARE recibe ese reporte crudo, lo cruza con el historial
+acumulado de esa IP, y decide la respuesta proporcional (`WATCH`,
+`FILTER`, `TEMP_BAN`, `BAN`). Mismo principio ya aplicado con
+Fail2Ban y SpamAssassin — nada nuevo, la extensión natural del
+Sensor Framework a una fuente distinta.
+
+**Contrato real a seguir (confirmado contra `are.sh`, no inventado)**
+
+Un sensor nuevo, para cualquier herramienta, debe:
+
+1. Leer el **log real** de la herramienta — no un formato inventado
+   que la herramienta tendría que aprender a hablar (evaluado y
+   descartado antes en esta misma sesión: un "sensor syslog
+   genérico" con contrato propio duplicaría estructuras de logueo
+   que cada herramienta ya tiene).
+2. Extraer IP y algún dato que mapee a un jail existente en
+   `jail_profile` — el peso, confianza y categoría de riesgo viven
+   ahí, no se pasan en el momento del reporte.
+3. Reportar con el único contrato real que expone `are.sh`:
+
+   ```bash
+   are.sh found <IP> <JAIL>
+   ```
+
+   Sin flags de severidad, firma, ni fuente — no existen. Un
+   borrador conceptual de esta sesión proponía `are.sh report-event
+   --source=... --severity=...` y, en un segundo ejemplo, invertía
+   el orden real (`found <JAIL> <IP>`) — ambos corregidos acá para
+   que quede documentado el contrato correcto, no el borrador.
+4. Filtrar contra `jail_profile` antes de reportar (mismo criterio
+   que `TASK-016`) — un jail sin perfil administrado se descarta sin
+   generar evento.
+5. Offset persistente si es un sensor de polling (mismo patrón que
+   `fail2ban.sh`/`spamassassin.sh`).
+
+**Por qué no hay sensor implementado todavía**
+
+Mismo motivo que bloqueó a los sensores de SpamAssassin y Fail2Ban
+hasta tener datos reales: sin una línea real de log de Suricata,
+Snort, Zeek, Falco o Wazuh delante, cualquier parser sería una
+suposición sobre un formato que puede estar desactualizado o
+simplemente mal — el mismo riesgo que llevó a eliminar 5 archivos
+placeholder vacíos en `TASK-019`. Cuando exista un caso de uso real
+(alguien con una de estas herramientas corriendo, dispuesto a
+compartir logs reales), el sensor se construye siguiendo este mismo
+contrato, validado contra datos genuinos — no antes.
 
 ---
 
