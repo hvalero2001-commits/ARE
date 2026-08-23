@@ -75,7 +75,7 @@ Entre las capacidades actuales de ARE se encuentran:
 * Evaluación histórica del comportamiento de cada dirección IP.
 * Motor de estados para el ciclo de vida de las IP.
 * Policy Engine separado del mecanismo de detección, con evaluación por categoría y umbrales configurables.
-* Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive), incluyendo un sensor real para señales heurísticas de correo (SpamAssassin).
+* Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive), incluyendo un sensor real para señales heurísticas de correo (SpamAssassin), y control operativo de activación/desactivación por sensor desde ARE ADMIN.
 * Persistencia mediante SQLite, con modelo de reputación extensible sin migración de esquema.
 * Interfaz de administración por línea de comandos (ARE ADMIN), con auditoría de operaciones.
 * Dashboard operativo para reputación, eventos, estadísticas y tendencias temporales.
@@ -84,7 +84,7 @@ Entre las capacidades actuales de ARE se encuentran:
 * Soporte para IPv4 e IPv6.
 * Decay de reputación, con redistribución proporcional entre categorías.
 * Gestión de sanciones mediante Ban Lifecycle Engine.
-* Installer Engine para instalación y mantenimiento, con empaquetado y distribución para instalación remota sin depender de clonar el repositorio.
+* Installer Engine para instalación y mantenimiento, con empaquetado, distribución, y auto-actualización (consulta de versión disponible, actualización remota, instalación automática de dependencias del sistema).
 
 Las categorías de reputación utilizadas actualmente son:
 
@@ -104,9 +104,9 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.2.0** (estable, liberada) — **v2.3 en desarrollo activo**
+**ARE v2.3.0** (estable, liberada) — **v2.4 en desarrollo activo**
 
-La versión 2.1 consolidó la administración de perfiles entre servidores, migró el modelo de reputación a un esquema normalizado extensible sin migración de estructura, incorporó visibilidad temporal de la actividad del sistema, y robusteció la persistencia del Firewall Backend a través de reinicios. La versión 2.2 incorporó un sensor real para la categoría SOCIAL (SpamAssassin), completó el catálogo de umbrales de todas las categorías de reputación, y dio los primeros pasos hacia la distribución del producto como paquete instalable, en vez de depender de clonar el repositorio.
+La versión 2.2 incorporó un sensor real para la categoría SOCIAL (SpamAssassin), completó el catálogo de umbrales de todas las categorías de reputación, y dio los primeros pasos hacia la distribución del producto como paquete instalable. La versión 2.3 incorporó control operativo de sensores desde ARE ADMIN (activar/desactivar, detección de jails sin perfil), cerró la línea de auto-actualización del Installer Engine (consulta de versión disponible, actualización remota, instalación automática de dependencias), y sumó detección de anomalías en las tendencias de actividad.
 
 ## Instalación
 

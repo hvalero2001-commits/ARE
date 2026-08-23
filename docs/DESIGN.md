@@ -717,6 +717,12 @@ El diseño actual conserva los principios establecidos durante v1.1 y los adapta
 * calibración proactiva de un umbral de categoría sin sensor local disponible (`MALWARE_THRESHOLD`), como decisión consciente de motor genérico — útil para cualquier servidor con superficie real de esa amenaza, no solo el que lo calibra;
 * empaquetado y distribución como capa añadida *antes* del Installer Engine, sin modificar su núcleo — el motor de instalación sigue operando exactamente igual, reciba su fuente de un `git clone` o de un paquete descargado y extraído.
 
+## Decisiones consolidadas en v2.3
+
+* el estado de activación de un sensor (`sensor_registry`) es independiente del estado de un jail (`jail_profile`) — desactivar un sensor detiene la generación de eventos nuevos, sin necesidad de tocar ni marcar los perfiles ya existentes; la reputación histórica permanece intacta sin ningún flag adicional;
+* el mecanismo de activación de un sensor depende de su patrón, no de una interfaz única: `systemctl` para polling, archivo flag liviano para callback — evaluado explícitamente el costo de consultar la base de datos en cada invocación para un sensor que puede dispararse con mucha frecuencia (callback bajo flood real), y descartado en favor de un chequeo de archivo;
+* un motor de riesgo propio decide con su propio criterio, no delega en el veredicto interno de otra herramienta — el sensor de SpamAssassin filtra por score contra `SPAMASSASSIN_MIN_SCORE`, no por el flag booleano "spam"/"NOT spam" que la herramienta externa asigna con su propio criterio interno, potencialmente desalineado del umbral real de riesgo que le importa a ARE.
+
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
 
-La versión v2.3 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+La versión v2.4 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.

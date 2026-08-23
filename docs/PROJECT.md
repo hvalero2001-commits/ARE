@@ -141,13 +141,13 @@ Administra el ciclo de vida del producto.
 Versión estable liberada:
 
 ```text
-v2.2.0
+v2.3.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.3 (rama v2.3-dev)
+v2.4 (rama v2.4-dev)
 ```
 
 Capacidades implementadas.
@@ -156,13 +156,13 @@ Capacidades implementadas.
 - State Engine.
 - Policy Engine, con evaluación de riesgo por categoría.
 - Ban Lifecycle Engine.
-- Sensor Framework, con los patrones polling y callback.
+- Sensor Framework, con los patrones polling y callback, y control operativo de activación/desactivación por sensor desde ARE ADMIN.
 - Fail2Ban Sensor.
 - Apache/mod_evasive Sensor.
 - SpamAssassin Sensor (categoría SOCIAL).
 - Firewall Backend (IPSet), con restauración automática al arrancar el sistema.
-- Dashboard, con estadísticas y tendencias temporales por categoría.
-- Installer Engine, con empaquetado y distribución de paquetes.
+- Dashboard, con estadísticas, tendencias temporales por categoría, y detección de anomalías.
+- Installer Engine, con empaquetado, distribución, y auto-actualización (consulta de versión disponible, actualización remota, instalación automática de dependencias del sistema).
 - SQLite.
 - Integración con ModSecurity.
 - Integración con Fail2Ban.

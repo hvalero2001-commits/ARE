@@ -6,9 +6,9 @@ ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado p
 
 La arquitectura separa la observación de los eventos, la construcción de reputación, la evaluación del estado, la decisión de política y la ejecución de las acciones.
 
-ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1 y v2.2 extendieron esa misma base sin introducir una ruptura arquitectónica.
+ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2 y v2.3 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.2.0 constituye la última versión estable liberada. v2.3 se encuentra en desarrollo y validación sobre esa base.
+La versión v2.3.0 constituye la última versión estable liberada. v2.4 se encuentra en desarrollo y validación sobre esa base.
 
 ---
 
@@ -787,5 +787,11 @@ v2.2 extendió esa base con:
 * catálogo de categorías de reputación completo, con umbral definido para las 9 categorías;
 * visibilidad temporal ampliada (desglose por categoría, exportación a CSV);
 * primera capa de distribución del producto (empaquetado con verificación de integridad, publicación automatizada por versión etiquetada, instalación remota sin depender de clonar el repositorio) — el Installer Engine en sí no fue modificado, esta capa opera exclusivamente antes de la instalación.
+
+v2.3 extendió esa base con:
+
+* administración operativa de sensores desde ARE ADMIN — registro dinámico (`sensor_registry`), activar/desactivar controlando directamente el timer de systemd para sensores de polling o un archivo flag para sensores de callback, sin tocar configuración externa a ARE en ningún caso;
+* cierre de la línea de auto-actualización del Installer Engine iniciada en v2.2 — consulta de versión disponible, actualización remota reutilizando el bootstrap existente, e instalación automática de dependencias del sistema faltantes;
+* detección estadística de anomalías en tendencias, comparando la actividad del día contra el promedio reciente por categoría, sin instrumentación nueva.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.

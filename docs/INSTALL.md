@@ -32,6 +32,8 @@ ARE requiere un sistema Linux con:
 
 Fail2Ban y ModSecurity son integraciones de ARE. No sustituyen las dependencias básicas verificadas directamente por el Installer.
 
+Desde v2.3, si alguna dependencia obligatoria falta, el propio Installer la instala automáticamente usando el gestor de paquetes nativo del sistema (`apt-get`, `dnf` o `yum`, en ese orden de preferencia) — ver sección "Instalación remota" más abajo.
+
 ---
 
 # Estructura de instalación
@@ -200,6 +202,54 @@ are-installer repair
 
 ---
 
+# Instalación remota
+
+Desde v2.3, ARE no requiere clonar el repositorio con git para instalarse. Un servidor nuevo, sin ningún archivo de ARE presente, puede instalarse con un único comando:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hvalero2001-commits/ARE/main/scripts/install.sh | sudo bash
+```
+
+El `sudo` va al final del pipe (aplicado a `bash`, no a `curl`) — de otro modo, el privilegio de root no le llega al script que efectivamente ejecuta la instalación.
+
+Este bootstrap (`scripts/install.sh`):
+
+1. consulta la API de GitHub por la última release publicada (o una versión específica, vía la variable de entorno `ARE_VERSION`);
+2. descarga el paquete `.tar.gz` correspondiente;
+3. verifica su checksum (`.sha256`);
+4. lo extrae a un directorio temporal;
+5. delega en `are-installer install` desde ese árbol extraído.
+
+El mismo mecanismo sirve para actualizar una instalación existente:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hvalero2001-commits/ARE/main/scripts/install.sh | sudo bash -s -- upgrade
+```
+
+o, de forma equivalente, desde una instalación ya activa:
+
+```bash
+are-installer upgrade --remote
+```
+
+que internamente delega en el mismo bootstrap, sin duplicar la lógica de descarga y verificación.
+
+## Consultar si hay una versión más nueva
+
+Sin descargar ni modificar nada, de solo lectura:
+
+```bash
+are-installer check-updates
+```
+
+Compara la versión instalada (`PRODUCT_VERSION`, leída del propio manifiesto activo) contra la última release publicada, e informa si hay una más reciente disponible.
+
+## Dependencias faltantes
+
+El auto-instalador de dependencias (ver sección "Requisitos") actúa automáticamente, sin preguntar, durante `install`, `upgrade` y `repair` — tanto por el camino remoto como por el árbol fuente local. `bash` y `systemctl` quedan fuera de este mecanismo: su ausencia implicaría un sistema en un estado que requiere intervención manual, no una instalación automática a ciegas.
+
+---
+
 # Configuración inicial
 
 La configuración forma parte del área administrada por el producto pero se mantiene separada del Core operativo.
@@ -240,6 +290,8 @@ repair
 
 La modificación del `PATH` se realiza de forma idempotente.
 
+**Nota:** esta modificación del `PATH` se aplica al archivo `/root/.bash_profile`, y solo la leen automáticamente las sesiones de terminal **nuevas** que se abran después de la instalación (un nuevo `ssh`, por ejemplo). Una terminal que ya estaba abierta antes de instalar/actualizar ARE no recarga su `PATH` en memoria sola; requiere `source /root/.bash_profile` manual, o simplemente abrir una sesión nueva.
+
 ---
 
 # Actualización
@@ -266,6 +318,8 @@ estado persistente
 ```
 
 ARE v2 define explícitamente `upgrade` como la operación destinada a actualizar una instalación existente manteniendo los datos persistentes.
+
+Alternativamente, `are-installer upgrade --remote` realiza la misma operación sin necesitar un árbol fuente local — ver sección "Instalación remota". **Advertencia:** esta variante no compara la versión instalada contra la disponible antes de actuar; aplica siempre la última release publicada, lo que puede downgradear una instalación en una rama de desarrollo más nueva. Verificar con `are-installer check-updates` antes de usar `--remote` si existe esa duda.
 
 ---
 
@@ -429,12 +483,24 @@ Desde un árbol fuente independiente:
 are-installer install
 ```
 
+O de forma remota, sin git ni árbol fuente local (ver "Instalación remota"):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hvalero2001-commits/ARE/main/scripts/install.sh | sudo bash
+```
+
 ## Actualizar
 
 Desde el árbol fuente de la versión que se desea instalar:
 
 ```bash
 are-installer upgrade
+```
+
+O de forma remota:
+
+```bash
+are-installer upgrade --remote
 ```
 
 ## Reparar
@@ -449,6 +515,12 @@ are-installer repair
 
 ```bash
 are-installer verify
+```
+
+## Consultar actualizaciones disponibles
+
+```bash
+are-installer check-updates
 ```
 
 ## Desinstalar

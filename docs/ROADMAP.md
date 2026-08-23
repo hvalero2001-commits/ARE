@@ -17,13 +17,13 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.2.0
+v2.3.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.3 (rama v2.3-dev)
+v2.4 (rama v2.4-dev)
 ```
 
 Estado:
@@ -32,7 +32,7 @@ Estado:
 Producción
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.3-dev`, documentado en detalle en `docs/TODO.md`.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.4-dev`, documentado en detalle en `docs/TODO.md`.
 
 ---
 
@@ -244,10 +244,50 @@ Incorporar una nueva fuente de datos real al modelo de reputación (categoría S
 
 ## Pendiente, fuera del alcance de esta versión
 
-* Fase de auto-actualización del Installer contra el repositorio de releases (estilo `apt`/`yum`), dependiente de que la distribución vía paquete esté en uso real
-* Habilitar/deshabilitar sensores desde ARE ADMIN, con auto-provisión de `jail_profile` al activar
+* Fase de auto-actualización del Installer contra el repositorio de releases (estilo `apt`/`yum`) — resuelta en v2.3
+* Habilitar/deshabilitar sensores desde ARE ADMIN, con auto-provisión de `jail_profile` al activar — resuelta en v2.3
 * Integración completa de `mod_evasive` como única vía de bloqueo — investigación en curso sugiere que el patrón de amenaza real de servidores detrás de un proxy como Cloudflare (tráfico distribuido, no floods concentrados de una sola IP) puede no coincidir con lo que este sensor está diseñado para detectar; sin evidencia real de disparo hasta la fecha
 * Eliminación de las columnas de categoría redundantes en `reputation` (pospuesta por limitación de versión de SQLite en el servidor de producción, sin fecha)
+
+---
+
+# v2.3
+
+## Objetivo
+
+Administración operativa de sensores desde ARE ADMIN, cierre de la línea de auto-actualización del Installer Engine, y visibilidad ampliada con detección de anomalías.
+
+## Estado
+
+✔ Completado — liberado como release oficial (`v2.3.0`)
+
+## Funcionalidades incorporadas
+
+### Activar/desactivar sensores
+
+* Registro dinámico de sensores (`sensor_registry`), leído por ARE ADMIN sin código nuevo por cada sensor agregado
+* Sensores de polling (Fail2Ban, SpamAssassin): activar/desactivar controla directamente el timer de systemd
+* Sensor de callback (`apache_evasive`): activar/desactivar mediante archivo flag, sin tocar la configuración externa de Apache/mod_evasive — solo se detiene el bloqueo y el reporte a ARE, con aviso por email en su lugar
+* Auto-provisión de `jail_profile` al habilitar SpamAssassin, idempotente
+* Detección de jails de Fail2Ban con actividad real sin perfil administrado, solo lectura — sin auto-creación de categoría ni peso
+
+### Cierre de la línea de auto-actualización
+
+* Consulta de versión disponible contra la API de releases, sin tocar el sistema
+* Actualización remota de una instalación existente, reutilizando el bootstrap ya existente
+* Instalación automática de dependencias del sistema faltantes (apt-get/dnf/yum)
+
+### Visibilidad ampliada
+
+* Detección automática de anomalías en las tendencias diarias por categoría, comparando la actividad del día contra el promedio reciente
+
+## Correcciones
+
+* Workflow de publicación de release fallaba si la Release de GitHub no existía previamente
+* Extracción del paquete de instalación remota fallaba en servidores con `/tmp` montado sin permiso de ejecución
+* El sensor de SpamAssassin podía reprocesar el mismo tramo del log ante corridas solapadas, inflando la reputación de una IP
+* Revertir una sanción no persistía el cambio en el estado de sanciones, exponiendo a que se reaplicara tras un reinicio del sistema
+* El sensor de SpamAssassin delegaba en el veredicto interno de la herramienta en vez de decidir por su propio criterio de riesgo, perdiendo eventos reales
 
 ---
 
