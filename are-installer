@@ -470,6 +470,51 @@ install_database() {
     install_log "Base de datos inicializada: $DB_FILE"
 }
 
+#############################################################
+# Function : install_ipsets()
+#
+# Responsibility
+#   Crear los 4 conjuntos IPSet requeridos (FILTER_SET4/6,
+#   BAN_SET4/6) durante la instalación, en vez de dejar que se
+#   creen recién en la primera invocación de are.sh. Sin esto,
+#   una instalación nueva donde nadie corre are.sh manualmente
+#   antes de "are-installer verify" queda con los conjuntos
+#   faltantes indefinidamente.
+#
+# Dependencies
+#   - infrastructure/ipset.sh (init_ipsets, createSet, existsSet)
+#   - ipset (dependencia ya verificada/auto-instalada antes de
+#     este punto en el flujo de installer_install())
+#
+# Exports
+#   install_ipsets() — invocada desde installer_install()/
+#   installer_upgrade()/installer_repair(), junto a
+#   install_database()
+#############################################################
+install_ipsets() {
+
+    install_load_runtime_config || return 1
+    local ipset_module="$INSTALL_HOME/infrastructure/ipset.sh"
+
+    install_log "Inicializando conjuntos IPSet"
+
+    if [ ! -f "$ipset_module" ]; then
+        install_error "Módulo de IPSet no encontrado: $ipset_module"
+    fi
+
+    (
+        INFO() {
+            install_log "$*"
+        }
+
+        source "$ipset_module"
+
+        init_ipsets
+    ) || install_error "No se pudieron inicializar los conjuntos IPSet."
+
+    install_log "Conjuntos IPSet inicializados"
+}
+
 install_systemd() {
 
     local unit
@@ -496,7 +541,16 @@ install_systemd() {
 
     if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
         systemctl daemon-reload
-        systemctl enable --now are-fail2ban-found.timer
+
+        for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+            case "$unit" in
+                *.timer)
+                    systemctl enable --now "$unit"
+                    install_log "Timer habilitado: $unit"
+                ;;
+            esac
+        done
+
         install_log "Systemd configurado correctamente"
     else
         install_log "Systemd instalado en entorno aislado; activación omitida"
@@ -618,6 +672,7 @@ installer_install() {
             install_create_links
             install_permissions
             install_database
+            install_ipsets
             install_logging
             install_systemd
             install_logrotate
@@ -672,6 +727,7 @@ installer_upgrade() {
             install_create_links
             install_permissions
             install_database
+            install_ipsets
             install_logging
             install_systemd
             install_logrotate
@@ -713,6 +769,7 @@ installer_repair() {
             install_create_links
             install_permissions
             install_database
+            install_ipsets
             install_logging
             install_systemd
             install_logrotate
@@ -750,8 +807,14 @@ installer_uninstall() {
             install_log "Desinstalando ARE"
 
             if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
-                systemctl disable --now are-fail2ban-found.timer \
-                    >/dev/null 2>&1 || true
+                for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+                    case "$unit" in
+                        *.timer)
+                            systemctl disable --now "$unit" \
+                                >/dev/null 2>&1 || true
+                        ;;
+                    esac
+                done
             fi
 
             for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
