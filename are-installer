@@ -470,6 +470,58 @@ install_database() {
     install_log "Base de datos inicializada: $DB_FILE"
 }
 
+#############################################################
+# Function : install_ipsets()
+#
+# Responsibility
+#   Crear los 4 conjuntos IPSet requeridos (FILTER_SET4/6,
+#   BAN_SET4/6) durante la instalación, en vez de dejar que se
+#   creen recién en la primera invocación de are.sh. Sin esto,
+#   una instalación nueva donde nadie corre are.sh manualmente
+#   antes de "are-installer verify" queda con los conjuntos
+#   faltantes indefinidamente.
+#
+# Dependencies
+#   - infrastructure/ipset.sh (init_ipsets, createSet, existsSet)
+#   - ipset (dependencia ya verificada/auto-instalada antes de
+#     este punto en el flujo de installer_install())
+#
+# Exports
+#   install_ipsets() — invocada desde installer_install()/
+#   installer_upgrade()/installer_repair(), junto a
+#   install_database()
+#############################################################
+install_ipsets() {
+
+    install_load_runtime_config || return 1
+    local ipset_module="$INSTALL_HOME/infrastructure/ipset.sh"
+    local firewall_module="$INSTALL_HOME/backend/firewall.sh"
+    local backend_init_module="$INSTALL_HOME/backend/init.sh"
+    local module
+
+    install_log "Inicializando IPSet y firewall"
+
+    for module in "$ipset_module" "$firewall_module" "$backend_init_module"; do
+        if [ ! -f "$module" ]; then
+            install_error "Módulo no encontrado: $module"
+        fi
+    done
+
+    (
+        INFO() {
+            install_log "$*"
+        }
+
+        source "$ipset_module"
+        source "$firewall_module"
+        source "$backend_init_module"
+
+        init_backend
+    ) || install_error "No se pudo inicializar IPSet/firewall."
+
+    install_log "IPSet y firewall inicializados"
+}
+
 install_systemd() {
 
     local unit
@@ -627,6 +679,7 @@ installer_install() {
             install_create_links
             install_permissions
             install_database
+            install_ipsets
             install_logging
             install_systemd
             install_logrotate
@@ -681,6 +734,7 @@ installer_upgrade() {
             install_create_links
             install_permissions
             install_database
+            install_ipsets
             install_logging
             install_systemd
             install_logrotate
@@ -722,6 +776,7 @@ installer_repair() {
             install_create_links
             install_permissions
             install_database
+            install_ipsets
             install_logging
             install_systemd
             install_logrotate

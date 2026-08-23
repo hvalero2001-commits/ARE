@@ -4380,6 +4380,101 @@ presente desde el primer momento, flujo completo (`found`, `score`,
 
 ---
 
+## BUG-031
+
+**Título:** `are-installer` nunca creaba IPSet ni reglas de firewall — la instalación remota documentada como validada nunca funcionó realmente limpia
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.3.1 (tag movido — ver nota de proceso)
+
+**Problema**
+
+`installer_install()`/`installer_upgrade()`/`installer_repair()`
+nunca invocaban `init_backend()` (que crea los 4 conjuntos IPSet y
+las 4 reglas de firewall correspondientes) — esa inicialización
+dependía por completo de que alguien ejecutara `are.sh` manualmente
+al menos una vez después de instalar. En producción (AlmaLinux) el
+bug quedó invisible porque Fail2Ban corre ahí desde el primer día y
+dispara `are.sh` solo. En la primera prueba de instalación remota
+(Fedora, sesión anterior) quedó igualmente invisible porque se
+corrieron comandos manuales (`are found`, `are stats`) durante las
+pruebas de `RFC-008`, sin validar la instalación limpia en sí — un
+error de proceso, no solo de código: el objetivo real de esa sesión
+(instalación remota funcionando sola) nunca se verificó de verdad, y
+quedó documentado como cerrado sin estarlo.
+
+**Cómo se descubrió correctamente esta vez**
+
+Instalación completamente limpia en Kali — `uninstall` +
+`rm -rf /var/lib/are` (para eliminar también los datos que
+`uninstall` conserva a propósito) + `curl | bash`, sin ningún comando
+manual entre la instalación y `are-installer verify`. Encontrado en
+dos capas, cada una expuesta al corregir la anterior:
+
+1. Los 4 `ipset` (`FILTER_SET4/6`, `BAN_SET4/6`) directamente no
+   existían — `install_ipsets()` (nueva) agregada, invocando
+   `init_ipsets()` de `infrastructure/ipset.sh`.
+2. Con los `ipset` ya creándose, `verify` seguía fallando —
+   `"Regla IPv4/IPv6 faltante"`. `init_ipsets()` sola no alcanza:
+   `backend/init.sh` ya tenía una función `init_backend()` que
+   orquesta `init_ipsets()` **y** `init_firewall()` (que crea las
+   reglas de `iptables`/`ip6tables`) — el primer fix la ignoró y
+   llamó solo a la mitad. Corregido para invocar `init_backend()`
+   completa.
+
+**Corrección final**
+
+`install_ipsets()` en `are-installer` sourcea `infrastructure/ipset.sh`,
+`backend/firewall.sh` y `backend/init.sh`, e invoca `init_backend()` —
+reutilizando la orquestación ya existente en vez de duplicarla,
+invocada junto a `install_database()` en los tres flujos
+(`install`/`upgrade`/`repair`).
+
+**Nota de proceso: el tag `v2.3.0` se movió, no se creó `v2.3.1`**
+
+Dado que `v2.3.0` se había taggeado el mismo día, sin consumidores
+externos reales todavía, y que `v2.4-dev` no tenía contenido propio
+como para justificar una release, se decidió corregir el tag
+existente (`git tag -f v2.3.0` + `git push --force`) en vez de abrir
+un patch release `v2.3.1` formal. El workflow de release, ya con
+`--clobber` desde `BUG-024`, actualizó los assets de la Release
+existente sin necesitar ningún cambio adicional. Práctica excepcional,
+no la convención habitual del proyecto (que no vuelve a tocar tags ya
+publicados) — justificada únicamente por no haber consumidores reales
+del tag original todavía.
+
+**Validación**
+
+Cuatro instalaciones limpias en Kali en total, cada una exponiendo
+una capa nueva del problema hasta quedar realmente resuelto:
+
+1. Primera corrida — expuso la falta de `install_ipsets()` (`ipset`
+   inexistentes).
+2. Segunda corrida (tras el primer fix) — `ipset` creándose bien,
+   expuso que `init_ipsets()` sola no alcanza, faltaba
+   `init_firewall()` (`init_backend()` completo).
+3. Tercera corrida (tras el segundo fix) — `IPSet: OK` y
+   `Firewall: OK`, pero expuso que `BUG-029` (unidades `.service` sin
+   `Requires=`) nunca se había traído de `v2.4-dev` a `main` — el tag
+   `v2.3.0` salía de `main`, no de esa rama, y quedó desincronizado
+   sin que nadie lo notara hasta este punto.
+4. Cuarta corrida (tras traer `BUG-029` a `main` y mover el tag una
+   vez más) — **11/11 en `OK`, instalación limpia completa,
+   sin ningún comando manual entre el `curl \| bash` y `verify`.**
+
+Esta secuencia de cuatro corridas es la explicación honesta de por
+qué "instalación remota" se había documentado como cerrada en v2.3.0
+sin estarlo realmente — cada corrida previa validó una demo con
+intervención manual de por medio, no la instalación real y aislada
+que finalmente se logró acá.
+
+**Archivos relacionados**
+
+* `are-installer`
+
+---
+
 # OBSERVACIONES
 
 La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
