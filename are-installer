@@ -496,7 +496,16 @@ install_systemd() {
 
     if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
         systemctl daemon-reload
-        systemctl enable --now are-fail2ban-found.timer
+
+        for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+            case "$unit" in
+                *.timer)
+                    systemctl enable --now "$unit"
+                    install_log "Timer habilitado: $unit"
+                ;;
+            esac
+        done
+
         install_log "Systemd configurado correctamente"
     else
         install_log "Systemd instalado en entorno aislado; activación omitida"
@@ -750,8 +759,14 @@ installer_uninstall() {
             install_log "Desinstalando ARE"
 
             if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
-                systemctl disable --now are-fail2ban-found.timer \
-                    >/dev/null 2>&1 || true
+                for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+                    case "$unit" in
+                        *.timer)
+                            systemctl disable --now "$unit" \
+                                >/dev/null 2>&1 || true
+                        ;;
+                    esac
+                done
             fi
 
             for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do

@@ -1,7 +1,6 @@
 [Unit]
 Description=ARE Fail2Ban FOUND Sensor
 After=fail2ban.service
-Requires=fail2ban.service
 
 [Service]
 Type=oneshot
