@@ -141,13 +141,13 @@ Administra el ciclo de vida del producto.
 Versión estable liberada:
 
 ```text
-v2.3.0
+v2.4.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.4 (rama v2.4-dev)
+v2.5 (rama v2.5-dev)
 ```
 
 Capacidades implementadas.
@@ -205,17 +205,7 @@ Las modificaciones arquitectónicas se realizan mediante RFC y la implementació
 
 # Principios
 
-Toda evolución del proyecto deberá respetar los siguientes principios.
-
-- Comprender antes de responder.
-- Una responsabilidad por componente.
-- Arquitectura antes que implementación.
-- Persistencia del conocimiento.
-- Configuración desacoplada.
-- Reutilización antes que duplicación.
-- Evolución incremental.
-- Documentación sincronizada.
-- Estabilidad como prioridad.
+Los principios fundamentales del proyecto están documentados en `docs/PHILOSOPHY.md`, fuente única — evita que esta lista se desincronice de esa, como ocurría hasta ahora (dos listas de "principios" distintas entre ambos documentos).
 
 ---
 

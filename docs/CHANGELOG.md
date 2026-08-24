@@ -6,6 +6,61 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.4.0
+
+**Fecha:** 2026-08-23
+
+## Resumen
+
+Versión enfocada en completar el modelo de reputación extensible y, sobre todo, en corregir la instalación remota para que funcione realmente de punta a punta — la versión anterior la había dado por validada sin haberla probado nunca sin intervención manual.
+
+## Modelo de reputación extensible completo
+
+Cuarta y última fase de la migración iniciada en v2.1: las columnas de categoría redundantes en `reputation` (y `total_score`, derivada) eliminadas por completo. El score por categoría vive únicamente en `reputation_scores` desde entonces.
+
+* Instalaciones nuevas ya no crean las columnas redundantes, en ninguna versión de SQLite — la limitación real solo aplicaba a eliminarlas de una base ya existente.
+* Seis funciones de estadísticas reescritas para calcular sobre el esquema normalizado.
+
+## Instalación remota corregida de fondo
+
+Encontrado al validar por primera vez una instalación genuinamente limpia, sin ningún comando manual entre el instalador y la verificación, en dos distros distintas.
+
+* El Installer nunca creaba los conjuntos IPSet ni las reglas de firewall — dependía en silencio de que alguien ejecutara `are.sh` manualmente después de instalar.
+* Cuatro unidades de systemd tenían una dependencia dura sobre servicios externos (Fail2Ban, Exim) que pueden legítimamente no estar instalados — un servidor de correo puro, sin Fail2Ban, quedaba con la instalación rota.
+* `reputation_scores` no se creaba en una instalación nueva sin datos previos.
+
+## Desinstalación simplificada
+
+`uninstall` elimina Core, datos y logs sin conservar nada por defecto — quien quiera preservar información lo hace por su cuenta antes de desinstalar.
+
+## Correcciones
+
+* `are.sh` no verificaba privilegios de root — una corrida sin `sudo` fallaba en silencio, sin ningún mensaje.
+
+## Documentación
+
+Contradicción real entre `PHILOSOPHY.md` y `PROJECT.md`, cada uno con su propia lista de "principios" del proyecto, sin apenas superposición entre ambas — corregida: `PHILOSOPHY.md` queda como fuente única, `PROJECT.md` la referencia en vez de duplicarla.
+
+## Nota de proceso
+
+Esta versión existe en gran parte porque la instalación remota, dada por cerrada y documentada en v2.3.0, nunca se había probado realmente de punta a punta. Cada validación anterior incluyó comandos manuales durante las pruebas, ocultando fallas reales del Installer. El tag `v2.3.0` se corrigió y republicó varias veces el mismo día en que se descubrió esto, antes de decidir formalizar el trabajo pendiente como esta versión.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.3.0
 
 **Fecha:** 2026-08-23
@@ -146,32 +201,29 @@ El almacenamiento de reputación por categoría transiciona de columnas fijas en
 
 `apache_evasive.sh` se formaliza como sensor oficial del framework, invocado directamente por Apache/`mod_evasive` en el instante del evento, junto al patrón de polling ya existente (Fail2Ban).
 
-* Reporta a la categoría DOS, con reputación acumulable y recuperación gradual, en reemplazo de un bloqueo de duración fija.
-* El filtro de jails de Fail2Ban pasa de una lista fija en el código a una consulta dinámica contra `jail_profile`.
-
 ## Visibilidad temporal
 
-Se incorpora una vista de tendencias diarias de actividad (eventos totales, por tipo de acción, e IPs distintas), a partir de la tabla `events` existente.
+Primera vista temporal del sistema: tendencias diarias de actividad (eventos, bans, IPs distintas por día).
 
-## Persistencia del Firewall Backend
+## Firewall Backend persistente
 
-IPSet no conserva su contenido de forma nativa entre reinicios. ARE restaura al arrancar las sanciones activas y las IPs en estado de filtrado a partir de la base de datos, preservando el tiempo restante exacto de las sanciones temporales, mediante una unidad `systemd` de ejecución única por arranque.
+* Restauración automática del estado del firewall (`ipset`) desde la base de datos al arrancar el sistema, preservando el tiempo restante exacto de sanciones temporales activas — antes, un reinicio del servidor podía perder sanciones activas sin cumplir su plazo.
+* Corrección de un límite de rango no controlado en `ipset`, que impedía aplicar correctamente sanciones de larga duración.
 
-## Interfaz de administración
+## Policy Engine basado en categorías
 
-* Atajo de salida directa (`x`) disponible en las siete ramas del menú, sin necesidad de navegar de regreso al menú raíz.
-* Rama Política completada: visualización de la configuración efectiva del Policy Engine y validación de consistencia entre categorías, umbrales y reglas.
+* Cada categoría cuenta con una regla propia, con umbral configurable en `policy.conf`.
+* Se incorpora un multiplicador de riesgo por reincidencia, aplicado a IPs en estado de observación o sanción activa.
+* La decisión final nunca es menos estricta que la evaluación por score total, preservando como piso de seguridad el comportamiento ya validado del motor anterior.
+* Se incorpora un comando de comparación entre motores, para validar el comportamiento del motor nuevo contra datos reales antes de aplicarlo en producción.
 
-## Correcciones
+## Integración de mod_evasive
 
-* Deriva de truncamiento entre el score total almacenado y la suma real de categorías, corregida de raíz junto con el nuevo modelo de almacenamiento.
-* IPs con reputación partida en filas duplicadas por un carácter sin limpiar en el sensor de Fail2Ban, fusionadas sin pérdida de datos.
-* Timeout fuera de rango en `ipset` para sanciones de larga duración, capeado al máximo soportado por el backend.
-* Ausencia de manejo de bloqueo de SQLite en la función central de acceso a la base de datos, corregida para tolerar escrituras concurrentes sin pérdida de eventos.
+La protección anti-flood de Apache (`mod_evasive`) pasa a reportar a ARE como categoría DOS, incorporando reputación acumulable, recuperación gradual mediante Decay y escalado de sanciones mediante Ban Lifecycle, en reemplazo de un bloqueo de duración fija.
 
-## Documentación
+## Consolidación del Policy Engine
 
-Revisión completa de la documentación del proyecto para reflejar el estado real del código: rutas, requisitos, backend de firewall, interfaz de administración y comandos disponibles.
+Se elimina el código de generaciones anteriores del Policy Engine que había quedado sin uso tras la incorporación del motor basado en categorías.
 
 ## Compatibilidad
 
@@ -337,64 +389,6 @@ Eventos procesados:
 * `EXTERNAL_UNBAN`.
 
 El sensor utiliza offset persistente y permite ejecución en modo dry-run o execute.
-
-## Systemd
-
-ARE v2 administra mediante systemd sus componentes operativos, incluyendo:
-
-```text
-are-fail2ban-found.service
-are-fail2ban-found.timer
-are-fail2ban-decay.service
-are-fail2ban-decay.timer
-```
-
-## PATH
-
-El Installer Engine configura `/usr/local/sbin` para el entorno de root durante:
-
-* `install`;
-* `upgrade`;
-* `repair`.
-
-La configuración se realiza de forma idempotente sobre:
-
-```text
-/root/.bash_profile
-```
-
-## Interfaz de Administración (ARE ADMIN)
-
-Se incorpora `are.sh admin` como interfaz de administración por línea de comandos, integrada al mismo `bootstrap.sh` que el resto del sistema.
-
-Ramas implementadas:
-
-* Jails / Perfiles — administración completa (crear, modificar, eliminar, validar) de `jail_profile`, con asistencia de peso y confianza basada en perfiles existentes o en escalas de referencia configurables por categoría.
-* Categorías — catálogo y puntuaciones por IP, leídos dinámicamente desde configuración.
-* Sensores — estado y configuración del Sensor Framework.
-* Política — configuración efectiva del Policy Engine y validación de consistencia entre categorías, umbrales y reglas.
-* Estado / Reputación — consulta de IP, historial de eventos, listado priorizado y estadísticas generales.
-* Decay — estado, simulación (dry-run) y ejecución del Decay Engine.
-* Configuración — visualización, validación y estado operativo del sistema.
-
-Se incorpora un registro de auditoría (`admin_audit.log`) para las operaciones de escritura realizadas desde la interfaz de administración, con usuario, fecha y detalle de cada acción.
-
-## Policy Engine basado en categorías
-
-El motor de decisión evalúa el riesgo de una IP por categoría de reputación de forma independiente, en lugar de depender exclusivamente del score total acumulado.
-
-* Cada categoría cuenta con una regla propia, con umbral configurable en `policy.conf`.
-* Se incorpora un multiplicador de riesgo por reincidencia, aplicado a IPs en estado de observación o sanción activa.
-* La decisión final nunca es menos estricta que la evaluación por score total, preservando como piso de seguridad el comportamiento ya validado del motor anterior.
-* Se incorpora un comando de comparación entre motores, para validar el comportamiento del motor nuevo contra datos reales antes de aplicarlo en producción.
-
-## Integración de mod_evasive
-
-La protección anti-flood de Apache (`mod_evasive`) pasa a reportar a ARE como categoría DOS, incorporando reputación acumulable, recuperación gradual mediante Decay y escalado de sanciones mediante Ban Lifecycle, en reemplazo de un bloqueo de duración fija.
-
-## Consolidación del Policy Engine
-
-Se elimina el código de generaciones anteriores del Policy Engine que había quedado sin uso tras la incorporación del motor basado en categorías.
 
 ## Compatibilidad
 

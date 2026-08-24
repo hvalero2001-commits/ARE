@@ -723,6 +723,13 @@ El diseño actual conserva los principios establecidos durante v1.1 y los adapta
 * el mecanismo de activación de un sensor depende de su patrón, no de una interfaz única: `systemctl` para polling, archivo flag liviano para callback — evaluado explícitamente el costo de consultar la base de datos en cada invocación para un sensor que puede dispararse con mucha frecuencia (callback bajo flood real), y descartado en favor de un chequeo de archivo;
 * un motor de riesgo propio decide con su propio criterio, no delega en el veredicto interno de otra herramienta — el sensor de SpamAssassin filtra por score contra `SPAMASSASSIN_MIN_SCORE`, no por el flag booleano "spam"/"NOT spam" que la herramienta externa asigna con su propio criterio interno, potencialmente desalineado del umbral real de riesgo que le importa a ARE.
 
+## Decisiones consolidadas en v2.4
+
+* simplificar un `CREATE TABLE` para instalaciones nuevas no requiere esperar a una versión moderna de SQLite en ningún servidor — solo `ALTER TABLE ... DROP COLUMN` sobre una base ya existente la requiere; separar ambos casos permitió avanzar la mitad del trabajo de inmediato, en vez de bloquear todo por la limitación de un único entorno;
+* la instalación debe dejar el producto completamente operativo por sí sola, sin depender de que el operador ejecute ningún paso manual después — cualquier verificación (`verify`) que dependa de un efecto colateral de una ejecución posterior, en vez de la instalación misma, es una instalación incompleta aunque parezca funcionar en la práctica;
+* una dependencia dura (`Requires=`) entre un componente propio y una herramienta externa opcional asume que esa herramienta siempre va a estar presente — cuando el propio componente ya tolera su ausencia de forma limpia (un log inexistente, por ejemplo), la dependencia de systemd debe reflejar eso mismo (`After=`, no `Requires=`), no ser más estricta que la lógica que ya existe;
+* validar una demostración con comandos manuales de por medio no es lo mismo que validar la instalación en sí — cualquier verificación de un flujo automatizado debe reproducir exactamente ese flujo, sin intervención humana entre el disparador y la comprobación del resultado.
+
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
 
-La versión v2.4 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+La versión v2.5 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.

@@ -104,9 +104,9 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.3.0** (estable, liberada) — **v2.4 en desarrollo activo**
+**ARE v2.4.0** (estable, liberada) — **v2.5 en desarrollo activo**
 
-La versión 2.2 incorporó un sensor real para la categoría SOCIAL (SpamAssassin), completó el catálogo de umbrales de todas las categorías de reputación, y dio los primeros pasos hacia la distribución del producto como paquete instalable. La versión 2.3 incorporó control operativo de sensores desde ARE ADMIN (activar/desactivar, detección de jails sin perfil), cerró la línea de auto-actualización del Installer Engine (consulta de versión disponible, actualización remota, instalación automática de dependencias), y sumó detección de anomalías en las tendencias de actividad.
+La versión 2.3 incorporó control operativo de sensores desde ARE ADMIN (activar/desactivar, detección de jails sin perfil), cerró la línea de auto-actualización del Installer Engine, y sumó detección de anomalías en las tendencias de actividad. La versión 2.4 completó el modelo de reputación extensible (columnas de categoría redundantes eliminadas, RFC-008), corrigió la instalación remota para que funcione realmente de punta a punta sin intervención manual (conjuntos IPSet, reglas de firewall, y dependencias de systemd resueltas por el propio Installer), y simplificó la desinstalación.
 
 ## Instalación
 

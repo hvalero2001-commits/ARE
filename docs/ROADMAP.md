@@ -17,13 +17,13 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.3.0
+v2.4.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.4 (rama v2.4-dev)
+v2.5 (rama v2.5-dev)
 ```
 
 Estado:
@@ -32,7 +32,7 @@ Estado:
 Producción
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.4-dev`, documentado en detalle en `docs/TODO.md`.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.5-dev`, documentado en detalle en `docs/TODO.md`.
 
 ---
 
@@ -288,6 +288,44 @@ Administración operativa de sensores desde ARE ADMIN, cierre de la línea de au
 * El sensor de SpamAssassin podía reprocesar el mismo tramo del log ante corridas solapadas, inflando la reputación de una IP
 * Revertir una sanción no persistía el cambio en el estado de sanciones, exponiendo a que se reaplicara tras un reinicio del sistema
 * El sensor de SpamAssassin delegaba en el veredicto interno de la herramienta en vez de decidir por su propio criterio de riesgo, perdiendo eventos reales
+
+---
+
+# v2.4
+
+## Objetivo
+
+Completar el modelo de reputación extensible (RFC-008), y corregir la instalación remota para que funcione realmente de punta a punta, sin intervención manual — validado con instalaciones limpias reales en dos distros distintas.
+
+## Estado
+
+✔ Completado — liberado como release oficial (`v2.4.0`)
+
+## Funcionalidades incorporadas
+
+### Modelo de reputación extensible completo (RFC-008, Fase 4)
+
+* Las 9 columnas de categoría redundantes y `total_score` eliminadas de la tabla `reputation` — el score por categoría vive únicamente en `reputation_scores` (normalizada) desde entonces
+* 6 funciones de estadísticas reescritas para calcular sobre `reputation_scores`, sin depender de columnas eliminadas
+* Instalaciones nuevas ya no crean las columnas redundantes en absoluto, sin importar la versión de SQLite del servidor
+
+### Instalación remota corregida de fondo
+
+* El Installer nunca creaba los conjuntos IPSet ni las reglas de firewall durante la instalación — dependía de que alguien ejecutara `are.sh` manualmente después. Corregido para inicializarlos como parte del propio `install`/`upgrade`/`repair`
+* Las 4 unidades `.service` de sensores de polling tenían una dependencia dura sobre servicios externos (Fail2Ban, Exim) que pueden no estar instalados — un servidor legítimo sin esas herramientas quedaba con la instalación rota. Ablandada a una dependencia de orden, no de bloqueo
+* `reputation_scores` no se creaba en una instalación genuinamente nueva sin datos previos
+
+### Desinstalación simplificada
+
+* `uninstall` elimina Core, datos y logs — sin conservar nada por defecto; quien quiera preservar información lo hace por su cuenta antes de desinstalar
+
+### Otras correcciones
+
+* `are.sh` no verificaba privilegios de root — una corrida sin `sudo` fallaba en silencio, sin ningún mensaje, en vez de indicar claramente el problema
+
+## Nota de proceso
+
+Esta versión reveló que la instalación remota, documentada como validada en el cierre de `v2.3.0`, en realidad nunca se había probado de punta a punta sin intervención manual — cada validación previa incluía comandos ejecutados a mano durante las pruebas, ocultando fallas reales en el Installer. Corregido con instalaciones limpias reales, repetidas hasta confirmar 11/11 sin ningún paso manual entre la instalación y la verificación.
 
 ---
 
