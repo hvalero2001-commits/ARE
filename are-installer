@@ -850,12 +850,13 @@ installer_uninstall() {
             done
 
             rm -rf "$INSTALL_HOME"
+            rm -rf "$INSTALL_DATA"
+            rm -rf "$INSTALL_LOG"
 
             install_log "Core eliminado: $INSTALL_HOME"
-            install_log "Configuración conservada: $PRODUCT_CONFIG"
-            install_log "Datos conservados: $INSTALL_DATA"
-            install_log "Logs conservados: $INSTALL_LOG"
-            install_log "Desinstalación completada"
+            install_log "Datos eliminados: $INSTALL_DATA"
+            install_log "Logs eliminados: $INSTALL_LOG"
+            install_log "Desinstalación completada — sin conservar configuración, datos ni logs"
         ;;
 
         NEW)

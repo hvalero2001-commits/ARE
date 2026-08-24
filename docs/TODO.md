@@ -4475,6 +4475,42 @@ que finalmente se logró acá.
 
 ---
 
+## TASK-022
+
+**Título:** `uninstall` elimina todo (Core, datos, logs), sin conservar nada
+
+**Estado:** ✔ Implementada y validada en Fedora
+
+**Versión:** v2.4 (en desarrollo)
+
+**Descripción**
+
+`installer_uninstall()` conservaba `/var/lib/are` (incluida
+`are.db`) y `/var/log/are` a propósito, por precaución ante
+contingencias. Se evaluó primero renombrar la base con timestamp en
+vez de conservarla con el mismo nombre (evitando que una
+reinstalación futura heredara en silencio datos de la instalación
+anterior — problema real encontrado durante las pruebas de
+`BUG-031`), pero se decidió una alternativa más simple: quien quiera
+preservar información antes de desinstalar, lo hace por su cuenta.
+
+**Corrección**
+
+`rm -rf` sobre `$INSTALL_HOME`, `$INSTALL_DATA` y `$INSTALL_LOG`, los
+tres — antes solo se borraba el primero.
+
+**Validación**
+
+Instalación real en Fedora, `uninstall`, confirmado con `ls` directo
+que los tres directorios (`/opt/are`, `/var/lib/are`, `/var/log/are`)
+dejaron de existir.
+
+**Archivos relacionados**
+
+* `are-installer`
+
+---
+
 # OBSERVACIONES
 
 La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
