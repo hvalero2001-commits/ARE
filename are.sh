@@ -35,6 +35,15 @@ fi
 source "$CONFIG"
 
 ##############################################
+# Verificar privilegios de root
+##############################################
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "ERROR: are requiere privilegios de root." >&2
+    exit 1
+fi
+
+##############################################
 
 # Cargar módulos
 

@@ -4511,6 +4511,47 @@ dejaron de existir.
 
 ---
 
+## BUG-032
+
+**Título:** `are.sh` nunca verificaba que corriera como root
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.4 (en desarrollo)
+
+**Problema**
+
+`are.sh`, a diferencia de `are-installer` (que sí tiene
+`install_verify_root()`), nunca chequeaba privilegios de root.
+Encontrado en Kali: `are stats` sin `sudo` terminaba con `exit 0` y
+**cero salida** — ningún error, ningún log, nada — porque las
+operaciones internas que requieren root (`ipset`, `iptables`)
+fallaban en silencio sin que nada lo reportara con claridad.
+
+**Corrección**
+
+Chequeo explícito agregado justo después de cargar `config.conf`, en
+el mismo lugar y con el mismo criterio que ya usa `are-installer`:
+
+```bash
+if [ "$(id -u)" -ne 0 ]; then
+    echo "ERROR: are requiere privilegios de root." >&2
+    exit 1
+fi
+```
+
+**Validación**
+
+Confirmado en Fedora: `are stats` sin `sudo` ahora muestra
+`"ERROR: are requiere privilegios de root."` de inmediato, en vez de
+silencio; `sudo are stats` sigue funcionando normal.
+
+**Archivos relacionados**
+
+* `are.sh`
+
+---
+
 # OBSERVACIONES
 
 La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
