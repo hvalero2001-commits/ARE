@@ -4601,8 +4601,16 @@ PRODUCT_EXECUTABLE_FILES=(
 
 **Validación**
 
-Pendiente de confirmar con un nuevo `upgrade --remote` tras esta
-corrección, sin necesitar ningún `chmod` manual.
+Confirmado con `upgrade --remote` real, en Fedora y Kali, sin ningún
+`chmod` manual — los dos scripts quedaron con permiso de ejecución
+correcto (`rwxr-xr-x`) automáticamente. Encontrado en el camino un
+segundo problema relacionado, también corregido: el tag `v2.4.1`
+inicial se publicó con `PRODUCT_VERSION` todavía en `2.4.0` sin
+sincronizar — `scripts/build-package.sh` nombra el paquete según esa
+variable, no según el tag de git, así que el bootstrap (que arma el
+nombre del asset a partir del tag) buscaba `are-v2.4.1.tar.gz`
+mientras el paquete real se llamaba distinto. Corregido sincronizando
+los 4 archivos de versión y republicando el tag una vez más.
 
 **Archivos relacionados**
 
