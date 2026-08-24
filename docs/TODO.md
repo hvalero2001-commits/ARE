@@ -4552,6 +4552,64 @@ silencio; `sudo are stats` sigue funcionando normal.
 
 ---
 
+## BUG-033
+
+**Título:** `PRODUCT_EXECUTABLE_FILES` sin `scripts/install.sh` ni `scripts/build-package.sh` — `upgrade --remote` fallaba tras cada actualización
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.4.1
+
+**Problema**
+
+Mismo patrón que `BUG-023` (permisos de ejecución faltantes en el
+manifiesto), esta vez con `scripts/`. El directorio ya estaba
+declarado en `PRODUCT_DIRS` (se copia completo en cada
+`install`/`upgrade`), pero eso solo copia los archivos — el permiso
+de ejecución se asigna aparte, únicamente sobre lo listado en
+`PRODUCT_EXECUTABLE_FILES`. Ninguno de los dos scripts estaba ahí,
+desde que `scripts/` se agregó al manifiesto (`IDEA-007` Fase 3).
+
+**Impacto**
+
+Encontrado al validar `upgrade --remote` real, por primera vez,
+contra `v2.4.0` recién publicada: `are-installer upgrade --remote`
+fallaba con `"scripts/install.sh no encontrado o sin permiso de
+ejecución"`. Un `chmod +x` manual lo resolvía momentáneamente — pero
+como cada `install`/`upgrade` vuelve a copiar el archivo y a aplicar
+permisos según el manifiesto, el problema volvía a aparecer en la
+siguiente actualización, sin que el propio operador lo notara hasta
+la próxima vez que necesitara `upgrade --remote`. Confirmado en
+Kali: `chmod +x` manual antes del primer `upgrade --remote` exitoso,
+permisos perdidos de nuevo después.
+
+**Corrección**
+
+Dos entradas agregadas a `PRODUCT_EXECUTABLE_FILES`:
+
+```bash
+PRODUCT_EXECUTABLE_FILES=(
+    are-installer
+    are.sh
+    sensors/fail2ban.sh
+    sensors/apache_evasive.sh
+    sensors/spamassassin.sh
+    scripts/install.sh
+    scripts/build-package.sh
+)
+```
+
+**Validación**
+
+Pendiente de confirmar con un nuevo `upgrade --remote` tras esta
+corrección, sin necesitar ningún `chmod` manual.
+
+**Archivos relacionados**
+
+* `manifest/product.sh`
+
+---
+
 # OBSERVACIONES
 
 La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
