@@ -6,6 +6,35 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.4.1
+
+**Fecha:** 2026-08-24
+
+## Resumen
+
+Patch de corrección sobre v2.4.0, encontrado al validar por primera
+vez `upgrade --remote` real contra una release publicada.
+
+## Correcciones
+
+* `are.sh` no verificaba privilegios de root — una corrida sin
+  `sudo` fallaba en silencio, sin ningún mensaje, en vez de indicar
+  el problema claramente.
+* `scripts/install.sh` y `scripts/build-package.sh` no tenían
+  permiso de ejecución tras cada `install`/`upgrade` — el manifiesto
+  del producto los copiaba pero nunca los declaraba como ejecutables,
+  rompiendo `upgrade --remote` en cada ciclo.
+
+## Nota de proceso
+
+El paquete inicial de `v2.4.1` se publicó con `PRODUCT_VERSION`
+todavía en `2.4.0` sin sincronizar — el nombre del paquete generado
+no coincidía con el que el bootstrap de instalación remota esperaba
+a partir del tag. Corregido sincronizando los 4 archivos de versión
+del proyecto y republicando el mismo tag.
+
+---
+
 # v2.4.0
 
 **Fecha:** 2026-08-23

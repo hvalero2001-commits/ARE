@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.4.0
+v2.4.1
 ```
 
 Versión en desarrollo activo:

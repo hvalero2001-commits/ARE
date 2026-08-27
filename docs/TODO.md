@@ -22,7 +22,7 @@ Se organiza en:
 
 **Título:** Consolidación y limpieza de documentación técnica
 
-**Estado:** En progreso
+**Estado:** Completado
 
 **Prioridad:** Alta
 
@@ -69,6 +69,30 @@ sesión:
 * `BUG-002` (observación abierta desde v1.x) cerrado con evidencia
   real acumulada, movido de la sección de bugs activos al historial
   resuelto.
+
+**Progreso registrado (sesión v2.4-dev)**
+
+Avance sobre "corregir estados históricos" y "eliminar
+contradicciones entre documentos":
+
+* `PHILOSOPHY.md` y `PROJECT.md` mantenían dos listas de
+  "principios" del proyecto completamente distintas, sin apenas
+  superposición — corregido: `PHILOSOPHY.md` como fuente única,
+  `PROJECT.md` la referencia en vez de duplicarla.
+* Auditoría completa de la sección `# RFC` — 4 entradas
+  (`RFC-001`, `RFC-003`, `RFC-004`, `RFC-006`) seguían marcadas
+  `Draft` pese a estar efectivamente resueltas; dos de ellas
+  (`RFC-004`, `RFC-006`) habían sido absorbidas por la implementación
+  de `RFC-009` sin que este último las referenciara de vuelta al
+  cerrarse. Corregidas con el resultado real y la evidencia de
+  cuándo/cómo se completaron. El resto de la sección (`RFC-002`,
+  `RFC-005`, `RFC-007` a `RFC-010`, `RFC-016`, `RFC-017`) se revisó y
+  se confirmó consistente con su estado real.
+
+Sigue sin cerrarse del todo — el alcance completo (revisión total de
+`ROADMAP.md`/`SECURITY.md` línea por línea, no solo lo tocado al
+cerrar cada versión) excede lo que se puede hacer en una sola
+sesión.
 
 ---
 
@@ -1306,13 +1330,21 @@ configuración de Fail2Ban — corrección aplicada del lado de Fail2Ban
 
 **Título:** Renombrar CLI oficial a `are`
 
-**Estado:** Draft
+**Estado:** ✔ Resuelto (encontrado sin cerrar durante auditoría de `TASK-013`)
 
-**Objetivo**
+**Objetivo original**
 
-Establecer `are` como CLI oficial del proyecto.
+Establecer `are` como CLI oficial del proyecto, contemplando
+compatibilidad con el nombre histórico utilizado por las
+instalaciones existentes.
 
-La decisión deberá contemplar compatibilidad con el nombre histórico utilizado por las instalaciones existentes.
+**Resultado real**
+
+`are` es el comando oficial desde v2.0 (`PRODUCT_EXECUTABLE_LINKS`,
+`/usr/local/sbin/are -> are.sh`) — confirmado en uso constante en
+producción real durante toda esta sesión y las anteriores. Nadie
+había vuelto a marcar esta entrada como resuelta pese a que el
+objetivo se cumplió hace varias versiones.
 
 ---
 
@@ -1340,39 +1372,24 @@ El Sensor Framework quedó incorporado en v1.1 y el sensor Fail2Ban constituye s
 
 **Título:** Identity Migration
 
-**Estado:** Draft
+**Estado:** ✔ Resuelto (encontrado sin cerrar durante auditoría de `TASK-013`)
 
-**Versión objetivo:** Posterior a v1.1
+**Descripción original**
 
-**Descripción**
+Evaluar la transición desde la identidad histórica `f2b-ipset` hacia
+el nombre oficial del proyecto (ARE — Abuse Reputation Engine),
+alineando comandos, rutas, servicios, configuración, documentación e
+identidad del paquete.
 
-Evaluar la transición desde la identidad histórica `f2b-ipset` hacia el nombre oficial del proyecto:
+**Resultado real**
 
-**ARE — Abuse Reputation Engine**
-
-**Objetivo**
-
-Alinear progresivamente:
-
-* comandos;
-* rutas;
-* servicios;
-* configuración;
-* documentación;
-* identidad del paquete.
-
-**Alcance propuesto**
-
-* Crear CLI oficial `are`.
-* Mantener compatibilidad temporal con `f2b-ipset.sh`.
-* Evaluar migración futura de `/opt/f2b-ipset/` hacia `/opt/are/`.
-* Evaluar migración futura de configuración hacia `/etc/are/`.
-* Evaluar migración futura de base de datos hacia rutas ARE.
-* Actualizar documentación afectada.
-
-**Regla**
-
-La migración deberá realizarse gradualmente para no romper instalaciones existentes.
+Completado desde v2.0: `/opt/are` como Core oficial, `/var/lib/are`
+como datos persistentes, CLI `are` oficial, identidad ARE en toda la
+documentación y el manifiesto del producto
+(`manifest/product.sh::PRODUCT_NAME="ARE"`). No queda ningún rastro
+funcional de `f2b-ipset` en el sistema actual — la migración
+gradual planteada en el alcance original se completó del todo hace
+varias versiones, sin que nadie volviera a marcar esta entrada.
 
 ---
 
@@ -1380,50 +1397,26 @@ La migración deberá realizarse gradualmente para no romper instalaciones exist
 
 **Título:** ARE como autoridad principal de decisión
 
-**Estado:** Draft
+**Estado:** ✔ Resuelto — absorbida por `RFC-009` (encontrado sin cerrar durante auditoría de `TASK-013`)
 
-**Descripción**
+**Descripción original**
 
-Evaluar la transición del modelo actual hacia un modelo donde Fail2Ban actúe principalmente como fuente de eventos y ARE asuma la autoridad sobre las decisiones de bloqueo, filtrado, liberación y escalado.
+Evaluar la transición del modelo actual hacia uno donde Fail2Ban
+actúe principalmente como fuente de eventos y ARE asuma la autoridad
+sobre las decisiones de bloqueo, filtrado, liberación y escalado,
+usando reputación, score, historial, reincidencia, estado y política
+configurada — evitando que una acción externa de Fail2Ban contradiga
+una decisión de ARE.
 
-**Objetivo**
+**Resultado real**
 
-Permitir que ARE determine la respuesta final utilizando:
-
-* reputación;
-* score;
-* historial;
-* reincidencia;
-* estado de la IP;
-* política configurada.
-
-El objetivo es evitar que una acción externa de Fail2Ban contradiga una decisión de ARE.
-
-**Impacto esperado**
-
-* Mayor autonomía de ARE.
-* Mayor coherencia entre reputación y firewall.
-* Control centralizado del ciclo de vida de una IP.
-* Fail2Ban como sensor y no como autoridad final.
-
-**Puntos a definir**
-
-* Tratamiento de eventos `BAN`.
-* Tratamiento de eventos `UNBAN`.
-* Condiciones para liberar una IP.
-* Integración con Ban Lifecycle.
-* Condiciones para bloqueo permanente.
-* Relación entre decisiones de ARE y acciones externas.
-
-**Validación inicial**
-
-Se implementó y validó manualmente:
-
-```bash
-./f2b-ipset.sh external-unban <IP> <JAIL>
-```
-
-Esta validación no implica que la RFC haya sido aceptada.
+Exactamente este objetivo quedó implementado como parte de
+`RFC-009` (motor de decisión único por categoría): Fail2Ban reporta
+eventos `FOUND`/`EXTERNAL_UNBAN` puros, sin autoridad de decisión
+propia; `are.sh` evalúa siempre vía `policy_evaluate()` y aplica la
+acción resultante. `RFC-009` nunca referenció explícitamente que
+absorbía este objetivo, así que esta entrada quedó sin cerrar pese
+a estar cumplida.
 
 ---
 
@@ -1496,30 +1489,21 @@ RFC-008 para la relación con el modelo de categorías.
 
 **Título:** Reglas de política activas para MALWARE, DOS y SOCIAL
 
-**Estado:** Draft
+**Estado:** ✔ Resuelto — absorbida por `RFC-009` (encontrado sin cerrar durante auditoría de `TASK-013`)
 
-**Descripción**
+**Descripción original**
 
-Las categorías `MALWARE`, `DOS` y `SOCIAL` existen como columnas en la
-tabla `reputation` desde TASK-005/BUG-006, pero no cuentan con un archivo
-`policy/rules/*.sh` que las evalúe. A diferencia de `ANOMALY` (que sí tiene
-una regla escrita, aunque desconectada — ver BUG-012), estas tres
-categorías no tienen ninguna lógica de decisión asociada todavía.
+Las categorías `MALWARE`, `DOS` y `SOCIAL` existían como columnas en
+la tabla `reputation` desde `TASK-005`/`BUG-006`, pero no contaban
+con un archivo `policy/rules/*.sh` que las evaluara.
 
-**Objetivo**
+**Resultado real**
 
-Definir el criterio de riesgo para cada una y su regla correspondiente,
-siguiendo el mismo patrón que `policy/rules/exploit.sh`,
-`policy/rules/bot.sh`, etc.
-
-**Puntos a definir**
-
-* Umbral y severidad relativa de cada categoría frente a las ya activas.
-* Fuente de eventos que alimenta cada categoría (¿qué jail o sensor
-  produce actividad `DOS` o `SOCIAL` hoy?).
-
-**Relación con otras entradas:** bloquea la parte pendiente de TASK-018
-(umbrales de categoría en `policy.conf`).
+Las 9 reglas de categoría creadas como parte de `RFC-009`
+(`exploit`, `bot`, `recon`, `protocol`, `bruteforce`, `anomaly`,
+`malware`, `dos`, `social`) incluyen exactamente las tres que esta
+RFC pedía — el mismo motivo que `RFC-004`: `RFC-009` nunca
+referenció explícitamente que absorbía este pendiente.
 
 ---
 
@@ -2822,6 +2806,8 @@ MySQL propia, no archivo plano) antes de poder diseñar el sensor.
 
 **Título:** Empaquetado, distribución y auto-actualización del Installer Engine
 
+**Estado:** ✔ Implementada — las 3 fases completas (encontrado sin encabezado resumen durante auditoría de `TASK-013`; el contenido siempre reflejó el estado real, solo faltaba este resumen para consistencia de formato con el resto del documento)
+
 El Installer Engine existe desde v1.1 (`install`/`upgrade`/`repair`/
 `verify`/`uninstall`, completo y probado), pero la propia
 documentación aclaraba explícito: "el mecanismo actual no incorpora
@@ -3027,6 +3013,84 @@ placeholder vacíos en `TASK-019`. Cuando exista un caso de uso real
 (alguien con una de estas herramientas corriendo, dispuesto a
 compartir logs reales), el sensor se construye siguiendo este mismo
 contrato, validado contra datos genuinos — no antes.
+
+---
+
+## IDEA-010
+
+**Título:** ARE Web Sensor — correlación de comportamiento sobre `access_log` de Apache, más allá de lo que Fail2Ban puede ver por diseño
+
+**Estado:** Idea — evidencia real reunida, diseño de correlación pendiente
+
+**Descripción**
+
+Surge de una investigación real sobre tráfico de scraping distribuido
+contra `/resellerpricing/` en producción. Mitigación inmediata
+aplicada: extensión de `apache-badbots.conf` (Fail2Ban) con patrones
+nuevos — funciona para lo que ese filtro puede ver, pero deja
+expuesto un tipo de amenaza que Fail2Ban no puede detectar por
+diseño, sin importar cuánto se extienda el filtro.
+
+**Evidencia real reunida**
+
+* `fail2ban-regex` contra `apache-badbots.conf` confirmó que el
+  filtro actual no matchea nada de este tráfico — solo detecta bots
+  que se identifican por User-Agent explícito (`crusader-worker`,
+  `pimeyes-downloader-api`). El scraping de `/resellerpricing/`, con
+  Chrome real como UA, es invisible para ese filtro.
+* Correlación real confirmada agrupando por minuto exacto: decenas de
+  IPs distintas golpeando `/resellerpricing/` en la misma ventana de
+  60 segundos, cada una con pocos requests — ninguna cruza
+  individualmente ningún umbral de reincidencia.
+* `whois` sobre los rangos de origen confirmó infraestructura de
+  datacenter/proxy, no residencial: `AS4229` (Zenlayer, Hong Kong) y
+  `AS150436` (Byteplus, Singapur) — coherente con una operación
+  coordinada, no tráfico orgánico disperso.
+
+**Por qué Fail2Ban no alcanza, aunque se extienda el filtro**
+
+Fail2Ban evalúa por IP individual — el umbral de reincidencia se
+mide por línea de log que matchea un patrón, contra el historial de
+esa misma IP. Ninguna extensión de `apache-badbots.conf` puede ver
+que 40 IPs distintas, de la misma infraestructura, atacaron el mismo
+patrón de URL en el mismo minuto — esa correlación cruzada entre
+IPs está fuera del modelo de Fail2Ban por diseño, no es una
+limitación de configuración.
+
+**Lo que un sensor propio aportaría**
+
+Mismo principio que el resto del Sensor Framework: observar sin
+decidir, reportar a ARE. La diferencia real respecto a
+`fail2ban.sh`/`spamassassin.sh` es que este sensor necesitaría
+**estado y agregación**, no solo lectura línea por línea:
+
+* agrupar eventos por patrón de URL (o hash de estructura de URL) +
+  ventana de tiempo, no por IP aislada;
+* opcionalmente enriquecer con ASN (vía `whois`/`whois.cymru.com`,
+  como se hizo manualmente en esta investigación) para distinguir
+  infraestructura de datacenter de tráfico residencial legítimo;
+* reportar como evento agregado (posiblemente una entrada por grupo
+  correlacionado, no una por IP individual) — esto no encaja
+  directo en el contrato actual (`are.sh found <IP> <JAIL>`,
+  atómico por IP), necesita diseño propio.
+
+**Pendiente de decidir antes de implementar**
+
+* Formato exacto del evento agregado — ¿se reporta cada IP del grupo
+  por separado con la misma categoría, o existe un concepto nuevo de
+  "grupo/campaña" en el modelo de datos?
+* Umbral de correlación — ¿cuántas IPs en qué ventana de tiempo
+  constituye señal real, versus coincidencia orgánica?
+* Costo de la consulta `whois` en producción — no debería hacerse
+  sincrónica por cada request, necesitaría cacheo o un proceso batch
+  aparte.
+* Formato real de `access_log` ya confirmado (Apache, con la ruta
+  real de logs por dominio) — a diferencia de `IDEA-009`, acá sí hay
+  datos reales de sobra para empezar a diseñar, no es el bloqueante.
+
+**Archivos relacionados**
+
+* (ninguno todavía — sin implementación)
 
 ---
 
