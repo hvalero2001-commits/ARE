@@ -8,7 +8,7 @@
 ##################################################
 PRODUCT_NAME="ARE"
 PRODUCT_DESCRIPTION="Abuse Reputation Engine"
-PRODUCT_VERSION="2.6.0"
+PRODUCT_VERSION="2.7.0"
 PRODUCT_LICENSE="GPL-3.0"
 ##################################################
 # Installation Layout
@@ -79,6 +79,8 @@ PRODUCT_SYSTEMD_UNITS=(
     are-spamassassin.timer
     are-web-correlation.service
     are-web-correlation.timer
+    are-whitelist-sync.service
+    are-whitelist-sync.timer
 )
 ##################################################
 # Executable Links
@@ -119,4 +121,5 @@ PRODUCT_EXECUTABLE_FILES=(
     sensors/web_correlation.sh
     scripts/install.sh
     scripts/build-package.sh
+    scripts/sync_whitelist.sh
 )
