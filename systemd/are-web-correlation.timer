@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ARE Web Correlation Sensor every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=are-web-correlation.service
+
+[Install]
+WantedBy=timers.target
+

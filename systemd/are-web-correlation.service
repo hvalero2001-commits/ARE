@@ -1,0 +1,10 @@
+[Unit]
+Description=ARE Web Correlation Sensor
+After=httpd.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/are/sensors/web_correlation.sh --execute
+User=root
+Group=root
+

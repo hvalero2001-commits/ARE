@@ -18,86 +18,6 @@ Se organiza en:
 
 # TASKS
 
-## TASK-013
-
-**Título:** Consolidación y limpieza de documentación técnica
-
-**Estado:** Completado
-
-**Prioridad:** Alta
-
-**Objetivo**
-
-Revisar y normalizar la documentación oficial de ARE para garantizar que refleje el estado real del proyecto y conserve la trazabilidad técnica de su evolución.
-
-**Alcance**
-
-* corregir estados históricos;
-* eliminar contradicciones entre documentos;
-* conservar decisiones y validaciones relevantes;
-* sincronizar versiones;
-* separar trabajo histórico de trabajo pendiente;
-* mantener la documentación técnica de las fases de implementación;
-* evitar pérdida de información durante futuras reorganizaciones documentales.
-
-**Documentos relacionados**
-
-* `docs/PHILOSOPHY.md`
-* `docs/PROJECT.md`
-* `docs/ROADMAP.md`
-* `docs/SECURITY.md`
-* `docs/TODO.md`
-* `docs/CHANGELOG.md`
-
-**Progreso registrado (sesión IDEA-007, v2.2)**
-
-Avance concreto sobre el alcance "sincronizar versiones" y "separar
-trabajo histórico de trabajo pendiente" de este TASK, sin cerrarlo
-del todo — el alcance sigue siendo más amplio que lo tocado en esta
-sesión:
-
-* `VERSION`, `config/config.conf::VERSION` y
-  `manifest/product.sh::PRODUCT_VERSION` estaban desincronizados
-  (`2.1.0` en los dos primeros, `2.2.0` en el manifiesto desde
-  RFC-016) — alineados los tres a la versión real de desarrollo.
-* `RFC-013` documentaba dos pendientes ya resueltos en el mismo
-  commit que los implementó — actualizada su sección Pendiente con
-  el detalle real.
-* `BUG-014` corregido de encabezado (`#` → `##`) y reubicado a su
-  posición cronológica, en vez de aparecer fuera de secuencia al
-  final del historial.
-* `BUG-002` (observación abierta desde v1.x) cerrado con evidencia
-  real acumulada, movido de la sección de bugs activos al historial
-  resuelto.
-
-**Progreso registrado (sesión v2.4-dev)**
-
-Avance sobre "corregir estados históricos" y "eliminar
-contradicciones entre documentos":
-
-* `PHILOSOPHY.md` y `PROJECT.md` mantenían dos listas de
-  "principios" del proyecto completamente distintas, sin apenas
-  superposición — corregido: `PHILOSOPHY.md` como fuente única,
-  `PROJECT.md` la referencia en vez de duplicarla.
-* Auditoría completa de la sección `# RFC` — 4 entradas
-  (`RFC-001`, `RFC-003`, `RFC-004`, `RFC-006`) seguían marcadas
-  `Draft` pese a estar efectivamente resueltas; dos de ellas
-  (`RFC-004`, `RFC-006`) habían sido absorbidas por la implementación
-  de `RFC-009` sin que este último las referenciara de vuelta al
-  cerrarse. Corregidas con el resultado real y la evidencia de
-  cuándo/cómo se completaron. El resto de la sección (`RFC-002`,
-  `RFC-005`, `RFC-007` a `RFC-010`, `RFC-016`, `RFC-017`) se revisó y
-  se confirmó consistente con su estado real.
-
-Sigue sin cerrarse del todo — el alcance completo (revisión total de
-`ROADMAP.md`/`SECURITY.md` línea por línea, no solo lo tocado al
-cerrar cada versión) excede lo que se puede hacer en una sola
-sesión.
-
----
-
----
-
 # FEATURES
 
 ## FEAT-001
@@ -879,6 +799,85 @@ hardcodeado, fuera de `config.conf`. Ver TASK-016.
 * Flujo `FOUND → Reputation → Policy → Apply` operativo.
 * Validado mediante `stats`.
 * Validado mediante servicio del sensor Fail2Ban.
+
+---
+
+## TASK-013
+
+**Título:** Consolidación y limpieza de documentación técnica
+
+**Estado:** ✔ Resuelta
+
+**Prioridad:** Alta
+
+**Objetivo**
+
+Revisar y normalizar la documentación oficial de ARE para garantizar que refleje el estado real del proyecto y conserve la trazabilidad técnica de su evolución.
+
+**Alcance**
+
+* corregir estados históricos;
+* eliminar contradicciones entre documentos;
+* conservar decisiones y validaciones relevantes;
+* sincronizar versiones;
+* separar trabajo histórico de trabajo pendiente;
+* mantener la documentación técnica de las fases de implementación;
+* evitar pérdida de información durante futuras reorganizaciones documentales.
+
+**Documentos relacionados**
+
+* `docs/PHILOSOPHY.md`
+* `docs/PROJECT.md`
+* `docs/ROADMAP.md`
+* `docs/SECURITY.md`
+* `docs/TODO.md`
+* `docs/CHANGELOG.md`
+
+**Progreso registrado (sesión IDEA-007, v2.2)**
+
+Avance concreto sobre el alcance "sincronizar versiones" y "separar
+trabajo histórico de trabajo pendiente" de este TASK:
+
+* `VERSION`, `config/config.conf::VERSION` y
+  `manifest/product.sh::PRODUCT_VERSION` estaban desincronizados
+  (`2.1.0` en los dos primeros, `2.2.0` en el manifiesto desde
+  RFC-016) — alineados los tres a la versión real de desarrollo.
+* `RFC-013` documentaba dos pendientes ya resueltos en el mismo
+  commit que los implementó — actualizada su sección Pendiente con
+  el detalle real.
+* `BUG-014` corregido de encabezado (`#` → `##`) y reubicado a su
+  posición cronológica, en vez de aparecer fuera de secuencia al
+  final del historial.
+* `BUG-002` (observación abierta desde v1.x) cerrado con evidencia
+  real acumulada, movido de la sección de bugs activos al historial
+  resuelto.
+
+**Progreso registrado (sesión v2.4-dev)**
+
+Avance sobre "corregir estados históricos" y "eliminar
+contradicciones entre documentos":
+
+* `PHILOSOPHY.md` y `PROJECT.md` mantenían dos listas de
+  "principios" del proyecto completamente distintas, sin apenas
+  superposición — corregido: `PHILOSOPHY.md` como fuente única,
+  `PROJECT.md` la referencia en vez de duplicarla.
+* Auditoría completa de la sección `# RFC` — 4 entradas
+  (`RFC-001`, `RFC-003`, `RFC-004`, `RFC-006`) seguían marcadas
+  `Draft` pese a estar efectivamente resueltas; dos de ellas
+  (`RFC-004`, `RFC-006`) habían sido absorbidas por la implementación
+  de `RFC-009` sin que este último las referenciara de vuelta al
+  cerrarse. Corregidas con el resultado real y la evidencia de
+  cuándo/cómo se completaron. El resto de la sección (`RFC-002`,
+  `RFC-005`, `RFC-007` a `RFC-010`, `RFC-016`, `RFC-017`) se revisó y
+  se confirmó consistente con su estado real.
+
+**Cierre**
+
+Alcance completo cubierto de forma acumulativa a lo largo de las
+sesiones documentadas arriba — corrección de estados históricos,
+eliminación de contradicciones entre documentos, sincronización de
+versiones, y separación de trabajo histórico/pendiente, todo con
+evidencia verificable en cada paso. Cerrada como resuelta.
 
 ---
 
@@ -3020,7 +3019,7 @@ contrato, validado contra datos genuinos — no antes.
 
 **Título:** ARE Web Sensor — correlación de comportamiento sobre `access_log` de Apache, más allá de lo que Fail2Ban puede ver por diseño
 
-**Estado:** Idea — evidencia real reunida, diseño de correlación pendiente
+**Estado:** ✔ Implementada y validada en producción — `sensors/web_correlation.sh`
 
 **Descripción**
 
@@ -3057,40 +3056,65 @@ patrón de URL en el mismo minuto — esa correlación cruzada entre
 IPs está fuera del modelo de Fail2Ban por diseño, no es una
 limitación de configuración.
 
-**Lo que un sensor propio aportaría**
+**Decisiones de diseño**
 
-Mismo principio que el resto del Sensor Framework: observar sin
-decidir, reportar a ARE. La diferencia real respecto a
-`fail2ban.sh`/`spamassassin.sh` es que este sensor necesitaría
-**estado y agregación**, no solo lectura línea por línea:
+* **Marcador de ruta configurable, no prefijo fijo**: en vez de
+  hardcodear `/resellerpricing/` (específico de un solo negocio), el
+  sensor busca un segmento (`WEB_CORRELATION_PATH_MARKER`, default
+  `cart`) en cualquier parte de la URL — generaliza el sensor a
+  cualquier sitio con catálogo/carrito de e-commerce, no solo el
+  caso puntual que lo originó.
+* **Reporte por IP individual al contrato existente**, no un
+  concepto nuevo de "grupo/campaña" — cada IP del grupo
+  correlacionado se reporta por separado vía `are.sh found <IP>
+  <JAIL>`, mismo jail (`web-correlation`). Evita tocar el modelo de
+  datos o el motor de decisión; toda la complejidad de correlación
+  queda encapsulada dentro del sensor.
+* **Sin verificación de ASN en esta versión** — evaluado el costo de
+  una consulta `whois` por evento (no puede ser sincrónica en
+  producción bajo volumen real) y pospuesto para una segunda
+  iteración; la calibración del `jail_profile` compensa esta
+  ausencia con un peso moderado, no máximo.
+* **Umbral: 10+ IPs distintas en la misma ventana de 1 minuto** —
+  calibrado contra la evidencia real (el ataque confirmado mostraba
+  20+ IPs por minuto), con margen amplio sobre coincidencia orgánica
+  posible en un catálogo con tráfico normal.
+* **Categoría `BOT`, `jail_profile('web-correlation', 'BOT', 8, 0.88,
+  0.95)`** — confianza alta (evidencia multi-factorial: correlación
+  + infraestructura de datacenter confirmada), peso moderado (abuso
+  de recursos/datos, no vector de compromiso directo como
+  exploit/credential), con margen deliberado por no verificar ASN
+  todavía.
+* **Log dedicado** (`/var/log/are/web_correlation.log`), siguiendo el
+  precedente real de `apache_evasive.sh`/`mod_evasive_report.log` —
+  no todos los sensores lo tienen, pero hay precedente establecido
+  para sensores de alto volumen.
+* **Registrado en `sensor_registry`** (`RFC-017`) — activar/desactivar
+  y visibilidad en ARE ADMIN sin código adicional, mismo mecanismo
+  genérico que ya existe para sensores de polling.
 
-* agrupar eventos por patrón de URL (o hash de estructura de URL) +
-  ventana de tiempo, no por IP aislada;
-* opcionalmente enriquecer con ASN (vía `whois`/`whois.cymru.com`,
-  como se hizo manualmente en esta investigación) para distinguir
-  infraestructura de datacenter de tráfico residencial legítimo;
-* reportar como evento agregado (posiblemente una entrada por grupo
-  correlacionado, no una por IP individual) — esto no encaja
-  directo en el contrato actual (`are.sh found <IP> <JAIL>`,
-  atómico por IP), necesita diseño propio.
+**Validación**
 
-**Pendiente de decidir antes de implementar**
-
-* Formato exacto del evento agregado — ¿se reporta cada IP del grupo
-  por separado con la misma categoría, o existe un concepto nuevo de
-  "grupo/campaña" en el modelo de datos?
-* Umbral de correlación — ¿cuántas IPs en qué ventana de tiempo
-  constituye señal real, versus coincidencia orgánica?
-* Costo de la consulta `whois` en producción — no debería hacerse
-  sincrónica por cada request, necesitaría cacheo o un proceso batch
-  aparte.
-* Formato real de `access_log` ya confirmado (Apache, con la ruta
-  real de logs por dominio) — a diferencia de `IDEA-009`, acá sí hay
-  datos reales de sobra para empezar a diseñar, no es el bloqueante.
+* Lógica de correlación probada en aislamiento contra un log
+  sintético construido con IPs reales de la investigación (12 IPs en
+  un minuto real vs. 3 IPs de control en otro) — umbral disparando
+  correctamente, sin falsos positivos.
+* Corrida real contra el `access_log` completo de producción:
+  detectó grupos genuinos de más de 100 IPs distintas por minuto en
+  múltiples ventanas de tiempo, coincidiendo con el ataque real ya
+  conocido.
+* Backlog histórico completo (14,226 IPs únicas) procesado en
+  segundo plano (`nohup`), sin pérdida de progreso.
+* Timer de systemd activo y corriendo cada minuto, confirmado con
+  `systemctl status`.
 
 **Archivos relacionados**
 
-* (ninguno todavía — sin implementación)
+* `sensors/web_correlation.sh`
+* `database.sh` (`jail_profile`, `sensor_registry`)
+* `manifest/product.sh`
+* `systemd/are-web-correlation.timer`, `systemd/are-web-correlation.service`
+* `config/config.conf`, `templates/config/config.conf`
 
 ---
 

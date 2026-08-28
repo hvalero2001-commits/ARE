@@ -8,7 +8,7 @@
 ##################################################
 PRODUCT_NAME="ARE"
 PRODUCT_DESCRIPTION="Abuse Reputation Engine"
-PRODUCT_VERSION="2.5.0"
+PRODUCT_VERSION="2.4.0"
 PRODUCT_LICENSE="GPL-3.0"
 ##################################################
 # Installation Layout
@@ -77,6 +77,8 @@ PRODUCT_SYSTEMD_UNITS=(
     are-restore-ipsets.service
     are-spamassassin.service
     are-spamassassin.timer
+    are-web-correlation.service
+    are-web-correlation.timer
 )
 ##################################################
 # Executable Links
@@ -106,6 +108,7 @@ PRODUCT_LOGROTATE_FILES=(
     are
     mod_evasive_report
     admin_audit
+    web_correlation
 )
 PRODUCT_EXECUTABLE_FILES=(
     are-installer
@@ -113,6 +116,7 @@ PRODUCT_EXECUTABLE_FILES=(
     sensors/fail2ban.sh
     sensors/apache_evasive.sh
     sensors/spamassassin.sh
+    sensors/web_correlation.sh
     scripts/install.sh
     scripts/build-package.sh
 )
