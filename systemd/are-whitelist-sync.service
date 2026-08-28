@@ -1,0 +1,11 @@
+[Unit]
+Description=ARE Whitelist Auto-Sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/are/scripts/sync_whitelist.sh
+User=root
+Group=root
+

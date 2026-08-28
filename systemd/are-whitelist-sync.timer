@@ -1,0 +1,12 @@
+[Unit]
+Description=Run ARE Whitelist Auto-Sync daily
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1800
+Persistent=true
+Unit=are-whitelist-sync.service
+
+[Install]
+WantedBy=timers.target
+

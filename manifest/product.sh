@@ -79,6 +79,15 @@ PRODUCT_SYSTEMD_UNITS=(
     are-spamassassin.timer
     are-web-correlation.service
     are-web-correlation.timer
+)
+##################################################
+# Optional Systemd Units
+#
+# Se copian en toda instalación, pero no se habilitan
+# automáticamente — requieren configuración explícita del
+# administrador antes de tener sentido (IDEA-012).
+##################################################
+PRODUCT_SYSTEMD_UNITS_OPTIONAL=(
     are-whitelist-sync.service
     are-whitelist-sync.timer
 )

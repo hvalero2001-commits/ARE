@@ -3210,6 +3210,67 @@ por `IDEA-010` el mismo día:
 
 ---
 
+## IDEA-012
+
+**Título:** Sincronización automática de whitelist contra listas de IPs publicadas por terceros
+
+**Estado:** ✔ Implementada y validada en producción
+
+**Versión:** v2.6 (en desarrollo)
+
+**Descripción**
+
+Necesidad real: mantener `config/whitelist.conf` actualizada con los
+rangos de un proxy inverso delante del servidor (Cloudflare, en este
+caso), sin copiar/pegar manualmente cada vez que el proveedor los
+cambia. Se dejó constancia previa del problema en el propio archivo
+(`## Cloudflare (ejemplo, no copiar toda la lista aquí)`), antes de
+resolverlo.
+
+**Diseño**
+
+* Genérico, no atado a Cloudflare en el código — la URL de origen
+  (IPv4/IPv6 por separado) se define en `config.conf`
+  (`WHITELIST_SYNC_URL_V4`/`_V6`), sirve para cualquier proveedor que
+  publique sus rangos en texto plano, una línea por CIDR.
+* Bloque delimitado por marcadores (`# BEGIN ... AUTO-SYNC` /
+  `# END ... AUTO-SYNC`) dentro del mismo `whitelist.conf` —
+  reemplaza únicamente ese bloque en cada corrida, sin tocar ninguna
+  entrada manual del administrador (IPs de oficina, IP del propio
+  VPS, etc.).
+* Validación antes de escribir: si la descarga falla o el contenido
+  no tiene forma de CIDR válido, la sincronización se aborta sin
+  modificar el archivo — nunca vacía la whitelist ante un fallo de
+  red o un cambio de formato del proveedor.
+* Sin sincronización automática si las URLs no están configuradas —
+  falla explícito, no en silencio.
+* Timer diario (`OnCalendar=daily`, con `RandomizedDelaySec` para no
+  concentrar la carga siempre a la misma hora exacta) — la
+  frecuencia de rotación real de este tipo de listas no amerita
+  nada más agresivo.
+
+**Validación**
+
+* Lógica de reemplazo de bloque probada en aislamiento (dos
+  sincronizaciones simuladas seguidas) antes de tocar producción —
+  confirmado que preserva entradas manuales y reemplaza el bloque
+  viejo sin duplicar.
+* Ejecución real contra la API pública de Cloudflare: 22 rangos
+  genuinos (15 IPv4 + 7 IPv6) sincronizados correctamente,
+  coincidiendo con los que el propio administrador ya tenía
+  anotados a mano — bloque de ejemplo viejo removido tras confirmar
+  que el mecanismo automático ya lo cubre.
+* Timer activo y confirmado con `systemctl status`.
+
+**Archivos relacionados**
+
+* `scripts/sync_whitelist.sh`
+* `manifest/product.sh`
+* `systemd/are-whitelist-sync.timer`, `systemd/are-whitelist-sync.service`
+* `config/config.conf`
+
+---
+
 # HISTORIAL DE BUGS RESUELTOS
 
 Las siguientes incidencias forman parte del historial técnico de ARE y se conservan para trazabilidad.
@@ -4820,9 +4881,9 @@ Las ideas no constituyen compromisos de implementación.
 La versión estable documentada actualmente es:
 
 ```text
-v2.5.0
+v2.6.0
 ```
 
-La versión v2.6 se encuentra en desarrollo activo.
+La versión v2.7 se encuentra en desarrollo activo.
 
 El trabajo futuro deberá incorporarse al Roadmap antes de convertirse en una línea formal de desarrollo.

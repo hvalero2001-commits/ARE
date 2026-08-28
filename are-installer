@@ -546,6 +546,27 @@ install_systemd() {
         install_log "Unidad instalada: $unit"
     done
 
+    # Unidades opcionales (ej. are-whitelist-sync): se copian igual
+    # que el resto, pero NO se habilitan automáticamente — requieren
+    # configuración explícita del administrador antes de tener
+    # sentido (ver WHITELIST_SYNC_URL_V4/_V6 en config.conf). Sin
+    # esto, cualquiera que no las necesite terminaría con un timer
+    # corriendo en vano todos los días, generando ruido en el log.
+    for unit in "${PRODUCT_SYSTEMD_UNITS_OPTIONAL[@]:-}"; do
+        [ -z "$unit" ] && continue
+
+        source="$INSTALL_HOME/systemd/$unit"
+        target="$SYSTEMD_DIR/$unit"
+
+        if [ ! -f "$source" ]; then
+            install_error "Plantilla systemd no encontrada: $source"
+        fi
+
+        install -m 0644 "$source" "$target"
+
+        install_log "Unidad opcional instalada (no habilitada): $unit"
+    done
+
     if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
         systemctl daemon-reload
 
@@ -814,7 +835,8 @@ installer_uninstall() {
             install_log "Desinstalando ARE"
 
             if [ "$SYSTEMD_DIR" = "/etc/systemd/system" ]; then
-                for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+                for unit in "${PRODUCT_SYSTEMD_UNITS[@]}" "${PRODUCT_SYSTEMD_UNITS_OPTIONAL[@]:-}"; do
+                    [ -z "$unit" ] && continue
                     case "$unit" in
                         *.timer)
                             systemctl disable --now "$unit" \
@@ -824,7 +846,8 @@ installer_uninstall() {
                 done
             fi
 
-            for unit in "${PRODUCT_SYSTEMD_UNITS[@]}"; do
+            for unit in "${PRODUCT_SYSTEMD_UNITS[@]}" "${PRODUCT_SYSTEMD_UNITS_OPTIONAL[@]:-}"; do
+                [ -z "$unit" ] && continue
                 rm -f "$SYSTEMD_DIR/$unit"
                 install_log "Unidad eliminada: $unit"
             done
