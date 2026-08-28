@@ -741,6 +741,12 @@ El diseño actual conserva los principios establecidos durante v1.1 y los adapta
 * no todo dato compartido entre dos instancias del mismo producto tiene el mismo mecanismo de conflicto correcto — la configuración (`jail_profile`) necesita "sobrescribir/conservar" porque cada campo tiene un único valor válido; la reputación no necesita elegir nada, porque ya está diseñada para acumularse, y el import simplemente reutiliza esa misma acumulación;
 * un filtro de relevancia no siempre necesita una decisión explícita del administrador — apoyarse en una estructura que ya existe (`jail_profile`, reflejo del rol real del servidor) resuelve "¿esto le sirve a este servidor?" gratis, sin inventar un concepto nuevo de "rol" en el modelo de datos.
 
+## Decisiones consolidadas en v2.7
+
+* un mecanismo que modifica un archivo editado también a mano por el administrador debe delimitar claramente su propia zona (marcadores `BEGIN`/`END`), nunca asumir que puede reemplazar el archivo completo — cualquier entrada manual fuera de ese bloque debe sobrevivir indefinidamente, sin importar cuántas veces se sincronice;
+* una integración con una fuente externa nunca debe dejar el sistema en peor estado que antes de intentarla — validar el contenido descargado antes de escribir nada, y abortar sin tocar el archivo si la validación falla, en vez de aplicar un resultado parcial o vacío;
+* no toda unidad de systemd que se instala debe habilitarse automáticamente — cuando depende de configuración explícita del administrador para tener sentido, activarla sin esa configuración es solo ruido; el Installer Engine necesitaba distinguir entre "instalar" (siempre) y "activar" (solo si corresponde), algo que no existía hasta esta versión.
+
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
 
-La versión v2.6 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+La versión v2.8 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.

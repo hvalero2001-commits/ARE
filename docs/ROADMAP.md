@@ -17,13 +17,13 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.5.0
+v2.7.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.6 (rama v2.6-dev)
+v2.8 (rama v2.8-dev)
 ```
 
 Estado:
@@ -32,7 +32,7 @@ Estado:
 Producción
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.6-dev`, documentado en detalle en `docs/TODO.md`.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.8-dev`, documentado en detalle en `docs/TODO.md`.
 
 ---
 
@@ -364,7 +364,7 @@ Permitir compartir reputación entre servidores de la misma flota — una IP mal
 
 ## Estado
 
-Implementado y validado en producción real — pendiente de fusión a `main` y publicación del tag `v2.6.0`
+✔ Completado — liberado como release oficial (`v2.6.0`)
 
 ## Funcionalidades incorporadas
 
@@ -380,6 +380,35 @@ Surgida directamente de la validación de la versión anterior: un ataque confir
 ## Validación
 
 Probado en producción real con datos genuinos del ataque de scraping detectado en la versión anterior: exportación de 1192 IPs reales, e importación confirmando las dos rutas del filtro de relevancia (una categoría con presencia local se aplicó, una sin presencia local se omitió sin abortar el resto del archivo).
+
+---
+
+# v2.7
+
+## Objetivo
+
+Mantener actualizada la whitelist contra listas de IPs publicadas por terceros (ej. Cloudflare), sin copiar/pegar manualmente cada vez que el proveedor cambia sus rangos.
+
+## Estado
+
+✔ Completado — liberado como release oficial (`v2.7.0`)
+
+## Funcionalidades incorporadas
+
+### Sincronización automática de whitelist
+
+* Bloque delimitado por marcadores dentro del propio `whitelist.conf` — se reemplaza en cada corrida sin tocar ninguna entrada manual del administrador.
+* Genérico: la URL de origen (IPv4/IPv6) es configurable, no está atado a Cloudflare en el código.
+* Validación antes de escribir — nunca vacía la whitelist ante un fallo de descarga o un cambio de formato del proveedor.
+* Timer diario, opcional — se instala en toda actualización pero no se habilita automáticamente, ya que requiere configuración explícita antes de tener sentido.
+
+### `PRODUCT_SYSTEMD_UNITS_OPTIONAL` (Installer Engine)
+
+Mecanismo nuevo, genérico, para cualquier unidad futura que dependa de configuración explícita del administrador: se copia en toda instalación, pero no se habilita automáticamente — evita que quien no la necesite termine con un timer corriendo en vano.
+
+## Validación
+
+Sincronización real ejecutada contra la API pública de Cloudflare: 22 rangos genuinos (15 IPv4 + 7 IPv6) aplicados correctamente, coincidiendo con los que el propio administrador ya tenía anotados a mano. Timer activo confirmado con `systemctl status`.
 
 ---
 

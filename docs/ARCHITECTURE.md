@@ -8,7 +8,7 @@ La arquitectura separa la observación de los eventos, la construcción de reput
 
 ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3, v2.4, v2.5 y v2.6 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.5.0 constituye la última versión estable liberada. v2.6 se encuentra en desarrollo y validación sobre esa base.
+La versión v2.7.0 constituye la última versión estable liberada. v2.8 se encuentra en desarrollo y validación sobre esa base.
 
 ---
 
@@ -806,5 +806,9 @@ v2.5 extendió esa base con:
 v2.6 extendió esa base con:
 
 * propagación de reputación entre instancias de ARE — un mecanismo de exportar/importar que respeta la separación de responsabilidades ya establecida: la reputación se sigue acumulando exclusivamente vía `db_add_score()`, sin ninguna ruta de escritura alternativa; el filtro de qué se aplica al importar se apoya en `jail_profile`, ya existente, sin necesitar ningún concepto de "rol de servidor" nuevo en el modelo de datos.
+
+v2.7 extendió esa base con:
+
+* el Installer Engine incorpora el concepto de unidad systemd opcional (`PRODUCT_SYSTEMD_UNITS_OPTIONAL`) — se instala en toda actualización, pero no se activa automáticamente si depende de configuración explícita del administrador; evita que una capacidad de nicho, útil para algunos servidores y sin sentido para otros, se convierta en ruido para quien no la necesita.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.

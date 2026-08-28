@@ -105,9 +105,9 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.5.0** (estable, liberada) — **v2.6 en desarrollo activo**
+**ARE v2.7.0** (estable, liberada) — **v2.8 en desarrollo activo**
 
-La versión 2.4 completó el modelo de reputación extensible y corrigió la instalación remota para que funcione realmente de punta a punta. La versión 2.5 incorporó un sensor de correlación web, capaz de detectar scraping distribuido de catálogo/carrito mediante correlación cruzada entre múltiples IPs — una amenaza que Fail2Ban no puede ver por diseño. En desarrollo, sin liberar todavía: exportar e importar reputación entre servidores de la misma flota, filtrada por rol.
+La versión 2.6 permite exportar e importar reputación entre servidores de la misma flota, filtrada por rol. La versión 2.7 sincroniza automáticamente la whitelist contra listas de IPs publicadas por terceros (ej. Cloudflare) — genérico, configurable, sin habilitarse por defecto salvo que el administrador lo necesite.
 
 ## Instalación
 

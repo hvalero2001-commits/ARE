@@ -6,6 +6,45 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.7.0
+
+**Fecha:** 2026-08-28
+
+## Resumen
+
+Mantiene la whitelist actualizada contra listas de IPs publicadas por terceros, sin intervención manual — y agrega un mecanismo genérico para unidades de systemd opcionales, que se instalan siempre pero solo se activan si el administrador las configura.
+
+## Sincronización automática de whitelist
+
+* Bloque delimitado por marcadores dentro del propio `whitelist.conf` — se reemplaza en cada corrida sin tocar ninguna entrada manual del administrador.
+* Genérico: la URL de origen (IPv4/IPv6) es configurable, no está atado a ningún proveedor específico en el código.
+* Validación antes de escribir — nunca vacía la whitelist ante un fallo de descarga o un cambio de formato del proveedor.
+* Timer diario, opcional — se instala en toda actualización pero no se habilita automáticamente.
+
+## Installer Engine: unidades systemd opcionales
+
+`PRODUCT_SYSTEMD_UNITS_OPTIONAL` — mecanismo nuevo y genérico para cualquier unidad que dependa de configuración explícita del administrador antes de tener sentido. Se copia en toda instalación/actualización, pero no se habilita automáticamente, evitando ruido en el log para quien no la necesite. `uninstall` extendido para limpiar también estas unidades.
+
+## Validación
+
+Sincronización real ejecutada contra la API pública de Cloudflare: 22 rangos genuinos (15 IPv4 + 7 IPv6) aplicados correctamente. Timer confirmado activo con `systemctl status`.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.6.0
 
 **Fecha:** 2026-08-28
