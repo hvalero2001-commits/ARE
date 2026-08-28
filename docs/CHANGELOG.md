@@ -6,6 +6,43 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.6.0
+
+**Fecha:** 2026-08-28
+
+## Resumen
+
+Permite compartir reputación entre servidores de la misma flota, filtrada automáticamente por el rol de cada servidor receptor.
+
+## Exportar / Importar reputación entre servidores
+
+Surgida directamente de la validación de v2.5: un ataque confirmado contra un servidor no implica que la misma infraestructura maliciosa no ataque a otros servidores de la flota por una superficie distinta.
+
+* Exportación filtrada por categoría y score mínimo configurable, evitando exportar eventos aislados de bajo valor.
+* La reputación se acumula al importar, no se sobrescribe — reutiliza la misma función que usa cualquier sensor real.
+* Filtro de relevancia automático por rol del servidor: una categoría solo se aplica al importar si ya tiene presencia en el `jail_profile` local.
+* Dos opciones nuevas en la rama "Estado / Reputación" de ARE ADMIN.
+
+## Validación
+
+Probado en producción real con datos genuinos del ataque de scraping detectado en v2.5: exportación de 1192 IPs reales, e importación confirmando las dos rutas del filtro de relevancia sin abortar el resto del archivo ante una categoría no aplicable.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.5.0
 
 **Fecha:** 2026-08-28
