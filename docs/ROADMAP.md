@@ -17,13 +17,13 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.4.1
+v2.5.0
 ```
 
 Versión en desarrollo activo:
 
 ```text
-v2.5 (rama v2.5-dev)
+v2.6 (rama v2.6-dev)
 ```
 
 Estado:
@@ -32,7 +32,7 @@ Estado:
 Producción
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.5-dev`, documentado en detalle en `docs/TODO.md`.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.6-dev`, documentado en detalle en `docs/TODO.md`.
 
 ---
 
@@ -326,6 +326,33 @@ Completar el modelo de reputación extensible (RFC-008), y corregir la instalaci
 ## Nota de proceso
 
 Esta versión reveló que la instalación remota, documentada como validada en el cierre de `v2.3.0`, en realidad nunca se había probado de punta a punta sin intervención manual — cada validación previa incluía comandos ejecutados a mano durante las pruebas, ocultando fallas reales en el Installer. Corregido con instalaciones limpias reales, repetidas hasta confirmar 11/11 sin ningún paso manual entre la instalación y la verificación.
+
+---
+
+# v2.5
+
+## Objetivo
+
+Incorporar un nuevo sensor al Sensor Framework capaz de detectar un tipo de amenaza que Fail2Ban no puede ver por diseño: correlación de comportamiento entre múltiples IPs distintas, en vez de evaluación aislada por IP individual.
+
+## Estado
+
+✔ Completado — liberado como release oficial (`v2.5.0`)
+
+## Funcionalidades incorporadas
+
+### Web Correlation Sensor
+
+Surgido de una investigación real sobre un ataque de scraping distribuido de catálogo confirmado en producción, con evidencia reunida antes de escribir una sola línea de código: `fail2ban-regex` confirmando que el filtro existente no detectaba nada de ese tráfico, correlación real por minuto entre decenas de IPs distintas, y `whois` confirmando infraestructura de datacenter/proxy como origen.
+
+* Agrupa eventos por marcador de ruta configurable (por defecto, `cart` — generaliza el sensor a cualquier sitio con catálogo/carrito de e-commerce, no atado a un negocio específico) y ventana de tiempo, contando IPs distintas involucradas.
+* Reporta cada IP del grupo correlacionado al contrato existente (`are.sh found <IP> <JAIL>`), sin introducir un concepto nuevo de "grupo/campaña" en el modelo de datos — toda la complejidad de correlación queda encapsulada dentro del sensor.
+* Registrado en `sensor_registry` (`RFC-017`) — visible y controlable desde ARE ADMIN sin código adicional, mismo mecanismo genérico que el resto de los sensores de polling.
+* Log dedicado, siguiendo el precedente ya establecido por `apache_evasive.sh`/`mod_evasive_report.log`.
+
+## Validación
+
+Lógica de correlación probada en aislamiento antes de tocar producción; corrida real contra el `access_log` completo confirmó grupos genuinos de más de 100 IPs distintas por minuto, coincidiendo con el ataque real ya conocido. Backlog histórico completo (más de 14.000 IPs únicas) procesado en producción sin pérdida de progreso.
 
 ---
 

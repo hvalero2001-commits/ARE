@@ -6,6 +6,47 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.5.0
+
+**Fecha:** 2026-08-28
+
+## Resumen
+
+Incorpora un nuevo sensor al Sensor Framework: correlación de comportamiento entre múltiples IPs distintas, capaz de detectar amenazas que Fail2Ban no puede ver por diseño (evaluación aislada por IP individual).
+
+## Web Correlation Sensor
+
+Surgido de una investigación real sobre un ataque de scraping distribuido de catálogo confirmado en producción, con evidencia reunida antes de escribir código: verificación de que el filtro `apache-badbots` existente no detectaba nada de ese tráfico, correlación real por minuto entre decenas de IPs distintas, y confirmación por `whois` de infraestructura de datacenter/proxy como origen.
+
+* Agrupa eventos por marcador de ruta configurable (por defecto, `cart`) y ventana de tiempo, contando IPs distintas involucradas — sin atarse a un negocio o sitio específico.
+* Reporta cada IP del grupo correlacionado al contrato existente (`are.sh found <IP> <JAIL>`), sin introducir un concepto nuevo de "grupo/campaña" en el modelo de datos.
+* Registrado en `sensor_registry` — visible y controlable desde ARE ADMIN sin código adicional.
+* Log dedicado, siguiendo el precedente de `apache_evasive.sh`/`mod_evasive_report.log`.
+
+## Validación
+
+Lógica de correlación probada en aislamiento antes de tocar producción. Corrida real contra el `access_log` completo confirmó grupos de más de 100 IPs distintas por minuto, coincidiendo con el ataque real ya conocido. Backlog histórico completo (más de 14.000 IPs únicas) procesado en producción sin pérdida de progreso.
+
+## Documentación
+
+Auditoría completa de la sección `# RFC` de `docs/TODO.md`: 4 entradas (`RFC-001`, `RFC-003`, `RFC-004`, `RFC-006`) permanecían marcadas como borrador pese a estar efectivamente resueltas, dos de ellas absorbidas por una RFC posterior sin nunca haberse referenciado de vuelta. Corregidas con evidencia real de cuándo y cómo se completaron. Contradicción real encontrada y resuelta entre `PHILOSOPHY.md` y `PROJECT.md` (dos listas de "principios" del proyecto completamente distintas) — `PHILOSOPHY.md` queda como fuente única.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.4.1
 
 **Fecha:** 2026-08-24

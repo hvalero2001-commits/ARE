@@ -6,9 +6,9 @@ ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado p
 
 La arquitectura separa la observación de los eventos, la construcción de reputación, la evaluación del estado, la decisión de política y la ejecución de las acciones.
 
-ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3 y v2.4 extendieron esa misma base sin introducir una ruptura arquitectónica.
+ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3, v2.4 y v2.5 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.4.1 constituye la última versión estable liberada. v2.5 se encuentra en desarrollo y validación sobre esa base.
+La versión v2.5.0 constituye la última versión estable liberada. v2.6 se encuentra en desarrollo y validación sobre esa base.
 
 ---
 
@@ -798,5 +798,9 @@ v2.4 extendió esa base con:
 
 * modelo de reputación extensible completo — las columnas de categoría redundantes en `reputation` eliminadas, tanto para instalaciones nuevas (esquema reducido desde el `CREATE TABLE`) como para el mecanismo de migración de datos existentes, sin depender de ninguna versión específica de SQLite salvo para la migración de bases ya creadas con el esquema viejo;
 * el Installer Engine pasó a ser responsable de dejar una instalación completamente operativa por sí sola — conjuntos IPSet, reglas de firewall, y unidades systemd sin dependencias externas duras, sin depender de que el operador ejecute pasos manuales adicionales después de instalar.
+
+v2.5 extendió esa base con:
+
+* un patrón de sensor nuevo dentro del Sensor Framework — correlación de comportamiento entre múltiples IPs distintas (no evaluación aislada por IP), necesario para detectar amenazas que Fail2Ban no puede ver por diseño; el reporte a ARE sigue reutilizando el contrato existente (`found <IP> <JAIL>`) por cada IP del grupo, sin introducir un concepto nuevo de "grupo/campaña" en el modelo de datos.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.

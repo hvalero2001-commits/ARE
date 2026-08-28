@@ -730,6 +730,12 @@ El diseño actual conserva los principios establecidos durante v1.1 y los adapta
 * una dependencia dura (`Requires=`) entre un componente propio y una herramienta externa opcional asume que esa herramienta siempre va a estar presente — cuando el propio componente ya tolera su ausencia de forma limpia (un log inexistente, por ejemplo), la dependencia de systemd debe reflejar eso mismo (`After=`, no `Requires=`), no ser más estricta que la lógica que ya existe;
 * validar una demostración con comandos manuales de por medio no es lo mismo que validar la instalación en sí — cualquier verificación de un flujo automatizado debe reproducir exactamente ese flujo, sin intervención humana entre el disparador y la comprobación del resultado.
 
+## Decisiones consolidadas en v2.5
+
+* un sensor puede necesitar correlación con estado (agrupar múltiples eventos por ventana de tiempo) en vez de evaluación línea por línea — el contrato de reporte hacia ARE (`found <IP> <JAIL>`) sigue siendo el mismo, la complejidad de agregación queda encapsulada dentro del sensor, sin tocar el modelo de datos ni el motor de decisión;
+* un parámetro de configuración específico de un sensor no debe asumir el caso de uso de quien lo pidió — un marcador de ruta genérico y configurable (`cart`, aplicable a cualquier catálogo de e-commerce) generaliza el sensor mucho más que un valor hardcodeado al negocio puntual que originó la necesidad;
+* documentar la evidencia real que justifica un umbral de detección (capturas de correlación real, verificación de infraestructura de origen) antes de calibrarlo, en vez de elegir un número arbitrario — la calibración del `jail_profile` de un sensor nuevo debe poder explicarse con esa misma evidencia, no solo con intuición.
+
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
 
-La versión v2.5 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+La versión v2.6 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
