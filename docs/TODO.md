@@ -3118,6 +3118,98 @@ limitación de configuración.
 
 ---
 
+## IDEA-011
+
+**Título:** Exportar / Importar reputación entre servidores de la flota
+
+**Estado:** ✔ Implementada y validada en producción
+
+**Versión:** v2.6 (en desarrollo)
+
+**Descripción**
+
+Surge directamente de `IDEA-010`: un ataque de scraping distribuido
+confirmado contra un servidor puntual no implica que la misma
+infraestructura maliciosa no ataque a otros servidores de la flota
+por una superficie distinta (SSH, DNS, correo). Hoy cada servidor
+acumula reputación completamente aislada — si una IP ya demostró
+mala conducta en un servidor, otro servidor de la flota no tiene
+ninguna memoria de eso hasta que la vuelva a ver por su cuenta.
+
+**Diferencia de diseño respecto al precedente (`RFC-011`,
+`jail_profile`)**
+
+`jail_profile` exporta/importa configuración (cada campo tiene un
+único valor válido, por eso tiene sentido "sobrescribir/conservar").
+La reputación, en cambio, ya está diseñada para acumularse — es
+literalmente lo que hace `db_add_score()` en cada evento real. El
+import no pregunta nada de conflictos: simplemente aplica el score
+importado sobre el existente, vía la misma función que usa cualquier
+sensor, sin mecanismo nuevo.
+
+**Filtro de relevancia por rol del servidor**
+
+No toda la reputación es igualmente "portable" — una categoría
+atada al rol de un servidor (`SOCIAL`, específica de MTA) no tiene
+sentido compartirla con un servidor que ni siquiera corre correo.
+Resuelto sin necesitar que el administrador defina manualmente qué
+servidor "necesita" qué categoría: al importar, una fila solo se
+aplica si esa categoría **ya tiene presencia en el `jail_profile`
+local** — cada servidor absorbe solo lo que le aplica a su propio
+rol, gratis, sin configuración adicional.
+
+**Implementación**
+
+* Dos funciones nuevas en `database.sh`: `db_export_reputation()`
+  (consulta filtrada por categoría + score mínimo, join con
+  `reputation` para la última actividad) y
+  `db_category_exists_locally()` (el filtro de relevancia).
+* Dos opciones nuevas en la rama "Estado / Reputación" de ARE ADMIN
+  (`admin/state_menu.sh`): `9) Exportar reputación`,
+  `10) Importar reputación` — mismo patrón visual que el resto del
+  menú.
+* Exportar: checklist de categorías (default `BOT RECON EXPLOIT`,
+  las más "portables" — no atadas a un rol de servidor específico) +
+  score mínimo configurable, evitando exportar cada IP con score
+  aislado de un solo evento.
+* Formato de archivo: `IP|CATEGORIA|SCORE|ULTIMA_ACTIVIDAD`, cabecera
+  de comentarios (fecha, hostname, categorías, score mínimo) — mismo
+  esquema visual que `jail_profile`.
+* Ubicación: `${ARE_DATA}/backups/reputation/`, mismo patrón que
+  `${ARE_DATA}/backups/jail_profiles/`.
+* Importar: lista numerada de archivos disponibles, validación por
+  línea (categoría reconocida en `REPUTATION_CATEGORIES`, score
+  numérico) — líneas inválidas se reportan como error y se omiten,
+  sin abortar el resto de la importación, mismo criterio que
+  `RFC-011`.
+* Ambas operaciones registradas en `admin_audit.log`
+  (`admin_audit_log`), mismo mecanismo ya existente.
+
+**Validación**
+
+Probado en producción real, con datos genuinos del ataque detectado
+por `IDEA-010` el mismo día:
+
+* Exportación real: 1192 IPs (categoría `BOT`, score ≥10) exportadas
+  correctamente, archivo con cabecera y formato validados.
+* Filtro de relevancia confirmado con las dos rutas reales: una fila
+  `BOT` (categoría con `jail_profile` local) se aplicó; una fila
+  `MALWARE` (sin ningún `jail_profile` local, calibrada solo por
+  umbral desde `TASK-018` pero sin sensor real) se omitió
+  correctamente, sin abortar el resto del archivo —
+  `Aplicadas: 1, Omitidas: 1, Errores: 0`.
+* Confirmado el efecto real en la base: `are score` sobre la IP de
+  prueba mostró `Bot=15, TOTAL=15`, coincidiendo exacto con el score
+  importado — `db_add_score()` acumulando correctamente, mismo
+  camino que un sensor real.
+
+**Archivos relacionados**
+
+* `database.sh`
+* `admin/state_menu.sh`
+
+---
+
 # HISTORIAL DE BUGS RESUELTOS
 
 Las siguientes incidencias forman parte del historial técnico de ARE y se conservan para trazabilidad.

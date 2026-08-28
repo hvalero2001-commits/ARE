@@ -76,6 +76,7 @@ Entre las capacidades actuales de ARE se encuentran:
 * Motor de estados para el ciclo de vida de las IP.
 * Policy Engine separado del mecanismo de detección, con evaluación por categoría y umbrales configurables.
 * Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive), incluyendo un sensor real para señales heurísticas de correo (SpamAssassin), un sensor de correlación de comportamiento web entre múltiples IPs (detección de scraping distribuido de catálogo), y control operativo de activación/desactivación por sensor desde ARE ADMIN.
+* Exportación e importación de reputación entre servidores de la misma flota, filtrada por categoría y score mínimo, con relevancia automática por el rol de cada servidor (solo se aplican categorías que ya tienen presencia local).
 * Persistencia mediante SQLite, con modelo de reputación extensible sin migración de esquema.
 * Interfaz de administración por línea de comandos (ARE ADMIN), con auditoría de operaciones.
 * Dashboard operativo para reputación, eventos, estadísticas y tendencias temporales.
@@ -106,7 +107,7 @@ Las categorías de reputación utilizadas actualmente son:
 
 **ARE v2.5.0** (estable, liberada) — **v2.6 en desarrollo activo**
 
-La versión 2.4 completó el modelo de reputación extensible (columnas de categoría redundantes eliminadas, RFC-008), corrigió la instalación remota para que funcione realmente de punta a punta sin intervención manual, y simplificó la desinstalación. La versión 2.5 incorpora un nuevo sensor de correlación web, capaz de detectar scraping distribuido de catálogo/carrito mediante correlación cruzada entre múltiples IPs — una amenaza que Fail2Ban no puede ver por diseño (evalúa cada IP contra su propio historial, no contra el de otras).
+La versión 2.4 completó el modelo de reputación extensible y corrigió la instalación remota para que funcione realmente de punta a punta. La versión 2.5 incorporó un sensor de correlación web, capaz de detectar scraping distribuido de catálogo/carrito mediante correlación cruzada entre múltiples IPs — una amenaza que Fail2Ban no puede ver por diseño. En desarrollo, sin liberar todavía: exportar e importar reputación entre servidores de la misma flota, filtrada por rol.
 
 ## Instalación
 

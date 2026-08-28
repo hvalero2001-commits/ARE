@@ -6,7 +6,7 @@ ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado p
 
 La arquitectura separa la observación de los eventos, la construcción de reputación, la evaluación del estado, la decisión de política y la ejecución de las acciones.
 
-ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3, v2.4 y v2.5 extendieron esa misma base sin introducir una ruptura arquitectónica.
+ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3, v2.4, v2.5 y v2.6 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
 La versión v2.5.0 constituye la última versión estable liberada. v2.6 se encuentra en desarrollo y validación sobre esa base.
 
@@ -802,5 +802,9 @@ v2.4 extendió esa base con:
 v2.5 extendió esa base con:
 
 * un patrón de sensor nuevo dentro del Sensor Framework — correlación de comportamiento entre múltiples IPs distintas (no evaluación aislada por IP), necesario para detectar amenazas que Fail2Ban no puede ver por diseño; el reporte a ARE sigue reutilizando el contrato existente (`found <IP> <JAIL>`) por cada IP del grupo, sin introducir un concepto nuevo de "grupo/campaña" en el modelo de datos.
+
+v2.6 extendió esa base con:
+
+* propagación de reputación entre instancias de ARE — un mecanismo de exportar/importar que respeta la separación de responsabilidades ya establecida: la reputación se sigue acumulando exclusivamente vía `db_add_score()`, sin ninguna ruta de escritura alternativa; el filtro de qué se aplica al importar se apoya en `jail_profile`, ya existente, sin necesitar ningún concepto de "rol de servidor" nuevo en el modelo de datos.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.

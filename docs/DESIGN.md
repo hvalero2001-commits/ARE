@@ -736,6 +736,11 @@ El diseño actual conserva los principios establecidos durante v1.1 y los adapta
 * un parámetro de configuración específico de un sensor no debe asumir el caso de uso de quien lo pidió — un marcador de ruta genérico y configurable (`cart`, aplicable a cualquier catálogo de e-commerce) generaliza el sensor mucho más que un valor hardcodeado al negocio puntual que originó la necesidad;
 * documentar la evidencia real que justifica un umbral de detección (capturas de correlación real, verificación de infraestructura de origen) antes de calibrarlo, en vez de elegir un número arbitrario — la calibración del `jail_profile` de un sensor nuevo debe poder explicarse con esa misma evidencia, no solo con intuición.
 
+## Decisiones consolidadas en v2.6
+
+* no todo dato compartido entre dos instancias del mismo producto tiene el mismo mecanismo de conflicto correcto — la configuración (`jail_profile`) necesita "sobrescribir/conservar" porque cada campo tiene un único valor válido; la reputación no necesita elegir nada, porque ya está diseñada para acumularse, y el import simplemente reutiliza esa misma acumulación;
+* un filtro de relevancia no siempre necesita una decisión explícita del administrador — apoyarse en una estructura que ya existe (`jail_profile`, reflejo del rol real del servidor) resuelve "¿esto le sirve a este servidor?" gratis, sin inventar un concepto nuevo de "rol" en el modelo de datos.
+
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
 
 La versión v2.6 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.

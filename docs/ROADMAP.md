@@ -356,6 +356,33 @@ Lógica de correlación probada en aislamiento antes de tocar producción; corri
 
 ---
 
+# v2.6
+
+## Objetivo
+
+Permitir compartir reputación entre servidores de la misma flota — una IP maliciosa ya confirmada en un servidor no debería tener que acumular evidencia desde cero en el siguiente.
+
+## Estado
+
+Implementado y validado en producción real — pendiente de fusión a `main` y publicación del tag `v2.6.0`
+
+## Funcionalidades incorporadas
+
+### Exportar / Importar reputación entre servidores
+
+Surgida directamente de la validación de la versión anterior: un ataque confirmado contra un servidor no implica que la misma infraestructura maliciosa no ataque a otros servidores de la flota por una superficie distinta.
+
+* Exportación filtrada por categoría (checklist, default `BOT`/`RECON`/`EXPLOIT`) y score mínimo configurable, evitando exportar eventos aislados de bajo valor.
+* La reputación se acumula al importar, no se sobrescribe — misma función que usa cualquier sensor real, sin mecanismo de conflicto nuevo que aprender.
+* Filtro de relevancia automático por rol del servidor: una categoría solo se aplica al importar si ya tiene presencia en el `jail_profile` local — sin que el administrador tenga que decidir manualmente qué servidor necesita qué categoría.
+* Dos opciones nuevas en la rama "Estado / Reputación" de ARE ADMIN.
+
+## Validación
+
+Probado en producción real con datos genuinos del ataque de scraping detectado en la versión anterior: exportación de 1192 IPs reales, e importación confirmando las dos rutas del filtro de relevancia (una categoría con presencia local se aplicó, una sin presencia local se omitió sin abortar el resto del archivo).
+
+---
+
 # Próximas líneas de trabajo
 
 ## Sensores adicionales

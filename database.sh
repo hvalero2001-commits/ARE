@@ -1021,6 +1021,51 @@ db_delete_jail_profile() {
 }
 
 #############################################################
+# IDEA-011: Exportar / Importar reputación entre servidores
+#############################################################
+
+#############################################################
+# Exportar reputation_scores filtrado por categoría y score
+# mínimo. Devuelve IP|CATEGORIA|SCORE|ULTIMA_ACTIVIDAD, una
+# fila por línea.
+#############################################################
+db_export_reputation() {
+
+    local CATEGORIES="$1"
+    local MIN_SCORE="$2"
+
+    local IN_CLAUSE=""
+    local cat
+    for cat in $CATEGORIES; do
+        if [ -n "$IN_CLAUSE" ]; then
+            IN_CLAUSE="${IN_CLAUSE},"
+        fi
+        IN_CLAUSE="${IN_CLAUSE}'${cat}'"
+    done
+
+    db_exec "
+        SELECT
+            rs.ip || '|' || rs.category || '|' || rs.score || '|' || COALESCE(r.updated, 0)
+        FROM reputation_scores rs
+        LEFT JOIN reputation r ON r.ip = rs.ip
+        WHERE rs.category IN ($IN_CLAUSE)
+          AND rs.score >= $MIN_SCORE
+        ORDER BY rs.ip, rs.category;
+    "
+}
+
+#############################################################
+# ¿Esta categoría tiene presencia en el jail_profile local?
+# Filtro de relevancia por rol del servidor al importar.
+#############################################################
+db_category_exists_locally() {
+
+    local CATEGORY="$1"
+
+    db_exec "SELECT COUNT(*) FROM jail_profile WHERE category='$CATEGORY';"
+}
+
+#############################################################
 # Validar perfiles de jail (categorías inválidas, rangos fuera de límite)
 #############################################################
 
