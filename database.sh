@@ -561,7 +561,7 @@ db_get_last_event() {
     local IP="$1"
 
     db_exec "
-        SELECT action || ' @ ' || datetime(fecha, 'unixepoch')
+        SELECT action || ' @ ' || datetime(fecha, 'unixepoch', 'localtime')
         FROM events
         WHERE ip='$IP'
         ORDER BY fecha DESC
@@ -575,7 +575,7 @@ db_get_events() {
 
     db_exec "
         SELECT
-            datetime(fecha, 'unixepoch') || ' | ' ||
+            datetime(fecha, 'unixepoch', 'localtime') || ' | ' ||
             action || ' | ' ||
             jail
         FROM events

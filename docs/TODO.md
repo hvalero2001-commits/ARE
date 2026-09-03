@@ -4859,6 +4859,67 @@ los 4 archivos de versión y republicando el tag una vez más.
 
 ---
 
+## BUG-034
+
+**Título:** `dashboard/score.sh` mostraba `Último evento` en UTC y `Última actividad` en hora local — mismo timestamp, dos lecturas distintas sin señalizar
+
+**Estado:** ✔ Resuelto
+
+**Versión:** v2.8 (en desarrollo)
+
+**Problema**
+
+Encontrado al investigar un reporte real de un sistema anti-DDoS
+externo (bloqueo de 4 semanas sobre una IP que ARE solo sancionó con
+`TEMP_BAN` nivel 1). Al comparar el horario del correo del sistema
+externo (`Mon 17:25`) contra el dashboard de ARE, `Último evento`
+mostraba `20:25:51` — 3 horas de diferencia exacta con
+`Última actividad` (`17:25:51`) y con el propio correo. La
+diferencia coincidía exacto con la zona horaria real del servidor
+(`-03:00`) — no era un evento real posterior, ni un retraso genuino
+de ARE.
+
+**Causa real**
+
+`db_get_last_event()`/`db_get_events()` (`database.sh`) construían
+el string con `datetime(fecha, 'unixepoch')`, que SQLite devuelve en
+UTC por defecto. `Última actividad`, en cambio, se arma en
+`dashboard/score.sh` con `date -d "@$updated"`, que usa la zona
+horaria local del sistema. Mismo timestamp interno (epoch), dos
+conversiones distintas dentro del mismo bloque de salida del
+dashboard, sin ninguna etiqueta que indicara cuál era cuál —
+suficiente para hacer leer mal el orden real de los eventos, como
+pasó en el momento de investigar este mismo reporte.
+
+**Corrección**
+
+Agregado el modificador `'localtime'` de SQLite a ambas consultas
+(`datetime(fecha, 'unixepoch', 'localtime')`), consistente con lo
+que ya hacía `Última actividad`.
+
+**Validación**
+
+Confirmado con la IP real del reporte: `Último evento` y
+`Última actividad` muestran ahora el mismo horario (`17:25:51`),
+coincidiendo con el horario real del correo del sistema anti-DDoS.
+
+**Nota — hallazgo relacionado, sin resolver todavía**
+
+Al corregir la lectura del horario, quedó expuesta una discrepancia
+real de criterio entre sistemas: ARE aplicó `TEMP_BAN` nivel 1
+(categoría `DOS`, score `58`, vigente por solo 1 hora) sobre la
+misma IP que el sistema anti-DDoS del hosting bloqueó por 4 semanas,
+con advertencia de bloqueo permanente. Pendiente de evaluar si la
+calibración de `mod_evasive`/categoría `DOS` necesita escalar más
+agresivo ante un patrón de esa magnitud — no abordado en esta
+entrada, queda como punto abierto.
+
+**Archivos relacionados**
+
+* `database.sh`
+
+---
+
 # OBSERVACIONES
 
 La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
