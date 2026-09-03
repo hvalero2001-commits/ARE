@@ -8,7 +8,7 @@ La arquitectura separa la observación de los eventos, la construcción de reput
 
 ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3, v2.4, v2.5 y v2.6 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.7.0 constituye la última versión estable liberada. v2.8 se encuentra en desarrollo y validación sobre esa base.
+La versión v2.7.1 constituye la última versión estable liberada. v2.8 se encuentra en desarrollo y validación sobre esa base.
 
 ---
 

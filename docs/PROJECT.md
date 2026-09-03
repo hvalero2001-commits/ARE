@@ -141,7 +141,7 @@ Administra el ciclo de vida del producto.
 Versión estable liberada:
 
 ```text
-v2.7.0
+v2.7.1
 ```
 
 Versión en desarrollo activo:

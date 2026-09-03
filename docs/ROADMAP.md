@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.7.0
+v2.7.1
 ```
 
 Versión en desarrollo activo:
@@ -409,6 +409,10 @@ Mecanismo nuevo, genérico, para cualquier unidad futura que dependa de configur
 ## Validación
 
 Sincronización real ejecutada contra la API pública de Cloudflare: 22 rangos genuinos (15 IPv4 + 7 IPv6) aplicados correctamente, coincidiendo con los que el propio administrador ya tenía anotados a mano. Timer activo confirmado con `systemctl status`.
+
+## Patch v2.7.1
+
+Corrección de una inconsistencia de zona horaria en el dashboard de reputación (`Último evento` en UTC, `Última actividad` en hora local, para el mismo timestamp) — ver `BUG-034` en `docs/TODO.md` para el detalle completo, incluida la investigación de un incidente real que expuso el problema.
 
 ---
 

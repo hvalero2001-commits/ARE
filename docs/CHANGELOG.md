@@ -6,6 +6,39 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.7.1
+
+**Fecha:** 2026-09-03
+
+## Resumen
+
+Patch — corrige una inconsistencia de zona horaria en el dashboard de reputación.
+
+## Correcciones
+
+* `dashboard/score.sh` mostraba `Último evento` en UTC y
+  `Última actividad` en hora local para el mismo timestamp interno,
+  sin ninguna etiqueta que lo indicara — podía llevar a leer mal el
+  orden real de los eventos al comparar contra un reporte externo.
+  `db_get_last_event()`/`db_get_events()` corregidas para usar hora
+  local en ambos casos, consistente entre sí.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.7.0
 
 **Fecha:** 2026-08-28

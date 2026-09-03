@@ -4942,7 +4942,7 @@ Las ideas no constituyen compromisos de implementación.
 La versión estable documentada actualmente es:
 
 ```text
-v2.7.0
+v2.7.1
 ```
 
 La versión v2.8 se encuentra en desarrollo activo.
