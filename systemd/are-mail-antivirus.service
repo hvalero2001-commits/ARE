@@ -1,0 +1,8 @@
+[Unit]
+Description=Run ARE Mail Antivirus Sensor once
+After=exim.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/are/sensors/mail_antivirus.sh --execute
+

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ARE Mail Antivirus Sensor every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=are-mail-antivirus.service
+
+[Install]
+WantedBy=timers.target
+

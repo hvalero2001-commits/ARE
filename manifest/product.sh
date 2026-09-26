@@ -22,6 +22,11 @@ PRODUCT_SYSTEMD="${PRODUCT_ROOT}/etc/systemd/system"
 PRODUCT_BIN="${PRODUCT_ROOT}/usr/local/sbin"
 PRODUCT_LOG="${PRODUCT_ROOT}/var/log/are"
 PRODUCT_LOGROTATE="${PRODUCT_ROOT}/etc/logrotate.d"
+
+
+PRODUCT_EXECUTABLE_FILES+=( "sensors/mail_antivirus.sh" )
+PRODUCT_SYSTEMD_UNITS+=( "are-mail-antivirus.service" "are-mail-antivirus.timer" )
+
 ##################################################
 # Core Directories
 ##################################################
