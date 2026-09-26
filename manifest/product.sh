@@ -128,6 +128,10 @@ PRODUCT_LOGROTATE_FILES=(
 PRODUCT_EXECUTABLE_FILES=(
     are-installer
     are.sh
+    admin.sh
+    database.sh
+    manifest/product.sh
+    infrastructure/restore_ipsets.sh
     sensors/fail2ban.sh
     sensors/apache_evasive.sh
     sensors/spamassassin.sh

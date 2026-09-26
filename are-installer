@@ -352,10 +352,7 @@ install_install_configs() {
             install_error "Plantilla de configuración no encontrada: $source"
         fi
 
-        if [ "${1:-install}" = "upgrade" ]; then
-            install -m 0644 "$source" "$target"
-            install_log "Configuración actualizada: $target"
-        elif [ ! -e "$target" ]; then
+        if [ ! -e "$target" ]; then
             install -m 0644 "$source" "$target"
             install_log "Configuración instalada: $target"
         else
