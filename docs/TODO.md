@@ -1323,6 +1323,187 @@ configuración de Fail2Ban — corrección aplicada del lado de Fail2Ban
 
 ---
 
+## TASK-022
+
+**Título:** `uninstall` elimina todo (Core, datos, logs), sin conservar nada
+
+**Estado:** ✔ Implementada y validada en Fedora
+
+**Versión:** v2.4 (en desarrollo)
+
+**Descripción**
+
+`installer_uninstall()` conservaba `/var/lib/are` (incluida
+`are.db`) y `/var/log/are` a propósito, por precaución ante
+contingencias. Se evaluó primero renombrar la base con timestamp en
+vez de conservarla con el mismo nombre (evitando que una
+reinstalación futura heredara en silencio datos de la instalación
+anterior — problema real encontrado durante las pruebas de
+`BUG-031`), pero se decidió una alternativa más simple: quien quiera
+preservar información antes de desinstalar, lo hace por su cuenta.
+
+**Corrección**
+
+`rm -rf` sobre `$INSTALL_HOME`, `$INSTALL_DATA` y `$INSTALL_LOG`, los
+tres — antes solo se borraba el primero.
+
+**Validación**
+
+Instalación real en Fedora, `uninstall`, confirmado con `ls` directo
+que los tres directorios (`/opt/are`, `/var/lib/are`, `/var/log/are`)
+dejaron de existir.
+
+**Archivos relacionados**
+
+* `are-installer`
+
+---
+
+## TASK-023
+
+**Título:** Sensor MALWARE: detección de antivirus en correo entrante (mail-antivirus)
+
+**Estado:** ✔ Implementada y validada en producción (v2.8.0)
+
+**Versión:** v2.8.0
+
+**Contexto**
+
+Se instaló ClamAV for cPanel (plugin WHM, habilitado en la
+configuración de Exim) para escanear correo entrante. No existía
+sensor ni jail para la categoría `MALWARE` — el perfil estaba
+calibrado de antemano (ver RFC/TASK-018) pero sin fuente de eventos
+real.
+
+**Evidencia real obtenida**
+
+Se confirmó, con pruebas controladas usando el archivo de prueba
+estándar EICAR, que:
+
+* Un mensaje generado localmente en el servidor (`mail`/`sendmail`,
+  transporte `P=local`) **no** activa el escaneo antivirus de Exim.
+* Una conexión SMTP externa genuina sí lo activa. Probado con
+  `swaks` desde una VM externa (Fedora) contra el MX real del
+  dominio, adjuntando el EICAR sin comprimir (los intentos previos
+  vía Gmail fueron bloqueados por el propio filtro de contenido de
+  Gmail, incluso dentro de un zip con contraseña — no es un problema
+  de ARE/ClamAV).
+* El rechazo real quedó registrado en `exim_mainlog`:
+
+```text
+rejected after DATA: This message contains a virus or other
+harmful content (Eicar-Test-Signature)
+```
+
+  con la IP de origen disponible en el mismo bloque de conexión
+  (`H=... [IP]:puerto`).
+
+**Diseño**
+
+El mensaje de rechazo es genérico de la ACL `av_scanner` de Exim, no
+específico de ClamAV — el sensor funciona igual si el motor backend
+cambia en el futuro. Por eso el jail se nombra `mail-antivirus` y no
+`clamav-*`.
+
+* Sensor: `sensors/mail_antivirus.sh` (polling, offset persistente,
+  mismo patrón que `sensors/syslog.sh`/`sensors/spamassassin.sh`).
+  Filtra por `rejected after DATA:.*(virus|harmful content)` y
+  extrae la IP desde `H=...[IP]:puerto`.
+* Jail/perfil: `mail-antivirus`, categoría `MALWARE`, `weight=20`,
+  `confidence=0.97`, `decay=0.95` (creado en producción vía ARE
+  ADMIN). Confianza alta por ser una firma binaria confirmada (no
+  heurística); peso por debajo de `modsec-rce` (no compromete el
+  servidor directamente) y por encima de `modsec-sqli`.
+* Unidades systemd: `are-mail-antivirus.service`/`.timer`,
+  `After=exim.service` (sin `Requires=`, ver BUG-029).
+* Config: `MAIL_ANTIVIRUS_LOG_FILE`, `MAIL_ANTIVIRUS_JAIL` en
+  `config/config.conf`.
+* Manifest: agregado a `PRODUCT_EXECUTABLE_FILES` y
+  `PRODUCT_SYSTEMD_UNITS`.
+
+**Validación en producción**
+
+Se decidió no simular tráfico de correo en las VMs de Fedora/Kali —
+esas VMs no tienen Exim/ClamAV reales, y montar un servicio ficticio
+para "probar" no aporta evidencia genuina. La validación se hizo
+directa en `main`, en dos pasos sin riesgo:
+
+* `./sensors/mail_antivirus.sh --dry-run` contra el `exim_mainlog`
+  real de producción, sin reportar nada — confirmó `FOUND detected:
+  IP=186.49.81.31 JAIL=mail-antivirus`, con la misma línea de rechazo
+  real (`Eicar-Test-Signature`) usada durante el diseño.
+* Tras mergear `v2.8-dev` a `main` y taggear `v2.8.0`, activación real
+  con systemd (`daemon-reload` + `enable --now
+  are-mail-antivirus.timer`) en vez de con `are-installer upgrade` —
+  en `main`, `/opt/are` es a la vez el checkout de git de este
+  entorno de trabajo (que es el propio servidor de producción, no un
+  laboratorio aparte), así que origen y destino del instalador
+  coinciden y el instalador rechaza la operación por diseño
+  (`[ERROR] El paquete fuente y la instalación activa son el mismo
+  directorio.`). Esto es una particularidad de cómo se trabaja en
+  este entorno, no una limitación de ARE: un cliente que instala
+  desde el paquete de release nunca tiene este problema, porque su
+  directorio de instalación no es un checkout de git.
+
+**Confirmado con evidencia real de journalctl**, pipeline completo de
+punta a punta:
+
+```text
+FOUND recibido: 186.49.81.31 desde mail-antivirus
+Score FOUND aplicado: 5 a 186.49.81.31
+[POLICY] CATEGORY_RISK=0 RAW_TOTAL=5 EFFECTIVE=5
+Policy decision: WATCH (MINIMAL_RISK)
+[APPLY] ACTION: WATCH (no blocking)
+[APPLY] ACTION COMPLETED SUCCESSFULLY
+```
+
+Timer confirmado activo y disparando cada minuto
+(`systemctl list-timers`).
+
+**Archivos relacionados**
+
+* `sensors/mail_antivirus.sh`
+* `systemd/are-mail-antivirus.service`
+* `systemd/are-mail-antivirus.timer`
+* `config/config.conf`
+* `manifest/product.sh`
+
+---
+
+## TASK-024
+
+**Título:** `are-installer upgrade`/`repair` reconocen cuando la instalación activa es a la vez el checkout de git (fix de fondo, ver nota de TASK-023)
+
+**Estado:** Implementada — pendiente de aplicar y validar en producción
+
+**Versión:** v2.8.1
+
+**Contexto**
+
+Durante la validación de `TASK-023` (sensor `mail-antivirus`), `are-installer upgrade` rechazó la operación en `main` con `[ERROR] El paquete fuente y la instalación activa son el mismo directorio.` — en este entorno de trabajo, `/opt/are` en `main` es a la vez el checkout de git (así se viene trabajando desde antes, ver `metodologia_trabajo.md`), no una copia separada de un paquete. Se mitigó en ese momento activando a mano las piezas systemd faltantes, sin tocar el Installer. Esto no es una limitación de ARE de cara a un cliente — quien instala desde el paquete de release nunca tiene su directorio de instalación como checkout de git — pero sí es una limitación real del Installer para cualquiera que trabaje como este entorno lo hace, y quedaba sin corrección de fondo.
+
+**Corrección**
+
+`install_copy_files()` detectaba origen=destino y abortaba con `install_error` — correcto como salvaguarda (evita que `cp -a` de un directorio sobre sí mismo rompa bajo `set -o errexit`), pero excesivo: cuando origen y destino son el mismo directorio, no hay nada que copiar — el contenido ya está en su lugar por el propio mecanismo que lo puso ahí (`git merge`/`checkout`). Cambiado para reconocer el caso y omitir la copia con un mensaje informativo, en vez de abortar toda la operación. El resto de `installer_upgrade()`/`installer_repair()` sigue corriendo sin cambios: `install_install_configs`, `install_create_links`, `install_permissions`, `install_database`, `install_ipsets`, `install_systemd`, `install_logrotate`, `install_validate` — exactamente las piezas que antes había que sincronizar a mano.
+
+**Hallazgo adicional durante el mismo chequeo**
+
+Al revisar por qué `PRODUCT_VERSION` seguía en `2.7.1` pese a `v2.8.0` ya taggeado y en producción: el bump de versión nunca se aplicó, ni en el commit del sensor ni en ninguno posterior — mismo patrón que `BUG-033` (versión no sincronizada al momento de taggear). Corregido junto con este fix, sincronizando `VERSION`, `config/config.conf::VERSION`, `templates/config/config.conf::VERSION` y `manifest/product.sh::PRODUCT_VERSION` a `2.8.1` (versión de este patch).
+
+**Hallazgo adicional — rama `main` de GitHub desincronizada**
+
+`origin/main` (GitHub) no incluye el commit del sensor `mail-antivirus` — el tag `v2.8.0` se pusheó correctamente, pero el avance de `main` que lo contiene nunca llegó al remoto (`git push origin main` no se corrió después de ese commit, o se corrió antes). Confirmado comparando `git log` de la rama `main` remota contra el commit al que apunta el tag `v2.8.0`: la rama está un commit detrás. Cualquiera que clone `main` hoy no recibe el sensor. Pendiente de que se corrija con un `git push origin main` desde producción — no requiere cambio de código, solo sincronizar el remoto.
+
+**Archivos relacionados**
+
+* `are-installer`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -3271,6 +3452,7 @@ resolverlo.
 
 ---
 
+
 # HISTORIAL DE BUGS RESUELTOS
 
 Las siguientes incidencias forman parte del historial técnico de ARE y se conservan para trazabilidad.
@@ -4709,42 +4891,6 @@ qué "instalación remota" se había documentado como cerrada en v2.3.0
 sin estarlo realmente — cada corrida previa validó una demo con
 intervención manual de por medio, no la instalación real y aislada
 que finalmente se logró acá.
-
-**Archivos relacionados**
-
-* `are-installer`
-
----
-
-## TASK-022
-
-**Título:** `uninstall` elimina todo (Core, datos, logs), sin conservar nada
-
-**Estado:** ✔ Implementada y validada en Fedora
-
-**Versión:** v2.4 (en desarrollo)
-
-**Descripción**
-
-`installer_uninstall()` conservaba `/var/lib/are` (incluida
-`are.db`) y `/var/log/are` a propósito, por precaución ante
-contingencias. Se evaluó primero renombrar la base con timestamp en
-vez de conservarla con el mismo nombre (evitando que una
-reinstalación futura heredara en silencio datos de la instalación
-anterior — problema real encontrado durante las pruebas de
-`BUG-031`), pero se decidió una alternativa más simple: quien quiera
-preservar información antes de desinstalar, lo hace por su cuenta.
-
-**Corrección**
-
-`rm -rf` sobre `$INSTALL_HOME`, `$INSTALL_DATA` y `$INSTALL_LOG`, los
-tres — antes solo se borraba el primero.
-
-**Validación**
-
-Instalación real en Fedora, `uninstall`, confirmado con `ls` directo
-que los tres directorios (`/opt/are`, `/var/lib/are`, `/var/log/are`)
-dejaron de existir.
 
 **Archivos relacionados**
 

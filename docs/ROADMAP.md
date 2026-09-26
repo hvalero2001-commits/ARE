@@ -17,13 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.7.1
-```
-
-Versión en desarrollo activo:
-
-```text
-v2.8 (rama v2.8-dev)
+v2.8.0
 ```
 
 Estado:
@@ -32,7 +26,7 @@ Estado:
 Producción
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El desarrollo activo avanza sobre `v2.8-dev`, documentado en detalle en `docs/TODO.md`.
+La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El detalle técnico de cada versión se documenta en `docs/TODO.md`.
 
 ---
 
@@ -416,6 +410,36 @@ Corrección de una inconsistencia de zona horaria en el dashboard de reputación
 
 ---
 
+# v2.8
+
+## Objetivo
+
+Incorporar la categoría `MALWARE` al modelo de reputación con una fuente de datos real — hasta esta versión, el umbral de esa categoría estaba calibrado desde v2.2 (`TASK-018`) sin ningún sensor que lo alimentara.
+
+## Estado
+
+✔ Completado — liberado como release oficial (`v2.8.0`)
+
+## Funcionalidades incorporadas
+
+### Sensor `mail-antivirus` (categoría MALWARE)
+
+Surgido de la instalación de ClamAV for cPanel (plugin WHM) para escanear correo entrante vía Exim. Diseño validado con evidencia real de rechazo (archivo de prueba EICAR, vía conexión SMTP externa genuina) antes de escribir el sensor — ver `TASK-023` en `docs/TODO.md` para el detalle completo.
+
+* Sensor de polling (mismo patrón que `syslog.sh`/`spamassassin.sh`), filtra `rejected after DATA:.*(virus|harmful content)` en `exim_mainlog` y extrae la IP de origen.
+* Jail `mail-antivirus`, nombrado por la ACL genérica de Exim (`av_scanner`) y no por el motor backend (ClamAV), para no acoplarse a un motor antivirus específico.
+* Validado directamente contra el `exim_mainlog` real de producción (`--dry-run`) y con evidencia de `journalctl` del pipeline completo (`FOUND → Score → Policy → Apply`) tras la activación.
+
+## Nota de proceso
+
+Esta versión se desarrolló y validó directamente sobre `main` (servidor de producción), sin simular tráfico de correo en las VMs de laboratorio — esas VMs no corren Exim/ClamAV reales, y ya habían cumplido su propósito real (validar la mecánica de instalación remota, `TASK-020`/`TASK-021`/`BUG-029`/`BUG-031`), no simular servicios que no tienen. También expuso que, en este entorno de trabajo, `/opt/are` en `main` es a la vez el checkout de git — por lo que `are-installer upgrade` no aplicaba ahí (rechazaba origen=destino) y la activación de las piezas systemd nuevas se hizo manualmente. Corregido de fondo en `v2.8.1` (`TASK-024`): el Installer ahora reconoce ese escenario y sincroniza permisos/systemd/config sin intentar copiar el árbol de archivos sobre sí mismo.
+
+## Patch v2.8.1
+
+Corrección del Installer Engine para el escenario en que la instalación activa es a la vez el checkout de git (ver `TASK-024` en `docs/TODO.md`), y sincronización de versión (`VERSION`/`config.conf`/`manifest/product.sh`), nunca aplicada al taggear `v2.8.0`. Pendiente de aplicar y validar en producción.
+
+---
+
 # Próximas líneas de trabajo
 
 ## Sensores adicionales
@@ -429,11 +453,10 @@ Previstos, sin implementación iniciada:
 * DNS
 * APIs externas
 
-Evaluado y descartado: un sensor "syslog genérico" con contrato propio de mensaje (`ip=X jail=Y`). Le pediría a cada herramienta externa reformatear su salida a un formato inventado por ARE, duplicando estructuras de logueo que cada herramienta ya tiene — el mismo problema que ARE existe para evitar, no para resolver. El camino correcto para sumar una herramienta nueva sigue siendo un sensor que lea el log real de esa herramienta tal cual es (mismo criterio que `spamassassin.sh` con el log de Exim), no pedirle que hable el idioma de ARE.
+Evaluado y descartado: un sensor "syslog genérico" con contrato propio de mensaje (`ip=X jail=Y`). Le pediría a cada herramienta externa reformatear su salida a un formato inventado por ARE, duplicando estructuras de logueo que cada herramienta ya tiene — el mismo problema que ARE existe para evitar, no para resolver. El camino correcto para sumar una herramienta nueva sigue siendo un sensor que lea el log real de esa herramienta tal cual es (mismo criterio que `spamassassin.sh` con el log de Exim, y `mail_antivirus.sh` con `exim_mainlog`), no pedirle que hable el idioma de ARE.
 
 ## Motor de decisión
 
-* Regla propia para la categoría `MALWARE`, cuando exista una fuente real de datos que la alimente — el umbral (`MALWARE_THRESHOLD`) ya está calibrado de forma proactiva desde v2.2, a la espera del sensor
 * Integración completa de `mod_evasive` como única vía de bloqueo (hoy corre en modo doble escritura, ipset directo + reporte a ARE, como medida de transición) — ver nota de investigación en la sección v2.2
 
 ---
