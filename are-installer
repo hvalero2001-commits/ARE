@@ -333,6 +333,36 @@ install_copy_files() {
 
 }
 
+install_config_merge() {
+
+    local source="$1"
+    local target="$2"
+    local line key
+
+    # Solo aplica a archivos de variables KEY="valor". Si alguna línea
+    # no vacía/no comentario del template no matchea ese formato
+    # (ej. whitelist.conf, jail_scale.conf), no se toca nada.
+    if grep -vE '^[[:space:]]*(#.*)?$' "$source" | grep -qvE '^[A-Z_][A-Z0-9_]*='; then
+        return 0
+    fi
+
+    while IFS= read -r line; do
+        case "$line" in
+            [A-Z_]*=*)
+                key="${line%%=*}"
+                if ! grep -q "^${key}=" "$target"; then
+                    {
+                        echo ""
+                        echo "# Agregado automáticamente por el Installer (variable nueva en la plantilla)"
+                        echo "$line"
+                    } >> "$target"
+                    install_log "Variable nueva agregada a $target: $key"
+                fi
+                ;;
+        esac
+    done < "$source"
+}
+
 install_install_configs() {
 
     local file
@@ -356,6 +386,7 @@ install_install_configs() {
             install -m 0644 "$source" "$target"
             install_log "Configuración instalada: $target"
         else
+            install_config_merge "$source" "$target"
             install_log "Configuración existente conservada: $target"
         fi
     done
