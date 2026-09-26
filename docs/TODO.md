@@ -1519,6 +1519,40 @@ Mismo patrón que `BUG-023`/`BUG-033`: `install_permissions()` resetea todos los
 
 ---
 
+## TASK-025
+
+**Título:** `install_install_configs()` fusiona variables nuevas del template en un config existente, sin sobrescribir nada
+
+**Estado:** ✔ Implementada y validada en producción
+
+**Versión:** v2.8.2
+
+**Contexto**
+
+Consecuencia directa de `TASK-024`: una vez que `upgrade` dejó de sobrescribir un archivo de configuración existente (para no repetir la pérdida de datos real documentada ahí), quedó un caso nuevo sin resolver — si una versión futura agrega una variable a `templates/config/<archivo>` (como pasó con `MAIL_ANTIVIRUS_*` en `v2.8.0`), un servidor ya instalado nunca la recibe: queda indefinida hasta que alguien la agregue a mano, con riesgo de falla silenciosa en el sensor que la use.
+
+**Corrección**
+
+Nueva función `install_config_merge()`, invocada desde `install_install_configs()` cuando el archivo de configuración ya existe (antes de esta tarea, esa rama no hacía nada más que conservar el archivo tal cual). Compara variable por variable (`KEY="valor"`) entre la plantilla y el archivo existente, y agrega al final del archivo solo las que falten — nunca toca ni sobrescribe una que ya esté presente, sin importar su valor actual.
+
+**Salvaguarda de formato**
+
+Antes de tocar nada, la función verifica que el template sea enteramente `KEY=valor` (ignorando comentarios y líneas vacías). Si encuentra una sola línea que no matchea ese formato — como pasa con `whitelist.conf` (lista de IPs) o `jail_scale.conf` (formato `CATEGORIA|NIVEL|PESO|CONFIANZA`) — no toca el archivo en absoluto, se comporta exactamente igual que antes de esta tarea.
+
+**Validación**
+
+Probado en aislamiento con archivos de prueba en `/tmp` (sin tocar `/opt/are`): un `config.conf` simulado con una variable nueva en el template la recibió correctamente sin alterar las existentes; un `whitelist.conf` simulado con una línea agregada en el template no se tocó en absoluto. Confirmado además en producción real con `./are-installer upgrade` (ningún archivo de configuración real tenía variables faltantes en este momento, por lo que no se agregó nada — comportamiento esperado, sin errores) y `./are-installer verify` (10/10 OK).
+
+**Archivos relacionados**
+
+* `are-installer`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001

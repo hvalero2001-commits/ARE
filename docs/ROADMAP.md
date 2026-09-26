@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.8.1
+v2.8.2
 ```
 
 Estado:
@@ -443,6 +443,12 @@ Durante la propia validación en producción se encontró un problema más grave
 También corregido, mismo patch: varios archivos del producto (`admin.sh`, `database.sh`, `manifest/product.sh`, `infrastructure/restore_ipsets.sh`) perdían su permiso de ejecución en cada `install`/`upgrade`/`repair` por no estar declarados en `PRODUCT_EXECUTABLE_FILES` — mismo patrón que `BUG-023`/`BUG-033`, agregados al manifiesto.
 
 Aplicado y validado en producción real (`upgrade` corrido con el fix, árbol de git limpio al finalizar), mergeado a `main` y publicado como tag `v2.8.1`.
+
+## Patch v2.8.2
+
+Consecuencia directa de `v2.8.1`: al dejar de sobrescribir un config existente en `upgrade`, una variable nueva agregada en una versión futura al template nunca llegaría a un servidor ya instalado. `install_install_configs()` ahora fusiona — agrega al config existente solo las variables que falten respecto al template, sin tocar ni sobrescribir ninguna existente. No aplica a archivos que no son `KEY=valor` (`whitelist.conf`, `jail_scale.conf`), que se comportan exactamente igual que antes. Ver `TASK-025` en `docs/TODO.md`.
+
+Validado en aislamiento (archivos de prueba en `/tmp`) y en producción real (`upgrade`/`verify`, sin regresiones). Mergeado a `main` y publicado como tag `v2.8.2`.
 
 ---
 

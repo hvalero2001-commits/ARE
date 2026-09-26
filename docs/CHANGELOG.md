@@ -6,6 +6,39 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.8.2
+
+**Fecha:** 2026-09-26
+
+## Resumen
+
+`install_install_configs()` fusiona variables nuevas del template en un archivo de configuración existente, en vez de dejarlas indefinidas — consecuencia directa del fix de `v2.8.1` (que dejó de sobrescribir configs existentes).
+
+## Novedades
+
+* Nueva función `install_config_merge()`: agrega al config existente solo las variables `KEY=valor` presentes en el template y ausentes ahí, sin tocar ninguna existente.
+* No aplica a archivos que no son enteramente `KEY=valor` (`whitelist.conf`, `jail_scale.conf`) — se comportan exactamente igual que antes.
+
+## Validación
+
+Probado en aislamiento (archivos de prueba en `/tmp`, sin tocar `/opt/are`) y en producción real (`upgrade`/`verify`, sin regresiones, sin variables faltantes en este momento).
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.8.1
 
 **Fecha:** 2026-09-26
