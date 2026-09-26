@@ -5108,9 +5108,7 @@ Las ideas no constituyen compromisos de implementación.
 La versión estable documentada actualmente es:
 
 ```text
-v2.7.1
+v2.8.1
 ```
-
-La versión v2.8 se encuentra en desarrollo activo.
 
 El trabajo futuro deberá incorporarse al Roadmap antes de convertirse en una línea formal de desarrollo.

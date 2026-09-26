@@ -105,9 +105,9 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.7.1** (estable, liberada) — **v2.8 en desarrollo activo**
+**ARE v2.8.1** (estable, liberada)
 
-La versión 2.6 permite exportar e importar reputación entre servidores de la misma flota, filtrada por rol. La versión 2.7 sincroniza automáticamente la whitelist contra listas de IPs publicadas por terceros (ej. Cloudflare) — genérico, configurable, sin habilitarse por defecto salvo que el administrador lo necesite. La versión 2.7.1 corrige una inconsistencia de zona horaria en el dashboard de reputación.
+La versión 2.7 sincroniza automáticamente la whitelist contra listas de IPs publicadas por terceros (ej. Cloudflare). La versión 2.8 agrega el sensor `mail-antivirus` (categoría MALWARE), detectando rechazos de Exim vía ACL `av_scanner`. El patch 2.8.1 corrige el Installer Engine: ya no sobrescribe `config.conf`/`whitelist.conf` en `upgrade`, y sincroniza permisos de ejecución faltantes.
 
 ## Instalación
 

@@ -6,6 +6,72 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.8.1
+
+**Fecha:** 2026-09-26
+
+## Resumen
+
+Patch — corrige el Installer Engine: `upgrade` sobrescribía `config.conf`/`whitelist.conf` con la plantilla desactualizada, y varios archivos del producto perdían el permiso de ejecución en cada operación.
+
+## Correcciones
+
+* `install_install_configs()` sobrescribía incondicionalmente los archivos de configuración existentes en modo `upgrade` — provocó pérdida real de configuración en producción (rutas de logs, sincronización de whitelist, mail-antivirus, IPs de oficina) durante la propia validación de este patch. Corregido: `upgrade` ahora conserva un archivo de configuración existente, igual que `install`.
+* `templates/config/config.conf` no tenía las variables de Whitelist Auto-Sync ni de mail-antivirus, causa raíz de la sobrescritura — completado.
+* `admin.sh`, `database.sh`, `manifest/product.sh` e `infrastructure/restore_ipsets.sh` perdían su permiso de ejecución en cada `install`/`upgrade`/`repair` por no estar declarados en `PRODUCT_EXECUTABLE_FILES` — agregados.
+* `are-installer` rechazaba `upgrade`/`repair` cuando el directorio fuente y el de instalación activa son el mismo (checkout de git como instalación activa) — ahora reconoce el caso y omite la copia en vez de abortar.
+* Sincronización de versión (`VERSION`, `config.conf`, `templates/config/config.conf`, `manifest/product.sh`), nunca aplicada al taggear `v2.8.0`.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
+# v2.8.0
+
+**Fecha:** 2026-09-26
+
+## Resumen
+
+Incorpora la categoría `MALWARE` al modelo de reputación con una fuente de datos real: sensor `mail-antivirus`, alimentado por rechazos de Exim vía ACL `av_scanner` (ClamAV for cPanel).
+
+## Sensor mail-antivirus
+
+* Sensor de polling sobre `exim_mainlog`, filtra `rejected after DATA:.*(virus|harmful content)` y extrae la IP de origen.
+* Jail `mail-antivirus`, nombrado por la ACL genérica de Exim y no por el motor backend, para no acoplarse a un antivirus específico.
+* Validado con evidencia real de rechazo (archivo de prueba EICAR vía conexión SMTP externa genuina) antes de escribir el sensor.
+
+## Validación
+
+Confirmado contra el `exim_mainlog` real de producción (`--dry-run`) y con evidencia de `journalctl` del pipeline completo (`FOUND → Score → Policy → Apply`) tras la activación.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.7.1
 
 **Fecha:** 2026-09-03
