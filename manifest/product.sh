@@ -24,9 +24,6 @@ PRODUCT_LOG="${PRODUCT_ROOT}/var/log/are"
 PRODUCT_LOGROTATE="${PRODUCT_ROOT}/etc/logrotate.d"
 
 
-PRODUCT_EXECUTABLE_FILES+=( "sensors/mail_antivirus.sh" )
-PRODUCT_SYSTEMD_UNITS+=( "are-mail-antivirus.service" "are-mail-antivirus.timer" )
-
 ##################################################
 # Core Directories
 ##################################################
@@ -85,6 +82,8 @@ PRODUCT_SYSTEMD_UNITS=(
     are-web-correlation.service
     are-web-correlation.timer
 )
+PRODUCT_SYSTEMD_UNITS+=( "are-mail-antivirus.service" "are-mail-antivirus.timer" )
+
 ##################################################
 # Optional Systemd Units
 #
@@ -137,3 +136,5 @@ PRODUCT_EXECUTABLE_FILES=(
     scripts/build-package.sh
     scripts/sync_whitelist.sh
 )
+PRODUCT_EXECUTABLE_FILES+=( "sensors/mail_antivirus.sh" )
+
