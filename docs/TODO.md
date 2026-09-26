@@ -4903,16 +4903,21 @@ Confirmado con la IP real del reporte: `Último evento` y
 `Última actividad` muestran ahora el mismo horario (`17:25:51`),
 coincidiendo con el horario real del correo del sistema anti-DDoS.
 
-**Nota — hallazgo relacionado, sin resolver todavía**
+**Nota — hallazgo relacionado, investigado y cerrado (sin cambio de código)**
 
-Al corregir la lectura del horario, quedó expuesta una discrepancia
-real de criterio entre sistemas: ARE aplicó `TEMP_BAN` nivel 1
-(categoría `DOS`, score `58`, vigente por solo 1 hora) sobre la
-misma IP que el sistema anti-DDoS del hosting bloqueó por 4 semanas,
-con advertencia de bloqueo permanente. Pendiente de evaluar si la
-calibración de `mod_evasive`/categoría `DOS` necesita escalar más
-agresivo ante un patrón de esa magnitud — no abordado en esta
-entrada, queda como punto abierto.
+Al corregir la lectura del horario, apareció una aparente
+discrepancia de criterio: ARE aplicó `TEMP_BAN` nivel 1 (categoría
+`DOS`, score `58`, vigente por solo 1 hora) sobre la misma IP que el
+sistema anti-DDoS del hosting bloqueó por 4 semanas. Investigado en
+la misma sesión: no es un gap de diseño. El `jail_profile` de
+`mod_evasive` ya tiene el peso casi máximo del sistema
+(`weight=70, confidence=0.95`), y el escalado real no depende de la
+severidad de un único evento sino de la reincidencia
+(`RISK_MULT_WATCH`/`RISK_MULT_BANNED`, `RFC-009`) — ya validado en
+producción con `45.33.70.56` escalando `BAN_LEVEL_4 → 5 → 6` por
+eventos consecutivos. Una primera sanción cautelosa que escala real
+ante repetición es el comportamiento diseñado, no un error. Cerrado
+sin ningún cambio de código.
 
 **Archivos relacionados**
 
