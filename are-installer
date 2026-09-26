@@ -304,7 +304,7 @@ install_copy_files() {
     TARGET_REAL="$(readlink -f "$INSTALL_HOME")"
 
     if [ "$SOURCE_REAL" = "$TARGET_REAL" ]; then
-        install_error "El paquete fuente y la instalación activa son el mismo directorio."
+        install_log "Fuente e instalación activa son el mismo directorio — omitiendo copia."; return 0
     fi
 
     install_log "Copiando Core"
