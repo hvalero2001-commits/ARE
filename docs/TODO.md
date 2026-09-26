@@ -1474,7 +1474,7 @@ Timer confirmado activo y disparando cada minuto
 
 **Título:** `are-installer upgrade`/`repair` reconocen cuando la instalación activa es a la vez el checkout de git (fix de fondo, ver nota de TASK-023)
 
-**Estado:** Implementada — pendiente de aplicar y validar en producción
+**Estado:** ✔ Implementada y validada en producción (v2.8.1)
 
 **Versión:** v2.8.1
 
@@ -1494,11 +1494,26 @@ Al revisar por qué `PRODUCT_VERSION` seguía en `2.7.1` pese a `v2.8.0` ya tagg
 
 `origin/main` (GitHub) no incluye el commit del sensor `mail-antivirus` — el tag `v2.8.0` se pusheó correctamente, pero el avance de `main` que lo contiene nunca llegó al remoto (`git push origin main` no se corrió después de ese commit, o se corrió antes). Confirmado comparando `git log` de la rama `main` remota contra el commit al que apunta el tag `v2.8.0`: la rama está un commit detrás. Cualquiera que clone `main` hoy no recibe el sensor. Pendiente de que se corrija con un `git push origin main` desde producción — no requiere cambio de código, solo sincronizar el remoto.
 
+**Hallazgo adicional durante la validación — pérdida real de configuración en `upgrade`**
+
+Al correr `./are-installer upgrade` para validar este mismo patch, se descubrió un problema más grave y no relacionado con el objetivo original: `install_install_configs()` sobrescribía incondicionalmente `config.conf`/`whitelist.conf` en modo `upgrade` (rama `if [ "${1:-install}" = "upgrade" ]; then install -m 0644 "$source" "$target"`), copiando la plantilla (`templates/config/<file>`) encima del archivo en vivo sin fusionar. Como la plantilla nunca se había mantenido sincronizada con la configuración real, el `upgrade` borró de `config.conf` las variables `WEB_CORRELATION_LOG_FILE`, `WHITELIST_SYNC_URL_V4`, `WHITELIST_SYNC_URL_V6`, `WHITELIST_SYNC_MARKER`, `MAIL_ANTIVIRUS_LOG_FILE` y `MAIL_ANTIVIRUS_JAIL`, y de `whitelist.conf` las IPs de oficina y todo el bloque Cloudflare Auto-Sync (`IDEA-012`). Revertido de inmediato con `git checkout -- config/config.conf config/whitelist.conf`, sin pérdida real (los sensores no llegaron a correr con la config incompleta).
+
+Corrección de fondo: eliminada la rama especial de `upgrade` en `install_install_configs()` — ahora se comporta igual que `install`: si el archivo de configuración ya existe, se conserva siempre, sin excepción. `templates/config/config.conf` completado con las 5 líneas de Whitelist Auto-Sync/mail-antivirus que le faltaban (así una instalación nueva las recibe igual).
+
+**Hallazgo adicional durante la misma validación — permisos de ejecución perdidos en cada `install`/`upgrade`/`repair`**
+
+Mismo patrón que `BUG-023`/`BUG-033`: `install_permissions()` resetea todos los archivos a `0644` y solo restaura `0755` sobre lo declarado en `PRODUCT_EXECUTABLE_FILES`. `admin.sh`, `database.sh`, `manifest/product.sh` e `infrastructure/restore_ipsets.sh` no estaban en esa lista, así que perdían el permiso de ejecución en cada operación del Installer. Agregados a `PRODUCT_EXECUTABLE_FILES`.
+
+**Validación final**
+
+`./are-installer upgrade` corrido de nuevo en producción con ambos fixes aplicados: los 4 archivos de configuración se conservaron (`Configuración existente conservada`), las unidades de mail-antivirus se instalaron y habilitaron correctamente, y `git status` quedó limpio (sin ningún diff de permisos ni de contenido) al finalizar. Mergeado a `main`, publicado como tag `v2.8.1`.
+
 **Archivos relacionados**
 
 * `are-installer`
 * `VERSION`
 * `config/config.conf`
+* `config/whitelist.conf`
 * `templates/config/config.conf`
 * `manifest/product.sh`
 

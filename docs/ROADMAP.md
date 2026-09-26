@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.8.0
+v2.8.1
 ```
 
 Estado:
@@ -436,7 +436,13 @@ Esta versión se desarrolló y validó directamente sobre `main` (servidor de pr
 
 ## Patch v2.8.1
 
-Corrección del Installer Engine para el escenario en que la instalación activa es a la vez el checkout de git (ver `TASK-024` en `docs/TODO.md`), y sincronización de versión (`VERSION`/`config.conf`/`manifest/product.sh`), nunca aplicada al taggear `v2.8.0`. Pendiente de aplicar y validar en producción.
+Corrección del Installer Engine para el escenario en que la instalación activa es a la vez el checkout de git (ver `TASK-024` en `docs/TODO.md`), y sincronización de versión (`VERSION`/`config.conf`/`manifest/product.sh`), nunca aplicada al taggear `v2.8.0`.
+
+Durante la propia validación en producción se encontró un problema más grave, no relacionado con el objetivo original del patch: `install_install_configs()` sobrescribía incondicionalmente `config.conf` y `whitelist.conf` en cada `upgrade`, copiando la plantilla desactualizada — provocó pérdida real de configuración en vivo (rutas de logs, sincronización de whitelist Cloudflare, IPs de oficina, mail-antivirus) durante la validación misma. Corregido de raíz: `upgrade` ya no sobrescribe un archivo de configuración existente, igual que `install` — se conserva siempre, sin excepción. Ver `TASK-024` en `docs/TODO.md` para el detalle completo del incidente y la corrección.
+
+También corregido, mismo patch: varios archivos del producto (`admin.sh`, `database.sh`, `manifest/product.sh`, `infrastructure/restore_ipsets.sh`) perdían su permiso de ejecución en cada `install`/`upgrade`/`repair` por no estar declarados en `PRODUCT_EXECUTABLE_FILES` — mismo patrón que `BUG-023`/`BUG-033`, agregados al manifiesto.
+
+Aplicado y validado en producción real (`upgrade` corrido con el fix, árbol de git limpio al finalizar), mergeado a `main` y publicado como tag `v2.8.1`.
 
 ---
 
