@@ -1,24 +1,25 @@
 # ARE User Guide
 
-## Introducción
+## Introduction
 
-Esta guía describe el uso operativo de ARE (Abuse Reputation Engine).
+This guide describes the operational use of ARE (Abuse Reputation Engine).
 
-ARE procesa eventos de seguridad, mantiene información persistente de reputación y estado, evalúa las políticas configuradas y aplica las decisiones mediante el backend correspondiente.
+ARE processes security events, keeps persistent reputation and state information, evaluates the
+configured policies, and applies decisions through the corresponding backend.
 
 ---
 
-# Requisitos
+# Requirements
 
-ARE debe encontrarse instalado y validado.
+ARE must be installed and validated.
 
-Verificar la instalación mediante:
+Verify the installation with:
 
 ```bash
 are-installer verify
 ```
 
-La interfaz oficial se encuentra disponible mediante:
+The official interface is available through:
 
 ```bash
 are
@@ -26,14 +27,14 @@ are
 
 ---
 
-# Interfaz de comandos
+# Command interface
 
-Los comandos operativos de ARE son:
+ARE's operational commands are:
 
 ```text
 are admin
 are stats
-are trends [días]
+are trends [days]
 are top
 are score <IP>
 are events <IP>
@@ -46,13 +47,13 @@ are decay-dry-run
 are decay-apply
 ```
 
-El Installer Engine utiliza:
+The Installer Engine uses:
 
 ```text
 are-installer
 ```
 
-con las operaciones:
+with the operations:
 
 ```text
 are-installer install
@@ -62,138 +63,156 @@ are-installer verify
 are-installer uninstall
 ```
 
-El punto de entrada oficial se instala mediante `/usr/local/sbin/are`, con el Core de ARE en `/opt/are`.
+The official entry point is installed as `/usr/local/sbin/are`, with the ARE Core in `/opt/are`.
 
 ---
 
 # ARE ADMIN
 
-Interfaz de administración por línea de comandos:
+Command-line administration interface:
 
 ```bash
 are admin
 ```
 
-Organizada en siete ramas:
+Organized into seven branches:
 
 ```text
-1) Jails / Perfiles
-2) Categorías
-3) Sensores
-4) Política
-5) Estado / Reputación
+1) Jails / Profiles
+2) Categories
+3) Sensors
+4) Policy
+5) State / Reputation
 6) Decay
-7) Configuración
-0) Salir
+7) Configuration
+0) Exit
 ```
 
-Cada submenú ofrece `0) Volver` para retroceder un nivel, y `x) Salir` como atajo para cerrar el programa completo desde cualquier punto de la navegación, sin necesidad de volver primero al menú raíz.
+Each submenu offers `0) Back` to go up one level, and `x) Exit` as a shortcut to close the whole
+program from anywhere in the navigation, without having to return to the root menu first.
 
-Las operaciones de escritura (crear, modificar, eliminar un perfil; ejecutar decay) quedan registradas en un log de auditoría, con usuario, fecha y detalle de la acción:
+Write operations (creating, modifying, or deleting a profile; running decay) are recorded in an
+audit log, with user, date, and details of the action:
 
 ```text
 /var/log/are/admin_audit.log
 ```
 
-## Jails / Perfiles
+## Jails / Profiles
 
-Administra la relación entre un jail (de Fail2Ban, o de un sensor por callback como `mod_evasive`) y su categoría de reputación, peso, confianza y decay.
+Manages the relationship between a jail (from Fail2Ban, or from a callback sensor such as
+`mod_evasive`) and its reputation category, weight, confidence, and decay.
 
 ```text
-1) Listar
-2) Crear
-3) Modificar
-4) Eliminar
-5) Validar
-6) Exportar
-7) Importar
+1) List
+2) Create
+3) Modify
+4) Delete
+5) Validate
+6) Export
+7) Import
 ```
 
-Al crear o modificar un perfil, el sistema ofrece asistencia para elegir peso y confianza: una escala de referencia curada si existe para la categoría, o estadísticas (mínimo, máximo, promedio) calculadas sobre los perfiles ya existentes en esa categoría.
+When creating or modifying a profile, the system assists with choosing weight and confidence: a
+curated reference scale if one exists for the category, or statistics (minimum, maximum, average)
+computed over the profiles that already exist in that category.
 
-`Exportar` genera un archivo con timestamp en `${ARE_DATA}/backups/jail_profiles/`, con todos los perfiles del servidor. `Importar` permite seleccionar uno de esos archivos y aplicarlo, preguntando una única vez si se debe sobrescribir o conservar los perfiles que ya existan localmente. Este mecanismo permite replicar la calibración de perfiles entre servidores sin recrearlos manualmente uno por uno.
+`Export` generates a timestamped file in `${ARE_DATA}/backups/jail_profiles/`, with all of the
+server's profiles. `Import` lets you select one of those files and apply it, asking once whether
+to overwrite or keep the profiles that already exist locally. This mechanism lets you replicate
+profile calibration across servers without recreating them one by one.
 
-## Categorías
+## Categories
 
-Consulta de solo lectura del catálogo de categorías de reputación y sus umbrales configurados, y de las puntuaciones acumuladas por categoría para una IP concreta.
+Read-only view of the reputation category catalog and its configured thresholds, and of the
+per-category accumulated scores for a specific IP.
 
-## Sensores
+## Sensors
 
-Estado y configuración de los sensores activos (Fail2Ban y SpamAssassin por polling, `apache_evasive` por callback), leídos dinámicamente desde el registro de sensores.
+Status and configuration of the active sensors (Fail2Ban and SpamAssassin by polling,
+`apache_evasive` by callback), read dynamically from the sensor registry.
 
 ```text
-1) Estado
-2) Configuración
-3) Activar/Desactivar
+1) Status
+2) Configuration
+3) Enable/Disable
 ```
 
-`Activar/Desactivar` habilita o deshabilita un sensor. Para sensores de patrón polling, controla directamente su timer de systemd. Para sensores de patrón callback (`apache_evasive`), el registro queda marcado, pero el efecto real todavía depende de configuración externa a ARE (ver Roadmap).
+`Enable/Disable` turns a sensor on or off. For polling-pattern sensors, it controls their systemd
+timer directly. For callback-pattern sensors (`apache_evasive`), the registry entry is marked, but
+the actual effect still depends on configuration outside ARE (see Roadmap).
 
-## Política
+## Policy
 
-Consulta de solo lectura de la configuración efectiva del Policy Engine: umbrales globales, umbrales por categoría, multiplicadores de reincidencia, y niveles del Ban Lifecycle. La opción de validación comprueba que los umbrales estén en orden ascendente y que cada categoría con umbral definido tenga su regla correspondiente implementada.
+Read-only view of the Policy Engine's effective configuration: global thresholds, per-category
+thresholds, recidivism multipliers, and Ban Lifecycle levels. The validation option checks that
+the thresholds are in ascending order and that each category with a defined threshold has its
+corresponding rule implemented.
 
-## Estado / Reputación
+## State / Reputation
 
 ```text
-1) Consultar IP
-2) Eventos
+1) Query IP
+2) Events
 3) Top
-4) Estadísticas
-5) Tendencias
+4) Statistics
+5) Trends
 ```
 
-`Tendencias` muestra la evolución diaria de la actividad (eventos totales, por tipo de acción, e IPs distintas) para una ventana configurable de días.
+`Trends` shows the daily evolution of activity (total events, by action type, and distinct IPs)
+over a configurable window of days.
 
 ## Decay
 
 ```text
-1) Estado
+1) Status
 2) Dry-run
-3) Ejecutar
+3) Run
 ```
 
-## Configuración
+## Configuration
 
 ```text
-1) Ver
-2) Validar
-3) Estado del sistema
+1) View
+2) Validate
+3) System status
 ```
 
 ---
 
-# Estadísticas
+# Statistics
 
-Consultar información general del sistema:
+Query general system information:
 
 ```bash
 are stats
 ```
 
-El comando `stats` proporciona información operacional del sistema.
+The `stats` command provides operational system information.
 
-Entre la información incorporada al Dashboard se encuentra la actividad de los Jails.
+Among the information included in the Dashboard is jail activity.
 
-La sección `TOP JAILS` utiliza la tabla `events` como fuente de información y excluye eventos internos como `fail2ban` y `policy_apply`.
+The `TOP JAILS` section uses the `events` table as its source and excludes internal events such as
+`fail2ban` and `policy_apply`.
 
 ---
 
-# Tendencias
+# Trends
 
-Consultar la evolución diaria de la actividad registrada:
+Query the daily evolution of recorded activity:
 
 ```bash
-are trends [días]
+are trends [days]
 ```
 
-Por defecto muestra los últimos 7 días. Cada fila incluye eventos totales, desglose por tipo de acción (`FOUND`, `BAN`, `EXTERNAL_UNBAN`) e IPs distintas involucradas ese día.
+By default it shows the last 7 days. Each row includes total events, a breakdown by action type
+(`FOUND`, `BAN`, `EXTERNAL_UNBAN`), and the distinct IPs involved that day.
 
 ---
 
-# Top de amenazas
+# Top threats
 
-Consultar las principales direcciones según su reputación:
+Query the top addresses by reputation:
 
 ```bash
 are top
@@ -201,23 +220,24 @@ are top
 
 ---
 
-# Consultar reputación
+# Query reputation
 
-Consultar la reputación de una dirección IP:
+Query the reputation of an IP address:
 
 ```bash
 are score <IP>
 ```
 
-Ejemplo:
+Example:
 
 ```bash
 are score 192.168.1.10
 ```
 
-La información de reputación se mantiene en SQLite junto con los datos de hosts, eventos, Jails, perfiles de Jail y estado de sanciones.
+Reputation information is kept in SQLite along with the data for hosts, events, jails, jail
+profiles, and sanction state.
 
-La estructura persistente de ARE incluye:
+ARE's persistent structure includes:
 
 ```text
 hosts
@@ -230,9 +250,11 @@ jail_profile
 sanction_state
 ```
 
-`reputation_scores` mantiene el score por categoría de forma normalizada (una fila por IP y categoría), lo que permite incorporar categorías nuevas sin modificar la estructura de la base ni el código de las funciones que la consultan.
+`reputation_scores` keeps the per-category score in normalized form (one row per IP and
+category), which makes it possible to add new categories without changing the database structure
+or the code of the functions that query it.
 
-La base de datos se encuentra en:
+The database is located at:
 
 ```text
 /var/lib/are/are.db
@@ -240,39 +262,40 @@ La base de datos se encuentra en:
 
 ---
 
-# Consultar eventos
+# Query events
 
-Consultar los eventos registrados para una dirección IP:
+Query the recorded events for an IP address:
 
 ```bash
 are events <IP>
 ```
 
-Ejemplo:
+Example:
 
 ```bash
 are events 192.168.1.10
 ```
 
-Los eventos constituyen el historial de actividad procesado por ARE y también son utilizados por las estadísticas de Jails y por las tendencias temporales.
+Events make up the activity history ARE processes, and are also used by the jail statistics and
+the time-based trends.
 
 ---
 
-# Procesar un evento FOUND
+# Process a FOUND event
 
-Procesar manualmente un evento `FOUND`:
+Manually process a `FOUND` event:
 
 ```bash
 are found <IP> <JAIL>
 ```
 
-Ejemplo:
+Example:
 
 ```bash
 are found 192.168.1.10 modsec-protocol
 ```
 
-El flujo de procesamiento de un evento `FOUND` es:
+The processing flow of a `FOUND` event is:
 
 ```text
 FOUND
@@ -284,122 +307,132 @@ Reputation
 State
   │
   ▼
-Policy (evaluación por categoría)
+Policy (per-category evaluation)
   │
   ▼
 Apply
 ```
 
-El `JAIL` debe tener un perfil administrado (ver ARE ADMIN, Jails / Perfiles). Un jail sin perfil se descarta sin generar evento, sin necesidad de mantener una lista fija en el código del sensor.
+The `JAIL` must have a managed profile (see ARE ADMIN, Jails / Profiles). A jail without a profile
+is discarded without generating an event, with no need to keep a fixed list in the sensor's code.
 
 ---
 
 # Ban
 
-Procesar un evento de ban:
+Process a ban event:
 
 ```bash
 are ban <IP> <JAIL>
 ```
 
-El Jail proporciona el contexto utilizado por ARE para procesar el evento.
+The jail provides the context ARE uses to process the event.
 
-Las decisiones de aplicación incluyen `FILTER`, `TEMP_BAN` y `BAN`.
+Enforcement decisions include `FILTER`, `TEMP_BAN`, and `BAN`.
 
-El backend utiliza conjuntos separados para filtrado y bloqueo, tanto para IPv4 como para IPv6.
+The backend uses separate sets for filtering and blocking, for both IPv4 and IPv6.
 
-Cuando la sanción calculada excede el límite máximo de timeout soportado por IPSet, el sistema ajusta automáticamente la duración aplicada a ese límite, registrando la situación en el log.
+When the computed sanction exceeds the maximum timeout IPSet supports, the system automatically
+clamps the applied duration to that limit and records the situation in the log.
 
 ---
 
 # Unban
 
-Eliminar una sanción activa:
+Remove an active sanction:
 
 ```bash
 are unban <IP>
 ```
 
-El flujo `UNBAN` forma parte del ciclo de vida de las direcciones IP y del backend.
+The `UNBAN` flow is part of the lifecycle of IP addresses and of the backend.
 
 ---
 
-# Unban externo
+# External unban
 
-Procesar un evento `EXTERNAL_UNBAN`:
+Process an `EXTERNAL_UNBAN` event:
 
 ```bash
 are external-unban <IP> [JAIL]
 ```
 
-Los eventos `UNBAN` externos se registran como:
+External `UNBAN` events are recorded as:
 
 ```text
 EXTERNAL_UNBAN
 ```
 
-El `EXTERNAL_UNBAN` no libera directamente la dirección IP.
+`EXTERNAL_UNBAN` does not directly release the IP address.
 
-ARE vuelve a evaluar la dirección mediante el Policy Engine y aplica la decisión resultante.
+ARE re-evaluates the address through the Policy Engine and applies the resulting decision.
 
 ---
 
-# Comparar decisiones de política
+# Compare policy decisions
 
-Ejecutar simultáneamente el motor de decisión activo y una evaluación de referencia sobre la misma IP, sin aplicar ninguna decisión:
+Run the active decision engine and a reference evaluation on the same IP at the same time, without
+applying any decision:
 
 ```bash
 are policy-compare <IP>
 ```
 
-Útil para validar el comportamiento del Policy Engine contra datos reales de producción antes de adoptar un cambio de configuración o de umbrales.
+Useful for validating the Policy Engine's behavior against real production data before adopting a
+change to configuration or thresholds.
 
 ---
 
 # Reputation Decay
 
-ARE dispone de Reputation Decay para reducir progresivamente la reputación de direcciones IP sin actividad reciente.
+ARE provides Reputation Decay to progressively reduce the reputation of IP addresses with no
+recent activity.
 
-Los parámetros documentados son:
+The documented parameters are:
 
 ```text
 DECAY_MIN_AGE=86400
 DECAY_FACTOR=0.95
 ```
 
-Esto corresponde a un mínimo de 24 horas sin actividad y un factor inicial de reducción de `0.95`.
+This corresponds to a minimum of 24 hours without activity and an initial reduction factor of
+`0.95`.
 
-La reducción se calcula sobre el score total agregado de la IP y se redistribuye proporcionalmente entre sus categorías activas, evitando que una IP con actividad repartida entre varias categorías decaiga más rápido que otra con actividad concentrada en una sola, ante el mismo score total.
+The reduction is computed on the IP's aggregate total score and redistributed proportionally
+across its active categories, so that an IP with activity spread across several categories does
+not decay faster than one with activity concentrated in a single category, given the same total
+score.
 
-## Simulación
+## Simulation
 
-Consultar las IPs candidatas sin modificar la reputación:
+View the candidate IPs without changing reputation:
 
 ```bash
 are decay-dry-run
 ```
 
-La simulación muestra las candidatas y el score estimado.
+The simulation shows the candidates and the estimated score.
 
-## Aplicación
+## Applying
 
-Aplicar el decay:
+Apply the decay:
 
 ```bash
 are decay-apply
 ```
 
-La operación:
+The operation:
 
-* reduce el score, redistribuido proporcionalmente entre categorías;
-* actualiza el estado;
-* reevalúa el Policy Engine;
-* actualiza `last_decay`;
-* evita aplicar múltiples reducciones dentro de la misma ventana.
+* reduces the score, redistributed proportionally across categories;
+* updates the state;
+* re-evaluates the Policy Engine;
+* updates `last_decay`;
+* avoids applying multiple reductions within the same window.
 
-El Decay no ejecuta directamente cambios sobre el firewall. La liberación automática sólo se produce cuando la política devuelve `ALLOW`; `WATCH`, `FILTER`, `TEMP_BAN` y `BAN` no generan liberación automática.
+Decay does not directly make changes to the firewall. Automatic release only happens when the
+policy returns `ALLOW`; `WATCH`, `FILTER`, `TEMP_BAN`, and `BAN` do not trigger automatic release.
 
-El mecanismo se encuentra integrado con systemd mediante:
+The mechanism is integrated with systemd through:
 
 ```text
 are-fail2ban-decay.service
@@ -408,36 +441,42 @@ are-fail2ban-decay.timer
 
 ---
 
-# Sensores
+# Sensors
 
-## Fail2Ban (patrón polling)
+## Fail2Ban (polling pattern)
 
-ARE mantiene un sensor para Fail2Ban que lee el log de forma periódica.
+ARE maintains a sensor for Fail2Ban that reads the log periodically.
 
-Los eventos procesados por el sensor son:
+The events the sensor processes are:
 
 ```text
 FOUND
 EXTERNAL_UNBAN
 ```
 
-El sensor utiliza un cursor persistente para procesar nuevos eventos, y valida dinámicamente cada jail contra `jail_profile` — un jail sin perfil administrado se descarta.
+The sensor uses a persistent cursor to process new events, and validates each jail dynamically
+against `jail_profile` — a jail without a managed profile is discarded.
 
-## SpamAssassin (patrón polling)
+## SpamAssassin (polling pattern)
 
-ARE mantiene un sensor para SpamAssassin que lee el log del MTA de forma periódica (adaptador implementado y validado: Exim). Clasifica los mensajes marcados como spam en tres bandas de severidad según su score, cada una con su propio perfil administrado. Reporta a la categoría `SOCIAL`.
+ARE maintains a sensor for SpamAssassin that reads the MTA log periodically (adapter implemented
+and validated: Exim). It classifies messages flagged as spam into three severity bands by score,
+each with its own managed profile. It reports to the `SOCIAL` category.
 
-## Apache / mod_evasive (patrón callback)
+## Apache / mod_evasive (callback pattern)
 
-Sensor invocado directamente por Apache en el instante en que `mod_evasive` detecta un flood, sin esperar a un ciclo de lectura periódica. Reporta a la categoría `DOS`.
+A sensor invoked directly by Apache the moment `mod_evasive` detects a flood, without waiting for a
+periodic read cycle. It reports to the `DOS` category.
 
 ---
 
-# Restauración del Firewall Backend
+# Firewall Backend restoration
 
-IPSet no conserva su contenido de forma nativa entre reinicios del sistema operativo. ARE restaura al arrancar las sanciones activas (permanentes y temporales, preservando el tiempo restante exacto de estas últimas) y las IPs en estado de filtrado, a partir de la base de datos — no de un snapshot congelado del firewall.
+IPSet does not natively keep its contents across operating-system reboots. At boot, ARE restores
+the active sanctions (permanent and temporary — preserving the exact remaining time of the latter)
+and the IPs in filtering state, from the database — not from a frozen firewall snapshot.
 
-Este mecanismo se ejecuta una única vez por arranque, mediante:
+This mechanism runs exactly once per boot, through:
 
 ```text
 are-restore-ipsets.service
@@ -447,7 +486,7 @@ are-restore-ipsets.service
 
 # Installer Engine
 
-El Installer Engine administra el ciclo de vida de la instalación mediante:
+The Installer Engine manages the installation lifecycle through:
 
 ```bash
 are-installer install
@@ -457,56 +496,59 @@ are-installer verify
 are-installer uninstall
 ```
 
-Las operaciones utilizan un único Installer Core y reutilizan sus módulos según la operación.
+The operations use a single Installer Core and reuse its modules depending on the operation.
 
-## Instalar
+## Install
 
 ```bash
 are-installer install
 ```
 
-La instalación crea la estructura requerida, instala el Core, la configuración, la base de datos, los enlaces, permisos, servicios, timers y logrotate, y realiza la validación final.
+Installation creates the required structure, installs the Core, the configuration, the database,
+the links, permissions, services, timers, and logrotate, and performs the final validation.
 
-La instalación no debe utilizar como origen y destino el mismo directorio.
+Installation must not use the same directory as both source and target.
 
-## Actualizar
+## Upgrade
 
 ```bash
 are-installer upgrade
 ```
 
-`upgrade` requiere una instalación existente.
+`upgrade` requires an existing installation.
 
-Actualiza el Core y los componentes administrados sin sobrescribir la configuración persistente existente. La operación conserva los datos persistentes y actualiza los enlaces, logging, systemd y logrotate.
+It updates the Core and the managed components without overwriting the existing persistent
+configuration. The operation preserves the persistent data and updates the links, logging,
+systemd, and logrotate.
 
-## Reparar
+## Repair
 
 ```bash
 are-installer repair
 ```
 
-`repair` actúa sobre una instalación incompleta.
+`repair` acts on an incomplete installation.
 
-Restaura los componentes necesarios y vuelve a validar la instalación.
+It restores the necessary components and re-validates the installation.
 
-## Verificar
+## Verify
 
 ```bash
 are-installer verify
 ```
 
-La verificación comprueba, entre otros elementos:
+Verification checks, among other things:
 
-* integridad de archivos y directorios;
-* enlaces;
-* permisos;
-* estructura SQLite;
+* file and directory integrity;
+* links;
+* permissions;
+* SQLite structure;
 * runtime;
 * IPSet;
 * systemd;
 * logrotate.
 
-Las comprobaciones de la instalación incluyen las tablas:
+The installation checks include the tables:
 
 ```text
 config
@@ -519,27 +561,28 @@ reputation_scores
 sanction_state
 ```
 
-## Desinstalar
+## Uninstall
 
 ```bash
 are-installer uninstall
 ```
 
-La desinstalación elimina los componentes administrados del producto, incluyendo Core, unidades systemd, enlaces y configuración de logrotate.
+Uninstallation removes the product's managed components, including the Core, systemd units, links,
+and logrotate configuration.
 
-Los datos persistentes y la configuración se conservan:
+Persistent data and configuration are preserved:
 
 ```text
-Configuración
-Datos
+Configuration
+Data
 Logs
 ```
 
 ---
 
-# Configuración
+# Configuration
 
-ARE utiliza los siguientes archivos de configuración:
+ARE uses the following configuration files:
 
 ```text
 config.conf
@@ -547,13 +590,14 @@ policy.conf
 whitelist.conf
 ```
 
-Estos archivos son tratados como configuración persistente por el Installer Engine y no se sobrescriben cuando ya existe configuración administrada por el administrador.
+These files are treated as persistent configuration by the Installer Engine and are not
+overwritten when administrator-managed configuration already exists.
 
-Los enlaces de configuración forman parte de la instalación y son verificados por `are-installer verify`.
+The configuration links are part of the installation and are checked by `are-installer verify`.
 
 ---
 
-# Ubicaciones principales
+# Main locations
 
 Core:
 
@@ -561,7 +605,7 @@ Core:
 /opt/are
 ```
 
-Datos persistentes:
+Persistent data:
 
 ```text
 /var/lib/are
@@ -573,13 +617,13 @@ Logs:
 /var/log/are
 ```
 
-Enlaces ejecutables:
+Executable links:
 
 ```text
 /usr/local/sbin
 ```
 
-Unidades systemd:
+systemd units:
 
 ```text
 /etc/systemd/system
@@ -587,12 +631,12 @@ Unidades systemd:
 
 ---
 
-# Flujo operativo
+# Operational flow
 
-El flujo general de ARE es:
+ARE's general flow is:
 
 ```text
-Evento
+Event
    │
    ▼
 Reputation
@@ -601,7 +645,7 @@ Reputation
 State
    │
    ▼
-Policy (por categoría)
+Policy (per-category)
    │
    ▼
 Ban Lifecycle
@@ -613,73 +657,75 @@ Apply
 Firewall
 ```
 
-Fail2Ban y Apache/mod_evasive actúan como fuentes de eventos mediante el Sensor Framework.
+Fail2Ban and Apache/mod_evasive act as event sources through the Sensor Framework.
 
-ARE mantiene la reputación y el estado, determina la decisión mediante el Policy Engine y ejecuta la acción correspondiente mediante el backend.
-
----
-
-# Buenas prácticas
-
-* Verificar la instalación después de operaciones de mantenimiento.
-* Mantener protegida la configuración.
-* Mantener copias de seguridad de los datos persistentes.
-* Revisar periódicamente eventos, estadísticas y tendencias.
-* Supervisar el estado de los sensores y las decisiones aplicadas.
-* Usar `policy-compare` antes de adoptar cambios de umbrales en producción.
-* Exportar el catálogo de `jail_profile` antes de cambios mayores, para poder restaurar la calibración si algo sale mal.
+ARE maintains the reputation and state, determines the decision through the Policy Engine, and
+carries out the corresponding action through the backend.
 
 ---
 
-# Solución de problemas
+# Best practices
 
-### Instalación incompleta
+* Verify the installation after maintenance operations.
+* Keep the configuration protected.
+* Keep backups of the persistent data.
+* Periodically review events, statistics, and trends.
+* Monitor the status of the sensors and the applied decisions.
+* Use `policy-compare` before adopting threshold changes in production.
+* Export the `jail_profile` catalog before major changes, so you can restore the calibration if
+  something goes wrong.
 
-Ejecutar:
+---
+
+# Troubleshooting
+
+### Incomplete installation
+
+Run:
 
 ```bash
 are-installer verify
 ```
 
-Si la instalación es detectada como incompleta:
+If the installation is detected as incomplete:
 
 ```bash
 are-installer repair
 ```
 
-### Instalación existente
+### Existing installation
 
-Para actualizar una instalación existente:
+To upgrade an existing installation:
 
 ```bash
 are-installer upgrade
 ```
 
-### Consultar una IP
+### Query an IP
 
 ```bash
 are score <IP>
 ```
 
-### Consultar eventos
+### Query events
 
 ```bash
 are events <IP>
 ```
 
-### Consultar estadísticas
+### Query statistics
 
 ```bash
 are stats
 ```
 
-### Consultar decay
+### Query decay
 
 ```bash
 are decay-dry-run
 ```
 
-### Comparar el motor de decisión
+### Compare the decision engine
 
 ```bash
 are policy-compare <IP>
@@ -687,9 +733,9 @@ are policy-compare <IP>
 
 ---
 
-# Referencias
+# References
 
-Para información adicional consultar:
+For more information, see:
 
 ```text
 README.md
@@ -703,4 +749,9 @@ docs/CHANGELOG.md
 docs/ROADMAP.md
 ```
 
-Esta guía contiene únicamente procedimientos y capacidades respaldados por la documentación y las implementaciones verificadas disponibles para ARE.
+This guide contains only procedures and capabilities backed by the documentation and the verified
+implementations available for ARE.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`USER_GUIDE.es.md`](USER_GUIDE.es.md)

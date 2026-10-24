@@ -1,46 +1,48 @@
 # ARE Roadmap
 
-## Introducción
+## Introduction
 
-Este documento define la evolución prevista de ARE (Abuse Reputation Engine).
+This document defines the planned evolution of ARE (Abuse Reputation Engine).
 
-El Roadmap describe la dirección técnica del proyecto y sirve como referencia para planificar nuevas capacidades sin comprometer la estabilidad del núcleo.
+The Roadmap describes the project's technical direction and serves as a reference for planning new
+capabilities without compromising the stability of the core.
 
-Las versiones representan objetivos técnicos y no fechas de publicación.
+Versions represent technical goals, not release dates.
 
-Toda nueva funcionalidad deberá respetar la arquitectura y la metodología oficial del proyecto.
+Every new feature must respect the project's architecture and official methodology.
 
 ---
 
-# Estado del proyecto
+# Project status
 
-Versión estable liberada:
+Latest stable release:
 
 ```text
 v2.8.2
 ```
 
-Estado:
+Status:
 
 ```text
-Producción
+Production
 ```
 
-La versión estable actual se encuentra operativa en el servidor de producción principal y continúa siendo objeto de consolidación y mantenimiento. El detalle técnico de cada versión se documenta en `docs/TODO.md`.
+The current stable version is running on the main production server and continues to be
+consolidated and maintained. The technical detail of each version is documented in `docs/TODO.md`.
 
 ---
 
 # v1.0.x
 
-## Objetivo
+## Goal
 
-Construcción y estabilización del núcleo de ARE.
+Building and stabilizing the ARE core.
 
-## Estado
+## Status
 
-✔ Completado
+✔ Completed
 
-## Capacidades incorporadas
+## Capabilities added
 
 * Reputation Engine
 * State Engine
@@ -48,24 +50,24 @@ Construcción y estabilización del núcleo de ARE.
 * Firewall Backend
 * SQLite
 * Dashboard
-* Integración con Fail2Ban
-* Integración con ModSecurity
-* Soporte IPv4
-* Soporte IPv6
+* Fail2Ban integration
+* ModSecurity integration
+* IPv4 support
+* IPv6 support
 
 ---
 
 # v1.1
 
-## Objetivo
+## Goal
 
-Consolidar el producto y ampliar su ciclo de vida operativo.
+Consolidate the product and extend its operational lifecycle.
 
-## Estado
+## Status
 
-✔ Completado
+✔ Completed
 
-## Funcionalidades
+## Features
 
 ### Installer Engine
 
@@ -74,456 +76,585 @@ Consolidar el producto y ampliar su ciclo de vida operativo.
 * repair
 * verify
 * uninstall
-* detección del estado de instalación
-* protección de configuración persistente
-* conservación de datos persistentes
-* validación de la instalación
-* desinstalación conservando configuración, datos y logs
+* installation-state detection
+* persistent-configuration protection
+* persistent-data preservation
+* installation validation
+* uninstallation preserving configuration, data, and logs
 
-Las operaciones `install`, `upgrade` y `repair` utilizan un Core fuente separado de la instalación activa cuando requieren copiar los componentes del producto.
+The `install`, `upgrade`, and `repair` operations use a source Core separate from the live
+installation when they need to copy the product's components.
 
-La generación, descarga, extracción y staging automático de paquetes no forman parte del Installer actual.
+Automatic package generation, download, extraction, and staging are not part of the current
+Installer.
 
 ### Sensor Framework
 
-* arquitectura de sensores
-* primer Sensor oficial de Fail2Ban (`FOUND`)
-* procesamiento mediante offset persistente
-* ejecución `--dry-run`
-* ejecución `--execute`
+* sensor architecture
+* first official Fail2Ban Sensor (`FOUND`)
+* processing through a persistent offset
+* `--dry-run` execution
+* `--execute` execution
 
 ### Installer Manifest
 
-* definición oficial de los componentes administrados
-* estructura centralizada del producto
+* official definition of the managed components
+* centralized product structure
 
 ### Dashboard
 
 * TOP JAILS
-* ampliación de estadísticas
-* separación entre eventos y reputación
+* statistics expansion
+* separation between events and reputation
 
 ### Reputation Engine
 
-Nuevas categorías:
+New categories:
 
 * ANOMALY
 * MALWARE
 * DOS
 * SOCIAL
 
-### Documentación
+### Documentation
 
-* reorganización completa
-* normalización documental
-* documentación sincronizada con el código
+* complete reorganization
+* documentation normalization
+* documentation in sync with the code
 
 ---
 
 # v2.0
 
-## Objetivo
+## Goal
 
-Consolidar la identidad propia del producto (migración desde `f2b-ipset`), incorporar una interfaz de administración completa, y evolucionar el motor de decisión de un modelo por score total a uno de evaluación por categoría.
+Consolidate the product's own identity (migration from `f2b-ipset`), add a complete administration
+interface, and evolve the decision engine from a total-score model to a per-category evaluation one.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.0.0`)
+✔ Completed — released as an official release (`v2.0.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-Reemplazan y superan lo originalmente previsto para `v1.2`/`v1.3` en este mismo documento (Decay Engine, reglas dinámicas, correlación de categorías, métricas ampliadas) — ver detalle completo en `docs/CHANGELOG.md` y `docs/TODO.md`.
+They replace and go beyond what was originally planned for `v1.2`/`v1.3` in this same document
+(Decay Engine, dynamic rules, category correlation, expanded metrics) — see full detail in
+`docs/CHANGELOG.md` and `docs/TODO.md`.
 
-### Product Manifest e Installer
+### Product Manifest and Installer
 
-* `manifest/product.sh` como fuente única de verdad de los componentes del producto
-* Instalación oficial en `/opt/are`, abandonando la identidad histórica `f2b-ipset`
+* `manifest/product.sh` as the single source of truth for the product's components
+* official installation in `/opt/are`, leaving behind the historical `f2b-ipset` identity
 
 ### Reputation Decay
 
-* Decay Engine completo (`dry-run` / `apply`), con ejecución programada vía systemd
+* complete Decay Engine (`dry-run` / `apply`), with scheduled execution via systemd
 
-### Interfaz de Administración (ARE ADMIN)
+### Administration Interface (ARE ADMIN)
 
-* CLI completo (`are.sh admin`), 7 ramas: Jails/Perfiles, Categorías, Sensores, Política, Estado/Reputación, Decay, Configuración
-* Registro de auditoría de operaciones de escritura
-* Banner con identificación de servidor, para entornos con múltiples nodos
+* complete CLI (`are.sh admin`), 7 branches: Jails/Profiles, Categories, Sensors, Policy,
+  State/Reputation, Decay, Configuration
+* audit log of write operations
+* banner with server identification, for multi-node environments
 
-### Policy Engine basado en categorías
+### Category-based Policy Engine
 
-* Evaluación de riesgo por categoría de reputación, con regla propia y umbral configurable por categoría
-* Multiplicador de riesgo por reincidencia
-* Piso de seguridad: nunca menos estricto que el score total agregado
-* Herramienta de comparación (`policy-compare`) para validar el motor antes de aplicarlo en producción
+* per-category risk evaluation, with its own rule and a configurable threshold per category
+* recidivism risk multiplier
+* safety floor: never less strict than the aggregate total score
+* comparison tool (`policy-compare`) to validate the engine before applying it in production
 
-### Integración de mod_evasive
+### mod_evasive integration
 
-* Protección anti-flood de Apache incorporada al modelo de reputación de ARE (categoría DOS), en reemplazo de un bloqueo de duración fija desconectado del sistema
+* Apache anti-flood protection incorporated into ARE's reputation model (DOS category), replacing a
+  fixed-duration block disconnected from the system
 
-### Consolidación
+### Consolidation
 
-* Eliminación del código de generaciones anteriores del Policy Engine
+* removal of the code from earlier generations of the Policy Engine
 
 ---
 
 # v2.1
 
-## Objetivo
+## Goal
 
-Administración avanzada de perfiles, extensibilidad del modelo de reputación, visibilidad operativa, y robustecimiento de la persistencia del Firewall Backend.
+Advanced profile management, extensibility of the reputation model, operational visibility, and
+hardening of the Firewall Backend persistence.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.1.0`)
+✔ Completed — released as an official release (`v2.1.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-### Jails / Perfiles
+### Jails / Profiles
 
-* Exportar / Importar `jail_profile` entre servidores, con resolución de conflictos y auditoría
+* Export / Import `jail_profile` between servers, with conflict resolution and auditing
 
-### Sensores
+### Sensors
 
-* `apache_evasive.sh` formalizado como sensor oficial del framework — segundo patrón documentado (callback, invocado directo por Apache), junto al ya existente (polling, Fail2Ban)
-* Filtro de jails de Fail2Ban reemplazado por consulta dinámica contra `jail_profile`, en vez de una lista fija en el código
+* `apache_evasive.sh` formalized as an official framework sensor — the second documented pattern
+  (callback, invoked directly by Apache), alongside the existing one (polling, Fail2Ban)
+* the Fail2Ban jail filter replaced by a dynamic query against `jail_profile`, instead of a fixed
+  list in the code
 
-### Modelo de reputación
+### Reputation model
 
-* Migración del modelo de categorías de columnas fijas a esquema normalizado (`reputation_scores`), permitiendo agregar categorías nuevas como operación de datos, sin migración de esquema ni cambios de código
-* Corrección de deriva de truncamiento en el cálculo de reputación (almacenamiento y cálculo de Decay)
-* Redistribución proporcional del Decay Engine entre categorías, evitando que la diversidad de técnicas de ataque acelere la liberación de una IP
+* migration of the category model from fixed columns to a normalized schema (`reputation_scores`),
+  allowing new categories to be added as a data operation, with no schema migration or code changes
+* fix for a truncation drift in the reputation calculation (storage and Decay calculation)
+* proportional redistribution of the Decay Engine across categories, preventing the diversity of
+  attack techniques from speeding up an IP's release
 
 ### Dashboard
 
-* Tendencias diarias de actividad (eventos, bans, IPs distintas por día), primera vista temporal del sistema
+* daily activity trends (events, bans, distinct IPs per day), the system's first time-based view
 
 ### Firewall Backend
 
-* Restauración automática del estado del firewall (`ipset`) desde la base de datos al arrancar el sistema, preservando el tiempo restante exacto de sanciones temporales activas — antes, un reinicio del servidor podía perder sanciones activas sin cumplir su plazo
-* Corrección de un límite de rango no controlado en `ipset`, que impedía aplicar correctamente sanciones de larga duración (nivel más alto de reincidencia previo a la sanción permanente)
+* automatic restoration of the firewall state (`ipset`) from the database at system boot, preserving
+  the exact remaining time of active temporary sanctions — previously, a server reboot could lose
+  active sanctions before their deadline
+* fix for an uncontrolled range limit in `ipset` that prevented correctly applying long-duration
+  sanctions (the highest recidivism level before the permanent sanction)
 
 ---
 
 # v2.2
 
-## Objetivo
+## Goal
 
-Incorporar una nueva fuente de datos real al modelo de reputación (categoría SOCIAL), completar el catálogo de umbrales de categoría, y resolver la fricción de distribución del producto hacia otros servidores de la flota.
+Add a new real data source to the reputation model (SOCIAL category), complete the category
+threshold catalog, and resolve the friction of distributing the product to other servers in the
+fleet.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.2.0`)
+✔ Completed — released as an official release (`v2.2.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-### Sensor SpamAssassin
+### SpamAssassin Sensor
 
-* Categoría `SOCIAL` con sensor real, alimentado por scores de SpamAssassin sobre tráfico de correo saliente, clasificados en tres bandas de severidad calibradas por `jail_profile`
-* Arquitectura por adaptador de MTA — único adaptador implementado y validado: Exim
-* `policy/rules/social.sh`, existente desde una fase anterior del proyecto sin umbral definido, activo por primera vez
+* `SOCIAL` category with a real sensor, fed by SpamAssassin scores over outgoing mail traffic,
+  classified into three severity bands calibrated by `jail_profile`
+* MTA-adapter architecture — the only implemented and validated adapter: Exim
+* `policy/rules/social.sh`, existing from an earlier project phase with no defined threshold, active
+  for the first time
 
-### Catálogo de categorías
+### Category catalog
 
-* Las 9 categorías del modelo de reputación cuentan con umbral definido — incluida `MALWARE`, calibrada de forma proactiva pese a no contar con sensor local, como decisión de motor genérico útil para cualquier servidor con superficie de malware real
+* all 9 categories of the reputation model have a defined threshold — including `MALWARE`, calibrated
+  proactively despite having no local sensor, as a generic-engine decision useful for any server with
+  real malware surface
 
 ### Dashboard
 
-* Desglose de tendencias por categoría y exportación a CSV, extendiendo la vista temporal incorporada en v2.1
+* trend breakdown by category and CSV export, extending the time-based view added in v2.1
 
-### Empaquetado y distribución
+### Packaging and distribution
 
-* Script de empaquetado que genera un artefacto distribuible a partir del manifiesto del producto, con verificación de integridad
-* Automatización de la generación y publicación del paquete en cada versión etiquetada
-* Instalación remota de una sola línea, sin depender de clonar el repositorio
+* a packaging script that generates a distributable artifact from the product manifest, with
+  integrity verification
+* automation of package generation and publication on each tagged version
+* one-line remote installation, without depending on cloning the repository
 
-## Pendiente, fuera del alcance de esta versión
+## Pending, out of scope for this version
 
-* Fase de auto-actualización del Installer contra el repositorio de releases (estilo `apt`/`yum`) — resuelta en v2.3
-* Habilitar/deshabilitar sensores desde ARE ADMIN, con auto-provisión de `jail_profile` al activar — resuelta en v2.3
-* Integración completa de `mod_evasive` como única vía de bloqueo — investigación en curso sugiere que el patrón de amenaza real de servidores detrás de un proxy como Cloudflare (tráfico distribuido, no floods concentrados de una sola IP) puede no coincidir con lo que este sensor está diseñado para detectar; sin evidencia real de disparo hasta la fecha
-* Eliminación de las columnas de categoría redundantes en `reputation` (pospuesta por limitación de versión de SQLite en el servidor de producción, sin fecha)
+* Installer self-update phase against the releases repository (`apt`/`yum` style) — resolved in v2.3
+* enable/disable sensors from ARE ADMIN, with auto-provisioning of `jail_profile` on enable —
+  resolved in v2.3
+* full integration of `mod_evasive` as the only blocking path — ongoing research suggests the real
+  threat pattern of servers behind a proxy like Cloudflare (distributed traffic, not concentrated
+  floods from a single IP) may not match what this sensor is designed to detect; with no real
+  trigger evidence to date
+* removal of the redundant category columns in `reputation` (postponed due to the SQLite version
+  limitation on the production server, with no date)
 
 ---
 
 # v2.3
 
-## Objetivo
+## Goal
 
-Administración operativa de sensores desde ARE ADMIN, cierre de la línea de auto-actualización del Installer Engine, y visibilidad ampliada con detección de anomalías.
+Operational sensor administration from ARE ADMIN, closing the Installer Engine's self-update line,
+and expanded visibility with anomaly detection.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.3.0`)
+✔ Completed — released as an official release (`v2.3.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-### Activar/desactivar sensores
+### Enable/disable sensors
 
-* Registro dinámico de sensores (`sensor_registry`), leído por ARE ADMIN sin código nuevo por cada sensor agregado
-* Sensores de polling (Fail2Ban, SpamAssassin): activar/desactivar controla directamente el timer de systemd
-* Sensor de callback (`apache_evasive`): activar/desactivar mediante archivo flag, sin tocar la configuración externa de Apache/mod_evasive — solo se detiene el bloqueo y el reporte a ARE, con aviso por email en su lugar
-* Auto-provisión de `jail_profile` al habilitar SpamAssassin, idempotente
-* Detección de jails de Fail2Ban con actividad real sin perfil administrado, solo lectura — sin auto-creación de categoría ni peso
+* dynamic sensor registry (`sensor_registry`), read by ARE ADMIN with no new code per added sensor
+* polling sensors (Fail2Ban, SpamAssassin): enable/disable controls the systemd timer directly
+* callback sensor (`apache_evasive`): enable/disable through a flag file, without touching the
+  external Apache/mod_evasive configuration — only the block and the report to ARE are stopped, with
+  an email notice instead
+* auto-provisioning of `jail_profile` on enabling SpamAssassin, idempotent
+* detection of Fail2Ban jails with real activity but no managed profile, read-only — with no
+  auto-creation of category or weight
 
-### Cierre de la línea de auto-actualización
+### Closing the self-update line
 
-* Consulta de versión disponible contra la API de releases, sin tocar el sistema
-* Actualización remota de una instalación existente, reutilizando el bootstrap ya existente
-* Instalación automática de dependencias del sistema faltantes (apt-get/dnf/yum)
+* available-version query against the releases API, without touching the system
+* remote update of an existing installation, reusing the existing bootstrap
+* automatic installation of missing system dependencies (apt-get/dnf/yum)
 
-### Visibilidad ampliada
+### Expanded visibility
 
-* Detección automática de anomalías en las tendencias diarias por categoría, comparando la actividad del día contra el promedio reciente
+* automatic anomaly detection in the daily per-category trends, comparing the day's activity against
+  the recent average
 
-## Correcciones
+## Fixes
 
-* Workflow de publicación de release fallaba si la Release de GitHub no existía previamente
-* Extracción del paquete de instalación remota fallaba en servidores con `/tmp` montado sin permiso de ejecución
-* El sensor de SpamAssassin podía reprocesar el mismo tramo del log ante corridas solapadas, inflando la reputación de una IP
-* Revertir una sanción no persistía el cambio en el estado de sanciones, exponiendo a que se reaplicara tras un reinicio del sistema
-* El sensor de SpamAssassin delegaba en el veredicto interno de la herramienta en vez de decidir por su propio criterio de riesgo, perdiendo eventos reales
+* the release-publication workflow failed if the GitHub Release did not already exist
+* extraction of the remote-installation package failed on servers with `/tmp` mounted without execute
+  permission
+* the SpamAssassin sensor could reprocess the same log stretch on overlapping runs, inflating an IP's
+  reputation
+* reverting a sanction did not persist the change in the sanction state, risking its re-application
+  after a system reboot
+* the SpamAssassin sensor delegated to the tool's internal verdict instead of deciding by its own risk
+  criterion, losing real events
 
 ---
 
 # v2.4
 
-## Objetivo
+## Goal
 
-Completar el modelo de reputación extensible (RFC-008), y corregir la instalación remota para que funcione realmente de punta a punta, sin intervención manual — validado con instalaciones limpias reales en dos distros distintas.
+Complete the extensible reputation model (RFC-008), and fix the remote installation so it really
+works end to end, with no manual intervention — validated with real clean installations on two
+different distros.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.4.0`)
+✔ Completed — released as an official release (`v2.4.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-### Modelo de reputación extensible completo (RFC-008, Fase 4)
+### Complete extensible reputation model (RFC-008, Phase 4)
 
-* Las 9 columnas de categoría redundantes y `total_score` eliminadas de la tabla `reputation` — el score por categoría vive únicamente en `reputation_scores` (normalizada) desde entonces
-* 6 funciones de estadísticas reescritas para calcular sobre `reputation_scores`, sin depender de columnas eliminadas
-* Instalaciones nuevas ya no crean las columnas redundantes en absoluto, sin importar la versión de SQLite del servidor
+* the 9 redundant category columns and `total_score` removed from the `reputation` table — the
+  per-category score lives only in `reputation_scores` (normalized) from then on
+* 6 statistics functions rewritten to compute over `reputation_scores`, without depending on removed
+  columns
+* new installations no longer create the redundant columns at all, regardless of the server's SQLite
+  version
 
-### Instalación remota corregida de fondo
+### Remote installation fixed at the root
 
-* El Installer nunca creaba los conjuntos IPSet ni las reglas de firewall durante la instalación — dependía de que alguien ejecutara `are.sh` manualmente después. Corregido para inicializarlos como parte del propio `install`/`upgrade`/`repair`
-* Las 4 unidades `.service` de sensores de polling tenían una dependencia dura sobre servicios externos (Fail2Ban, Exim) que pueden no estar instalados — un servidor legítimo sin esas herramientas quedaba con la instalación rota. Ablandada a una dependencia de orden, no de bloqueo
-* `reputation_scores` no se creaba en una instalación genuinamente nueva sin datos previos
+* the Installer never created the IPSet sets or the firewall rules during installation — it depended
+  on someone running `are.sh` manually afterward. Fixed to initialize them as part of `install` /
+  `upgrade` / `repair` itself
+* the 4 polling-sensor `.service` units had a hard dependency on external services (Fail2Ban, Exim)
+  that may not be installed — a legitimate server without those tools ended up with a broken
+  installation. Softened to an ordering dependency, not a blocking one
+* `reputation_scores` was not created on a genuinely new installation with no prior data
 
-### Desinstalación simplificada
+### Simplified uninstallation
 
-* `uninstall` elimina Core, datos y logs — sin conservar nada por defecto; quien quiera preservar información lo hace por su cuenta antes de desinstalar
+* `uninstall` removes Core, data, and logs — preserving nothing by default; whoever wants to preserve
+  information does so on their own before uninstalling
 
-### Otras correcciones
+### Other fixes
 
-* `are.sh` no verificaba privilegios de root — una corrida sin `sudo` fallaba en silencio, sin ningún mensaje, en vez de indicar claramente el problema
+* `are.sh` did not check for root privileges — a run without `sudo` failed silently, with no message,
+  instead of clearly indicating the problem
 
-## Nota de proceso
+## Process note
 
-Esta versión reveló que la instalación remota, documentada como validada en el cierre de `v2.3.0`, en realidad nunca se había probado de punta a punta sin intervención manual — cada validación previa incluía comandos ejecutados a mano durante las pruebas, ocultando fallas reales en el Installer. Corregido con instalaciones limpias reales, repetidas hasta confirmar 11/11 sin ningún paso manual entre la instalación y la verificación.
+This version revealed that the remote installation, documented as validated at the close of
+`v2.3.0`, had in fact never been tested end to end without manual intervention — each previous
+validation included commands run by hand during testing, hiding real failures in the Installer.
+Fixed with real clean installations, repeated until confirming 11/11 with no manual step between the
+installation and the verification.
 
 ---
 
 # v2.5
 
-## Objetivo
+## Goal
 
-Incorporar un nuevo sensor al Sensor Framework capaz de detectar un tipo de amenaza que Fail2Ban no puede ver por diseño: correlación de comportamiento entre múltiples IPs distintas, en vez de evaluación aislada por IP individual.
+Add a new sensor to the Sensor Framework capable of detecting a type of threat Fail2Ban cannot see by
+design: behavior correlation across multiple distinct IPs, instead of isolated per-IP evaluation.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.5.0`)
+✔ Completed — released as an official release (`v2.5.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
 ### Web Correlation Sensor
 
-Surgido de una investigación real sobre un ataque de scraping distribuido de catálogo confirmado en producción, con evidencia reunida antes de escribir una sola línea de código: `fail2ban-regex` confirmando que el filtro existente no detectaba nada de ese tráfico, correlación real por minuto entre decenas de IPs distintas, y `whois` confirmando infraestructura de datacenter/proxy como origen.
+Arising from real research into a confirmed distributed catalog-scraping attack in production, with
+evidence gathered before writing a single line of code: `fail2ban-regex` confirming the existing
+filter detected none of that traffic, real per-minute correlation across dozens of distinct IPs, and
+`whois` confirming datacenter/proxy infrastructure as the origin.
 
-* Agrupa eventos por marcador de ruta configurable (por defecto, `cart` — generaliza el sensor a cualquier sitio con catálogo/carrito de e-commerce, no atado a un negocio específico) y ventana de tiempo, contando IPs distintas involucradas.
-* Reporta cada IP del grupo correlacionado al contrato existente (`are.sh found <IP> <JAIL>`), sin introducir un concepto nuevo de "grupo/campaña" en el modelo de datos — toda la complejidad de correlación queda encapsulada dentro del sensor.
-* Registrado en `sensor_registry` (`RFC-017`) — visible y controlable desde ARE ADMIN sin código adicional, mismo mecanismo genérico que el resto de los sensores de polling.
-* Log dedicado, siguiendo el precedente ya establecido por `apache_evasive.sh`/`mod_evasive_report.log`.
+* Groups events by a configurable path marker (default, `cart` — generalizing the sensor to any site
+  with an e-commerce catalog/cart, not tied to a specific business) and a time window, counting the
+  distinct IPs involved.
+* Reports each IP in the correlated group to the existing contract (`are.sh found <IP> <JAIL>`),
+  without introducing a new "group/campaign" concept in the data model — all the correlation
+  complexity stays encapsulated inside the sensor.
+* Registered in `sensor_registry` (`RFC-017`) — visible and controllable from ARE ADMIN with no extra
+  code, the same generic mechanism as the rest of the polling sensors.
+* A dedicated log, following the precedent already set by `apache_evasive.sh` /
+  `mod_evasive_report.log`.
 
-## Validación
+## Validation
 
-Lógica de correlación probada en aislamiento antes de tocar producción; corrida real contra el `access_log` completo confirmó grupos genuinos de más de 100 IPs distintas por minuto, coincidiendo con el ataque real ya conocido. Backlog histórico completo (más de 14.000 IPs únicas) procesado en producción sin pérdida de progreso.
+Correlation logic tested in isolation before touching production; a real run against the full
+`access_log` confirmed genuine groups of more than 100 distinct IPs per minute, matching the already
+known real attack. The full historical backlog (more than 14,000 unique IPs) processed in production
+with no loss of progress.
 
 ---
 
 # v2.6
 
-## Objetivo
+## Goal
 
-Permitir compartir reputación entre servidores de la misma flota — una IP maliciosa ya confirmada en un servidor no debería tener que acumular evidencia desde cero en el siguiente.
+Allow sharing reputation between servers in the same fleet — a malicious IP already confirmed on one
+server should not have to accumulate evidence from scratch on the next one.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.6.0`)
+✔ Completed — released as an official release (`v2.6.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-### Exportar / Importar reputación entre servidores
+### Export / Import reputation between servers
 
-Surgida directamente de la validación de la versión anterior: un ataque confirmado contra un servidor no implica que la misma infraestructura maliciosa no ataque a otros servidores de la flota por una superficie distinta.
+Arising directly from the validation of the previous version: a confirmed attack against one server
+does not mean the same malicious infrastructure will not attack other servers in the fleet through a
+different surface.
 
-* Exportación filtrada por categoría (checklist, default `BOT`/`RECON`/`EXPLOIT`) y score mínimo configurable, evitando exportar eventos aislados de bajo valor.
-* La reputación se acumula al importar, no se sobrescribe — misma función que usa cualquier sensor real, sin mecanismo de conflicto nuevo que aprender.
-* Filtro de relevancia automático por rol del servidor: una categoría solo se aplica al importar si ya tiene presencia en el `jail_profile` local — sin que el administrador tenga que decidir manualmente qué servidor necesita qué categoría.
-* Dos opciones nuevas en la rama "Estado / Reputación" de ARE ADMIN.
+* Export filtered by category (checklist, default `BOT`/`RECON`/`EXPLOIT`) and a configurable minimum
+  score, avoiding exporting isolated low-value events.
+* Reputation accumulates on import, it is not overwritten — the same function any real sensor uses,
+  with no new conflict mechanism to learn.
+* Automatic relevance filter by server role: a category is only applied on import if it already has
+  presence in the local `jail_profile` — without the administrator having to manually decide which
+  server needs which category.
+* Two new options in ARE ADMIN's "State / Reputation" branch.
 
-## Validación
+## Validation
 
-Probado en producción real con datos genuinos del ataque de scraping detectado en la versión anterior: exportación de 1192 IPs reales, e importación confirmando las dos rutas del filtro de relevancia (una categoría con presencia local se aplicó, una sin presencia local se omitió sin abortar el resto del archivo).
+Tested in real production with genuine data from the scraping attack detected in the previous
+version: export of 1192 real IPs, and an import confirming the two paths of the relevance filter (a
+category with local presence was applied, one without local presence was skipped without aborting
+the rest of the file).
 
 ---
 
 # v2.7
 
-## Objetivo
+## Goal
 
-Mantener actualizada la whitelist contra listas de IPs publicadas por terceros (ej. Cloudflare), sin copiar/pegar manualmente cada vez que el proveedor cambia sus rangos.
+Keep the whitelist up to date against IP lists published by third parties (e.g. Cloudflare), without
+manually copy/pasting each time the provider changes its ranges.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.7.0`)
+✔ Completed — released as an official release (`v2.7.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-### Sincronización automática de whitelist
+### Automatic whitelist synchronization
 
-* Bloque delimitado por marcadores dentro del propio `whitelist.conf` — se reemplaza en cada corrida sin tocar ninguna entrada manual del administrador.
-* Genérico: la URL de origen (IPv4/IPv6) es configurable, no está atado a Cloudflare en el código.
-* Validación antes de escribir — nunca vacía la whitelist ante un fallo de descarga o un cambio de formato del proveedor.
-* Timer diario, opcional — se instala en toda actualización pero no se habilita automáticamente, ya que requiere configuración explícita antes de tener sentido.
+* a block delimited by markers inside `whitelist.conf` itself — replaced on each run without touching
+  any manual administrator entry.
+* generic: the source URL (IPv4/IPv6) is configurable, not hardcoded to Cloudflare.
+* validation before writing — it never empties the whitelist on a download failure or a change in the
+  provider's format.
+* a daily timer, optional — installed on every update but not enabled automatically, since it
+  requires explicit configuration before making sense.
 
 ### `PRODUCT_SYSTEMD_UNITS_OPTIONAL` (Installer Engine)
 
-Mecanismo nuevo, genérico, para cualquier unidad futura que dependa de configuración explícita del administrador: se copia en toda instalación, pero no se habilita automáticamente — evita que quien no la necesite termine con un timer corriendo en vano.
+A new, generic mechanism for any future unit that depends on explicit administrator configuration:
+it is copied on every installation, but not enabled automatically — keeping those who do not need it
+from ending up with a timer running for nothing.
 
-## Validación
+## Validation
 
-Sincronización real ejecutada contra la API pública de Cloudflare: 22 rangos genuinos (15 IPv4 + 7 IPv6) aplicados correctamente, coincidiendo con los que el propio administrador ya tenía anotados a mano. Timer activo confirmado con `systemctl status`.
+A real synchronization run against Cloudflare's public API: 22 genuine ranges (15 IPv4 + 7 IPv6)
+applied correctly, matching the ones the administrator already had noted by hand. Active timer
+confirmed with `systemctl status`.
 
 ## Patch v2.7.1
 
-Corrección de una inconsistencia de zona horaria en el dashboard de reputación (`Último evento` en UTC, `Última actividad` en hora local, para el mismo timestamp) — ver `BUG-034` en `docs/TODO.md` para el detalle completo, incluida la investigación de un incidente real que expuso el problema.
+Fix for a time-zone inconsistency in the reputation dashboard (`Last event` in UTC, `Last activity`
+in local time, for the same timestamp) — see `BUG-034` in `docs/TODO.md` for the full detail,
+including the investigation of a real incident that exposed the problem.
 
 ---
 
 # v2.8
 
-## Objetivo
+## Goal
 
-Incorporar la categoría `MALWARE` al modelo de reputación con una fuente de datos real — hasta esta versión, el umbral de esa categoría estaba calibrado desde v2.2 (`TASK-018`) sin ningún sensor que lo alimentara.
+Add the `MALWARE` category to the reputation model with a real data source — until this version, that
+category's threshold had been calibrated since v2.2 (`TASK-018`) with no sensor feeding it.
 
-## Estado
+## Status
 
-✔ Completado — liberado como release oficial (`v2.8.0`)
+✔ Completed — released as an official release (`v2.8.0`)
 
-## Funcionalidades incorporadas
+## Features added
 
-### Sensor `mail-antivirus` (categoría MALWARE)
+### `mail-antivirus` sensor (MALWARE category)
 
-Surgido de la instalación de ClamAV for cPanel (plugin WHM) para escanear correo entrante vía Exim. Diseño validado con evidencia real de rechazo (archivo de prueba EICAR, vía conexión SMTP externa genuina) antes de escribir el sensor — ver `TASK-023` en `docs/TODO.md` para el detalle completo.
+Arising from the installation of ClamAV for cPanel (WHM plugin) to scan incoming mail via Exim.
+Design validated with real rejection evidence (an EICAR test file, via a genuine external SMTP
+connection) before writing the sensor — see `TASK-023` in `docs/TODO.md` for the full detail.
 
-* Sensor de polling (mismo patrón que `syslog.sh`/`spamassassin.sh`), filtra `rejected after DATA:.*(virus|harmful content)` en `exim_mainlog` y extrae la IP de origen.
-* Jail `mail-antivirus`, nombrado por la ACL genérica de Exim (`av_scanner`) y no por el motor backend (ClamAV), para no acoplarse a un motor antivirus específico.
-* Validado directamente contra el `exim_mainlog` real de producción (`--dry-run`) y con evidencia de `journalctl` del pipeline completo (`FOUND → Score → Policy → Apply`) tras la activación.
+* A polling sensor (same pattern as `syslog.sh` / `spamassassin.sh`), it filters
+  `rejected after DATA:.*(virus|harmful content)` in `exim_mainlog` and extracts the source IP.
+* The `mail-antivirus` jail, named after Exim's generic ACL (`av_scanner`) and not after the backend
+  engine (ClamAV), so as not to couple to a specific antivirus engine.
+* Validated directly against the real production `exim_mainlog` (`--dry-run`) and with `journalctl`
+  evidence of the full pipeline (`FOUND → Score → Policy → Apply`) after activation.
 
-## Nota de proceso
+## Process note
 
-Esta versión se desarrolló y validó directamente sobre `main` (servidor de producción), sin simular tráfico de correo en las VMs de laboratorio — esas VMs no corren Exim/ClamAV reales, y ya habían cumplido su propósito real (validar la mecánica de instalación remota, `TASK-020`/`TASK-021`/`BUG-029`/`BUG-031`), no simular servicios que no tienen. También expuso que, en este entorno de trabajo, `/opt/are` en `main` es a la vez el checkout de git — por lo que `are-installer upgrade` no aplicaba ahí (rechazaba origen=destino) y la activación de las piezas systemd nuevas se hizo manualmente. Corregido de fondo en `v2.8.1` (`TASK-024`): el Installer ahora reconoce ese escenario y sincroniza permisos/systemd/config sin intentar copiar el árbol de archivos sobre sí mismo.
+This version was developed and validated directly on `main` (the production server), without
+simulating mail traffic in the lab VMs — those VMs do not run real Exim/ClamAV, and had already
+served their real purpose (validating the remote-installation mechanics, `TASK-020` / `TASK-021` /
+`BUG-029` / `BUG-031`), not simulating services they do not have. It also exposed that, in this work
+environment, `/opt/are` on `main` is at the same time the git checkout — so `are-installer upgrade`
+did not apply there (it rejected source=target) and the activation of the new systemd pieces was done
+manually. Fixed at the root in `v2.8.1` (`TASK-024`): the Installer now recognizes that scenario and
+synchronizes permissions/systemd/config without trying to copy the file tree over itself.
 
 ## Patch v2.8.1
 
-Corrección del Installer Engine para el escenario en que la instalación activa es a la vez el checkout de git (ver `TASK-024` en `docs/TODO.md`), y sincronización de versión (`VERSION`/`config.conf`/`manifest/product.sh`), nunca aplicada al taggear `v2.8.0`.
+Fix of the Installer Engine for the scenario where the active installation is at the same time the
+git checkout (see `TASK-024` in `docs/TODO.md`), and version synchronization
+(`VERSION` / `config.conf` / `manifest/product.sh`), never applied when tagging `v2.8.0`.
 
-Durante la propia validación en producción se encontró un problema más grave, no relacionado con el objetivo original del patch: `install_install_configs()` sobrescribía incondicionalmente `config.conf` y `whitelist.conf` en cada `upgrade`, copiando la plantilla desactualizada — provocó pérdida real de configuración en vivo (rutas de logs, sincronización de whitelist Cloudflare, IPs de oficina, mail-antivirus) durante la validación misma. Corregido de raíz: `upgrade` ya no sobrescribe un archivo de configuración existente, igual que `install` — se conserva siempre, sin excepción. Ver `TASK-024` en `docs/TODO.md` para el detalle completo del incidente y la corrección.
+During the production validation itself, a more serious problem was found, unrelated to the patch's
+original objective: `install_install_configs()` unconditionally overwrote `config.conf` and
+`whitelist.conf` on every `upgrade`, copying the outdated template — it caused real loss of live
+configuration (log paths, Cloudflare whitelist sync, office IPs, mail-antivirus) during the
+validation itself. Fixed at the root: `upgrade` no longer overwrites an existing configuration file,
+the same as `install` — it is always preserved, without exception. See `TASK-024` in `docs/TODO.md`
+for the full detail of the incident and the fix.
 
-También corregido, mismo patch: varios archivos del producto (`admin.sh`, `database.sh`, `manifest/product.sh`, `infrastructure/restore_ipsets.sh`) perdían su permiso de ejecución en cada `install`/`upgrade`/`repair` por no estar declarados en `PRODUCT_EXECUTABLE_FILES` — mismo patrón que `BUG-023`/`BUG-033`, agregados al manifiesto.
+Also fixed, same patch: several product files (`admin.sh`, `database.sh`, `manifest/product.sh`,
+`infrastructure/restore_ipsets.sh`) lost their execute permission on every `install` / `upgrade` /
+`repair` because they were not declared in `PRODUCT_EXECUTABLE_FILES` — the same pattern as
+`BUG-023` / `BUG-033`, added to the manifest.
 
-Aplicado y validado en producción real (`upgrade` corrido con el fix, árbol de git limpio al finalizar), mergeado a `main` y publicado como tag `v2.8.1`.
+Applied and validated in real production (`upgrade` run with the fix, a clean git tree at the end),
+merged to `main` and published as the tag `v2.8.1`.
 
 ## Patch v2.8.2
 
-Consecuencia directa de `v2.8.1`: al dejar de sobrescribir un config existente en `upgrade`, una variable nueva agregada en una versión futura al template nunca llegaría a un servidor ya instalado. `install_install_configs()` ahora fusiona — agrega al config existente solo las variables que falten respecto al template, sin tocar ni sobrescribir ninguna existente. No aplica a archivos que no son `KEY=valor` (`whitelist.conf`, `jail_scale.conf`), que se comportan exactamente igual que antes. Ver `TASK-025` en `docs/TODO.md`.
+A direct consequence of `v2.8.1`: by no longer overwriting an existing config on `upgrade`, a new
+variable added in a future version to the template would never reach an already-installed server.
+`install_install_configs()` now merges — it adds to the existing config only the variables missing
+relative to the template, without touching or overwriting any existing one. It does not apply to
+files that are not `KEY=value` (`whitelist.conf`, `jail_scale.conf`), which behave exactly as before.
+See `TASK-025` in `docs/TODO.md`.
 
-Validado en aislamiento (archivos de prueba en `/tmp`) y en producción real (`upgrade`/`verify`, sin regresiones). Mergeado a `main` y publicado como tag `v2.8.2`.
+Validated in isolation (test files in `/tmp`) and in real production (`upgrade` / `verify`, no
+regressions). Merged to `main` and published as the tag `v2.8.2`.
 
 ---
 
-# Próximas líneas de trabajo
+# Upcoming lines of work
 
-## Sensores adicionales
+## Additional sensors
 
-Previstos, sin implementación iniciada:
+Planned, with no implementation started:
 
-* ModSecurity como sensor propio (hoy reporta indirectamente vía jails de Fail2Ban)
+* ModSecurity as its own sensor (today it reports indirectly via Fail2Ban jails)
 * Suricata
 * Zeek
 * CrowdSec
 * DNS
-* APIs externas
+* external APIs
 
-Evaluado y descartado: un sensor "syslog genérico" con contrato propio de mensaje (`ip=X jail=Y`). Le pediría a cada herramienta externa reformatear su salida a un formato inventado por ARE, duplicando estructuras de logueo que cada herramienta ya tiene — el mismo problema que ARE existe para evitar, no para resolver. El camino correcto para sumar una herramienta nueva sigue siendo un sensor que lea el log real de esa herramienta tal cual es (mismo criterio que `spamassassin.sh` con el log de Exim, y `mail_antivirus.sh` con `exim_mainlog`), no pedirle que hable el idioma de ARE.
+Evaluated and discarded: a "generic syslog" sensor with its own message contract (`ip=X jail=Y`). It
+would ask each external tool to reformat its output into a format invented by ARE, duplicating logging
+structures each tool already has — the very problem ARE exists to avoid, not to solve. The correct
+path to add a new tool is still a sensor that reads that tool's real log as it is (the same criterion
+as `spamassassin.sh` with the Exim log, and `mail_antivirus.sh` with `exim_mainlog`), not asking it
+to speak ARE's language.
 
-## Motor de decisión
+## Decision engine
 
-* Integración completa de `mod_evasive` como única vía de bloqueo (hoy corre en modo doble escritura, ipset directo + reporte a ARE, como medida de transición) — ver nota de investigación en la sección v2.2
+* full integration of `mod_evasive` as the only blocking path (today it runs in double-write mode,
+  direct ipset + report to ARE, as a transition measure) — see the research note in the v2.2 section
 
 ---
 
-# Visión de largo plazo
+# Long-term vision
 
-Objetivos de arquitectura de mayor alcance, sin planificación de versión concreta todavía. Su inclusión aquí no implica compromiso de implementación — deben incorporarse formalmente a una versión del Roadmap antes de iniciar su desarrollo, según los criterios de la sección siguiente.
+Broader architectural goals, with no concrete version planning yet. Their inclusion here does not
+imply a commitment to implement them — they must be formally incorporated into a Roadmap version
+before starting their development, according to the criteria in the following section.
 
-## Backends de Firewall alternativos
+## Alternative Firewall backends
 
 * nftables
 * firewalld
 * pf
 * Cloud Firewall
 
-## Plataforma
+## Platform
 
-* API REST
-* Backend Manager (administración de múltiples backends de firewall)
-* Alta disponibilidad
-* Replicación entre nodos
-* Integración distribuida (múltiples servidores compartiendo inteligencia de reputación)
-
----
-
-# Principios de evolución
-
-Toda evolución deberá respetar los siguientes principios.
-
-* estabilidad antes que nuevas funcionalidades;
-* arquitectura antes que implementación;
-* reutilización antes que duplicación;
-* documentación sincronizada;
-* evolución incremental.
-
-Las versiones mayores podrán introducir cambios arquitectónicos cuando éstos hayan sido previamente analizados y documentados.
+* REST API
+* Backend Manager (administration of multiple firewall backends)
+* High availability
+* Replication between nodes
+* Distributed integration (multiple servers sharing reputation intelligence)
 
 ---
 
-# Criterios para incorporar funcionalidades
+# Evolution principles
 
-Toda nueva capacidad deberá:
+Every evolution must respect the following principles:
 
-* responder a una necesidad técnica;
-* mantener la arquitectura existente o justificar formalmente cualquier modificación;
-* encontrarse documentada;
-* haber sido validada;
-* formar parte del Roadmap antes de comenzar su implementación.
+* stability before new features;
+* architecture before implementation;
+* reuse before duplication;
+* documentation in sync;
+* incremental evolution.
 
-La presencia de una funcionalidad en este documento no implica que se encuentre implementada.
+Major versions may introduce architectural changes when those have been previously analyzed and
+documented.
 
 ---
 
-# Visión
+# Criteria for adding features
 
-ARE evoluciona hacia una plataforma de reputación y decisión capaz de integrar múltiples fuentes de eventos y múltiples mecanismos de respuesta manteniendo un núcleo único de inteligencia.
+Every new capability must:
 
-La arquitectura continuará creciendo mediante componentes desacoplados, reutilizables y documentados.
+* respond to a technical need;
+* keep the existing architecture or formally justify any modification;
+* be documented;
+* have been validated;
+* be part of the Roadmap before starting its implementation.
+
+The presence of a feature in this document does not imply that it is implemented.
+
+---
+
+# Vision
+
+ARE is evolving toward a reputation and decision platform capable of integrating multiple event
+sources and multiple response mechanisms while keeping a single intelligence core.
+
+The architecture will keep growing through decoupled, reusable, documented components.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`ROADMAP.es.md`](ROADMAP.es.md)

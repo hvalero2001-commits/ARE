@@ -1,176 +1,185 @@
 # ARE Development Guide
 
-## Introducción
+## Introduction
 
-Este documento define la metodología de desarrollo de ARE (Abuse Reputation Engine).
+This document defines the development methodology of ARE (Abuse Reputation Engine).
 
-Su objetivo es establecer un proceso controlado para realizar cambios sobre el proyecto, manteniendo la estabilidad del sistema, la coherencia de la arquitectura y la documentación sincronizada con el código.
+Its goal is to establish a controlled process for making changes to the project, keeping the system
+stable, the architecture coherent, and the documentation in sync with the code.
 
-La documentación forma parte del desarrollo y debe reflejar el estado real del proyecto.
-
----
-
-# Filosofía
-
-El desarrollo de ARE se basa en un principio fundamental:
-
-> **Comprender antes de implementar.**
-
-Antes de modificar código debe comprenderse el comportamiento existente y verificarse el impacto del cambio sobre los componentes involucrados.
-
-No deberán realizarse modificaciones innecesarias sobre componentes que no formen parte del cambio.
+Documentation is part of development and must reflect the project's real state.
 
 ---
 
-# Objetivos
+# Philosophy
 
-La metodología busca preservar:
+ARE development is based on a fundamental principle:
 
-* estabilidad del sistema;
-* evolución incremental;
-* arquitectura coherente;
-* separación de responsabilidades;
-* bajo acoplamiento;
-* reutilización de componentes existentes;
-* documentación sincronizada;
-* trazabilidad de los cambios.
+> **Understand before you implement.**
+
+Before modifying code, you must understand the existing behavior and verify the impact of the change
+on the components involved.
+
+Unnecessary modifications must not be made to components that are not part of the change.
 
 ---
 
-# Flujo de desarrollo
+# Objectives
 
-Los cambios deberán seguir un proceso controlado:
+The methodology seeks to preserve:
+
+* system stability;
+* incremental evolution;
+* a coherent architecture;
+* separation of responsibilities;
+* low coupling;
+* reuse of existing components;
+* documentation in sync;
+* traceability of changes.
+
+---
+
+# Development flow
+
+Changes must follow a controlled process:
 
 ```text
-Problema o necesidad
+Problem or need
         │
         ▼
-Análisis del comportamiento actual
+Analysis of current behavior
         │
         ▼
-Identificación del componente afectado
+Identification of the affected component
         │
         ▼
-Definición del cambio
+Definition of the change
         │
         ▼
-Implementación
+Implementation
         │
         ▼
-Verificación
+Verification
         │
         ▼
-Actualización documental
+Documentation update
         │
         ▼
 Commit
 ```
 
-Cada etapa debe completarse antes de considerar terminado el cambio.
+Each stage must be completed before the change is considered finished.
 
 ---
 
-# Desarrollo incremental
+# Incremental development
 
-ARE evoluciona mediante cambios pequeños y verificables.
+ARE evolves through small, verifiable changes.
 
-Antes de iniciar un cambio debe verificarse el comportamiento existente y determinar qué componentes están realmente involucrados.
+Before starting a change, you must verify the existing behavior and determine which components are
+actually involved.
 
-No deberán modificarse archivos o componentes que no sean necesarios para resolver el problema o implementar el cambio correspondiente.
+Files or components that are not necessary to solve the problem or implement the corresponding change
+must not be modified.
 
-Cuando una modificación produzca un comportamiento incorrecto, el problema deberá resolverse y verificarse antes de continuar con otros cambios dependientes.
+When a modification produces incorrect behavior, the problem must be resolved and verified before
+continuing with other dependent changes.
 
 ---
 
-# Clasificación de cambios
+# Change classification
 
-Los cambios pueden clasificarse según su naturaleza.
+Changes can be classified according to their nature.
 
 ## BUG
 
-Corrección de un comportamiento incorrecto existente.
+A fix for existing incorrect behavior.
 
-La corrección debe preservar las funcionalidades que no forman parte del problema.
+The fix must preserve the features that are not part of the problem.
 
 ---
 
 ## TASK
 
-Trabajo técnico de mantenimiento, reorganización o documentación.
+Technical maintenance, reorganization, or documentation work.
 
-Debe mantenerse claramente definido el alcance del cambio.
+The scope of the change must be kept clearly defined.
 
 ---
 
 ## FEATURE
 
-Incorporación de una nueva funcionalidad.
+Adding a new feature.
 
-La funcionalidad debe integrarse respetando las responsabilidades de los componentes existentes.
+The feature must be integrated respecting the responsibilities of the existing components.
 
 ---
 
 ## RFC
 
-Propuesta de modificación arquitectónica.
+A proposal for an architectural modification.
 
-Los cambios que alteren responsabilidades, interfaces o relaciones fundamentales entre componentes deben analizarse antes de su implementación.
+Changes that alter fundamental responsibilities, interfaces, or relationships between components must
+be analyzed before being implemented.
 
 ---
 
 ## IDEA
 
-Propuesta que todavía no forma parte de una implementación definida.
+A proposal that is not yet part of a defined implementation.
 
-Una idea no representa por sí misma una funcionalidad implementada.
-
----
-
-# Principios de implementación
-
-## Responsabilidad única
-
-Cada componente debe mantener una responsabilidad claramente definida.
-
-Una modificación no debe trasladar responsabilidades entre componentes sin una razón arquitectónica verificable.
+An idea does not, by itself, represent an implemented feature.
 
 ---
 
-## Reutilización
+# Implementation principles
 
-Cuando exista una función o componente que ya resuelva una necesidad, deberá evaluarse su reutilización antes de crear una implementación duplicada.
+## Single responsibility
 
-No deberá duplicarse lógica innecesariamente.
+Each component must keep a clearly defined responsibility.
 
----
-
-## Modularidad
-
-Las funcionalidades deben permanecer separadas según su responsabilidad.
-
-La incorporación de una funcionalidad no debe introducir dependencias innecesarias sobre componentes no relacionados.
+A modification must not move responsibilities between components without a verifiable architectural
+reason.
 
 ---
 
-## Simplicidad
+## Reuse
 
-Se deben priorizar soluciones simples y verificables.
+When a function or component already solves a need, its reuse must be evaluated before creating a
+duplicate implementation.
 
-No debe introducirse complejidad que no sea necesaria para resolver el problema concreto.
-
----
-
-## Conservación del comportamiento
-
-Las modificaciones deben preservar el comportamiento existente cuando éste no forme parte del cambio solicitado.
-
-No se deben realizar cambios adicionales únicamente por conveniencia, limpieza o reorganización si no son necesarios para el objetivo del cambio.
+Logic must not be duplicated unnecessarily.
 
 ---
 
-# Arquitectura
+## Modularity
 
-El desarrollo debe respetar la separación existente entre:
+Features must stay separate according to their responsibility.
+
+Adding a feature must not introduce unnecessary dependencies on unrelated components.
+
+---
+
+## Simplicity
+
+Simple, verifiable solutions must be prioritized.
+
+Complexity that is not necessary to solve the concrete problem must not be introduced.
+
+---
+
+## Behavior preservation
+
+Modifications must preserve the existing behavior when it is not part of the requested change.
+
+Additional changes must not be made merely for convenience, cleanup, or reorganization if they are
+not necessary for the change's objective.
+
+---
+
+# Architecture
+
+Development must respect the existing separation between:
 
 * Sensor Framework;
 * Reputation Engine;
@@ -183,19 +192,21 @@ El desarrollo debe respetar la separación existente entre:
 * ARE ADMIN;
 * Installer Engine.
 
-Cada componente debe utilizar las funciones y mecanismos correspondientes a su responsabilidad.
+Each component must use the functions and mechanisms corresponding to its responsibility.
 
-Las modificaciones que afecten las relaciones entre estos componentes deben verificarse sobre el comportamiento real del sistema.
+Modifications that affect the relationships between these components must be verified against the
+system's real behavior.
 
 ---
 
-# Documentación
+# Documentation
 
-La documentación forma parte del código fuente del proyecto.
+Documentation is part of the project's source.
 
-Cuando un cambio modifica el comportamiento documentado de ARE, los documentos correspondientes deben actualizarse para reflejar el estado real del código.
+When a change modifies ARE's documented behavior, the corresponding documents must be updated to
+reflect the real state of the code.
 
-Según el alcance del cambio pueden verse afectados:
+Depending on the scope of the change, the following may be affected:
 
 * README.md;
 * PROJECT.md;
@@ -210,33 +221,33 @@ Según el alcance del cambio pueden verse afectados:
 * BAN_LIFECYCLE.md;
 * USER_GUIDE.md.
 
-La documentación no debe describir funcionalidades que no estén implementadas.
+The documentation must not describe features that are not implemented.
 
-Tampoco debe presentar como comportamiento actual una capacidad que corresponda únicamente a una planificación futura.
+Nor must it present as current behavior a capability that belongs only to future planning.
 
 ---
 
-# Verificación
+# Verification
 
-Toda modificación debe verificarse antes de considerarse terminada.
+Every modification must be verified before being considered finished.
 
-La verificación debe comprobar, según corresponda:
+Verification must check, as applicable:
 
-* funcionamiento del cambio;
-* ausencia de errores introducidos;
-* conservación del comportamiento no afectado;
-* coherencia con los componentes involucrados;
-* conservación de los datos persistentes cuando corresponda.
+* the change's operation;
+* no introduced errors;
+* preservation of unaffected behavior;
+* consistency with the components involved;
+* preservation of persistent data where appropriate.
 
-La verificación debe basarse en resultados observables del sistema y no en suposiciones.
+Verification must be based on observable results from the system, not on assumptions.
 
 ---
 
 # Installer Engine
 
-Los cambios relacionados con el Installer Engine deben verificarse de acuerdo con la operación afectada.
+Changes related to the Installer Engine must be verified according to the affected operation.
 
-Las operaciones administradas por el Installer Engine son:
+The operations managed by the Installer Engine are:
 
 * install;
 * upgrade;
@@ -244,22 +255,23 @@ Las operaciones administradas por el Installer Engine son:
 * verify;
 * uninstall.
 
-La validación debe limitarse a las operaciones realmente modificadas por el cambio y a sus dependencias directas.
+Validation must be limited to the operations actually modified by the change and their direct
+dependencies.
 
 ---
 
 # Commits
 
-Cada commit debe representar un cambio identificable y coherente.
+Each commit must represent an identifiable and coherent change.
 
-Los mensajes deben ser:
+Messages must be:
 
-* claros;
-* específicos;
-* trazables;
-* representativos del contenido real del commit.
+* clear;
+* specific;
+* traceable;
+* representative of the commit's real content.
 
-Ejemplos:
+Examples:
 
 ```text
 BUG-008  Fix reputation calculation
@@ -271,34 +283,38 @@ FEAT-005  Add Sensor Framework
 DOC-006  Rewrite installation guide
 ```
 
-Un commit no debe utilizarse para ocultar cambios no relacionados con su objetivo.
+A commit must not be used to hide changes unrelated to its objective.
 
 ---
 
-# Calidad
+# Quality
 
-Antes de cerrar un cambio debe verificarse:
+Before closing a change, the following must be verified:
 
-* código correspondiente al objetivo definido;
-* funcionamiento comprobado;
-* ausencia de modificaciones innecesarias;
-* documentación actualizada cuando corresponda;
-* coherencia con la arquitectura;
-* estado del repositorio revisado.
+* code corresponding to the defined objective;
+* verified operation;
+* no unnecessary modifications;
+* documentation updated where appropriate;
+* consistency with the architecture;
+* repository state reviewed.
 
 ---
 
-# Principios finales
+# Final principles
 
-El desarrollo de ARE debe mantener los siguientes principios:
+ARE development must keep the following principles:
 
-1. Comprender antes de implementar.
-2. Modificar únicamente lo necesario.
-3. Una responsabilidad por componente.
-4. Verificar antes de concluir.
-5. Resolver completamente los problemas encontrados antes de continuar.
-6. Preservar el comportamiento no afectado.
-7. Reutilizar componentes existentes antes de duplicar lógica.
-8. Mantener la documentación sincronizada con el código.
-9. Basar las conclusiones en comportamiento verificable.
-10. Mantener cada cambio trazable y coherente.
+1. Understand before you implement.
+2. Change only what is necessary.
+3. One responsibility per component.
+4. Verify before concluding.
+5. Fully resolve the problems you find before continuing.
+6. Preserve unaffected behavior.
+7. Reuse existing components before duplicating logic.
+8. Keep the documentation in sync with the code.
+9. Base conclusions on verifiable behavior.
+10. Keep each change traceable and coherent.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`DEVELOPMENT.es.md`](DEVELOPMENT.es.md)

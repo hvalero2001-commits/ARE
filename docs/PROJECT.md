@@ -1,69 +1,73 @@
 # ARE Project
 
-## Introducción
+## Introduction
 
-ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para transformar eventos de seguridad en respuestas inteligentes basadas en evidencia.
+ARE (Abuse Reputation Engine) is a reputation and decision engine designed to turn security events
+into intelligent, evidence-based responses.
 
-El proyecto desacopla completamente la detección de amenazas de la toma de decisiones, permitiendo integrar múltiples fuentes de eventos y múltiples mecanismos de respuesta sin modificar el núcleo del sistema.
+The project fully decouples threat detection from decision-making, allowing multiple event sources
+and multiple response mechanisms to be integrated without modifying the system's core.
 
-ARE no pretende sustituir herramientas como Fail2Ban o ModSecurity.
+ARE does not aim to replace tools like Fail2Ban or ModSecurity.
 
-Su objetivo es convertirlas en fuentes de información para construir una visión unificada del comportamiento de una dirección IP.
-
----
-
-# Visión
-
-Construir un motor de reputación independiente capaz de interpretar el comportamiento histórico de una dirección IP y decidir la respuesta más adecuada según el riesgo observado.
-
-ARE busca convertirse en una plataforma de decisión reutilizable por cualquier sistema de seguridad.
+Its goal is to turn them into information sources for building a unified view of an IP address's
+behavior.
 
 ---
 
-# Misión
+# Vision
 
-Centralizar la inteligencia de seguridad.
+To build an independent reputation engine capable of interpreting the historical behavior of an IP
+address and deciding the most appropriate response based on the observed risk.
 
-Los sistemas externos generan eventos.
-
-ARE interpreta esos eventos.
-
-ARE conserva el conocimiento.
-
-ARE toma las decisiones.
-
-Los mecanismos de protección únicamente ejecutan dichas decisiones.
+ARE aims to become a decision platform reusable by any security system.
 
 ---
 
-# Objetivos
+# Mission
 
-El proyecto persigue los siguientes objetivos.
+Centralize security intelligence.
 
-- Construir reputación persistente.
-- Evaluar comportamiento histórico.
-- Separar observación y decisión.
-- Mantener arquitectura modular.
-- Permitir crecimiento incremental.
-- Facilitar integración con nuevos sensores.
-- Facilitar integración con nuevos Backends.
-- Mantener un núcleo estable y reutilizable.
+External systems generate events.
+
+ARE interprets those events.
+
+ARE retains the knowledge.
+
+ARE makes the decisions.
+
+The protection mechanisms only carry out those decisions.
 
 ---
 
-# Alcance
+# Objectives
 
-ARE administra:
+The project pursues the following objectives:
 
-- reputación;
-- estados;
-- políticas;
-- ciclo de sanciones;
-- persistencia;
-- instalación;
-- observación mediante sensores.
+- Build persistent reputation.
+- Evaluate historical behavior.
+- Separate observation and decision.
+- Keep a modular architecture.
+- Allow incremental growth.
+- Ease integration with new sensors.
+- Ease integration with new backends.
+- Keep a stable, reusable core.
 
-ARE no sustituye:
+---
+
+# Scope
+
+ARE manages:
+
+- reputation;
+- states;
+- policies;
+- sanction cycle;
+- persistence;
+- installation;
+- observation through sensors.
+
+ARE does not replace:
 
 - Firewalls;
 - WAF;
@@ -72,13 +76,13 @@ ARE no sustituye:
 - Fail2Ban;
 - ModSecurity.
 
-Estos componentes continúan desempeñando su función natural y actúan como productores de eventos.
+These components continue to perform their natural function and act as event producers.
 
 ---
 
-# Arquitectura
+# Architecture
 
-El proyecto está compuesto por los siguientes motores.
+The project is composed of the following engines:
 
 - Sensor Framework
 - Reputation Engine
@@ -88,132 +92,140 @@ El proyecto está compuesto por los siguientes motores.
 - Firewall Backend
 - Installer Engine
 
-Cada componente implementa una única responsabilidad.
+Each component implements a single responsibility.
 
 ---
 
-# Componentes principales
+# Main components
 
 ## Sensor Framework
 
-Normaliza eventos provenientes de sistemas externos.
+Normalizes events coming from external systems.
 
 ---
 
 ## Reputation Engine
 
-Construye conocimiento persistente mediante categorías de reputación.
+Builds persistent knowledge through reputation categories.
 
 ---
 
 ## State Engine
 
-Representa la evolución operativa de una dirección IP.
+Represents the operational evolution of an IP address.
 
 ---
 
 ## Policy Engine
 
-Determina la respuesta adecuada según reputación y estado.
+Determines the appropriate response based on reputation and state.
 
 ---
 
 ## Ban Lifecycle Engine
 
-Administra la evolución de las sanciones.
+Manages how sanctions evolve.
 
 ---
 
 ## Firewall Backend
 
-Ejecuta las decisiones sobre el sistema operativo.
+Carries out decisions on the operating system.
 
 ---
 
 ## Installer Engine
 
-Administra el ciclo de vida del producto.
+Manages the product lifecycle.
 
 ---
 
-# Estado actual
+# Current status
 
-Versión estable liberada:
+Latest stable release:
 
 ```text
 v2.8.2
 ```
-```
 
-Capacidades implementadas.
+Implemented capabilities:
 
-- Reputation Engine, con modelo de reputación por categoría extensible sin migración de esquema.
+- Reputation Engine, with an extensible per-category reputation model with no schema migration.
 - State Engine.
-- Policy Engine, con evaluación de riesgo por categoría.
+- Policy Engine, with per-category risk evaluation.
 - Ban Lifecycle Engine.
-- Sensor Framework, con los patrones polling y callback, y control operativo de activación/desactivación por sensor desde ARE ADMIN.
+- Sensor Framework, with the polling and callback patterns, and per-sensor operational
+  enable/disable control from ARE ADMIN.
 - Fail2Ban Sensor.
 - Apache/mod_evasive Sensor.
-- SpamAssassin Sensor (categoría SOCIAL).
-- Firewall Backend (IPSet), con restauración automática al arrancar el sistema.
-- Dashboard, con estadísticas, tendencias temporales por categoría, y detección de anomalías.
-- Installer Engine, con empaquetado, distribución, y auto-actualización (consulta de versión disponible, actualización remota, instalación automática de dependencias del sistema).
+- SpamAssassin Sensor (SOCIAL category).
+- Firewall Backend (IPSet), with automatic restoration at system boot.
+- Dashboard, with statistics, per-category time-based trends, and anomaly detection.
+- Installer Engine, with packaging, distribution, and self-update (available-version query, remote
+  update, automatic installation of system dependencies).
 - SQLite.
-- Integración con ModSecurity.
-- Integración con Fail2Ban.
+- ModSecurity integration.
+- Fail2Ban integration.
 
 ---
 
-# Organización del proyecto
+# Project organization
 
-La documentación oficial se encuentra organizada mediante documentos especializados.
+The official documentation is organized through specialized documents.
 
-| Documento | Propósito |
-|-----------|-----------|
-| README.md | Presentación del proyecto |
-| PHILOSOPHY.md | Principios fundamentales |
-| PROJECT.md | Definición del proyecto |
-| ARCHITECTURE.md | Arquitectura |
-| DESIGN.md | Decisiones de diseño |
-| INSTALL.md | Ciclo de vida del Installer |
-| DEVELOPMENT.md | Metodología de desarrollo |
-| CONTRIBUTING.md | Guía para colaboradores |
-| GOVERNANCE.md | Gobierno del proyecto |
-| ROADMAP.md | Evolución prevista |
-| CHANGELOG.md | Historial de versiones |
-| SECURITY.md | Política de seguridad |
-| BAN_LIFECYCLE.md | Ciclo de sanciones |
-| USER_GUIDE.md | Guía del administrador |
-| TODO.md | Trabajo pendiente |
-
----
-
-# Evolución
-
-ARE evoluciona mediante pequeñas iteraciones.
-
-Cada versión fortalece el núcleo antes de incorporar nuevas capacidades.
-
-Las modificaciones arquitectónicas se realizan mediante RFC y la implementación sólo comienza una vez aprobadas.
+| Document | Purpose |
+|----------|---------|
+| README.md | Project presentation |
+| PHILOSOPHY.md | Fundamental principles |
+| PROJECT.md | Project definition |
+| ARCHITECTURE.md | Architecture |
+| DESIGN.md | Design decisions |
+| INSTALL.md | Installer lifecycle |
+| DEVELOPMENT.md | Development methodology |
+| CONTRIBUTING.md | Contributor guide |
+| GOVERNANCE.md | Project governance |
+| ROADMAP.md | Planned evolution |
+| CHANGELOG.md | Version history |
+| SECURITY.md | Security policy |
+| BAN_LIFECYCLE.md | Sanction cycle |
+| USER_GUIDE.md | Administrator guide |
+| TODO.md | Pending work |
 
 ---
 
-# Principios
+# Evolution
 
-Los principios fundamentales del proyecto están documentados en `docs/PHILOSOPHY.md`, fuente única — evita que esta lista se desincronice de esa, como ocurría hasta ahora (dos listas de "principios" distintas entre ambos documentos).
+ARE evolves through small iterations.
+
+Each version strengthens the core before adding new capabilities.
+
+Architectural modifications are made through RFCs, and implementation only begins once they are
+approved.
 
 ---
 
-# Filosofía
+# Principles
 
-ARE interpreta comportamiento.
+The project's fundamental principles are documented in `docs/PHILOSOPHY.md`, the single source —
+this prevents this list from drifting out of sync with that one, as happened until now (two
+different "principles" lists across the two documents).
 
-No responde únicamente a eventos.
+---
 
-Cada dirección IP construye una reputación.
+# Philosophy
 
-Cada decisión representa la consecuencia del conocimiento acumulado.
+ARE interprets behavior.
 
-La inteligencia reside en ARE.
+It does not respond only to events.
 
-Los sistemas externos únicamente proporcionan información o ejecutan las decisiones generadas por el motor.
+Each IP address builds a reputation.
+
+Each decision represents the consequence of accumulated knowledge.
+
+The intelligence resides in ARE.
+
+External systems only provide information or carry out the decisions the engine generates.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`PROJECT.es.md`](PROJECT.es.md)

@@ -1,170 +1,178 @@
 # ARE Philosophy
 
-> **Comprender antes de responder.**
+> **Understand before you respond.**
 
 ---
 
-## Introducción
+## Introduction
 
-ARE (Abuse Reputation Engine) nace de una idea sencilla:
+ARE (Abuse Reputation Engine) is born from a simple idea:
 
-La seguridad no debe responder únicamente al último evento observado.
+Security must not respond only to the last observed event.
 
-Debe comprender el comportamiento acumulado antes de decidir.
+It must understand accumulated behavior before deciding.
 
-Esta filosofía constituye el fundamento de toda la arquitectura del proyecto.
+This philosophy is the foundation of the entire project architecture.
 
-Cada componente de ARE existe para transformar eventos aislados en conocimiento persistente.
-
----
-
-# Comprender antes de responder
-
-Los mecanismos tradicionales reaccionan.
-
-ARE interpreta.
-
-Un intento de acceso, un escaneo o una explotación representan únicamente evidencia.
-
-Por sí solos no describen completamente el riesgo que representa una dirección IP.
-
-ARE acumula esa evidencia, construye una reputación y utiliza ese conocimiento para decidir la respuesta más adecuada.
+Every ARE component exists to turn isolated events into persistent knowledge.
 
 ---
 
-# La reputación representa evidencia
+# Understand before you respond
 
-La reputación no constituye una sentencia.
+Traditional mechanisms react.
 
-Representa evidencia acumulada.
+ARE interprets.
 
-Cada evento modifica el conocimiento que ARE posee acerca del comportamiento observado.
+An access attempt, a scan, or an exploit is only evidence.
 
-Ese conocimiento evoluciona continuamente.
+On their own, they do not fully describe the risk an IP address represents.
 
-Puede aumentar.
-
-Puede disminuir.
-
-Puede recuperarse.
+ARE accumulates that evidence, builds a reputation, and uses that knowledge to decide the most
+appropriate response.
 
 ---
 
-# El riesgo evoluciona
+# Reputation represents evidence
 
-El riesgo no es constante.
+Reputation is not a verdict.
 
-Una dirección IP puede evolucionar desde un comportamiento legítimo hasta representar una amenaza persistente.
+It represents accumulated evidence.
 
-Del mismo modo, una dirección IP previamente sancionada puede recuperar gradualmente su reputación cuando deja de generar actividad maliciosa.
+Each event changes the knowledge ARE has about the observed behavior.
 
-Las decisiones deben evolucionar junto con el comportamiento observado.
+That knowledge evolves continuously.
 
----
+It can increase.
 
-# Las sanciones son una consecuencia
+It can decrease.
 
-ARE no busca bloquear direcciones IP.
-
-Busca comprender su comportamiento.
-
-Las sanciones no representan un castigo.
-
-Representan una respuesta proporcional al riesgo calculado por el sistema.
-
-La intensidad de la respuesta depende del conocimiento acumulado y no únicamente del último evento recibido.
+It can recover.
 
 ---
 
-# Separación de responsabilidades
+# Risk evolves
 
-Cada componente posee una única responsabilidad.
+Risk is not constant.
 
-Los sensores observan.
+An IP address can evolve from legitimate behavior into a persistent threat.
 
-El Reputation Engine construye conocimiento.
+In the same way, a previously sanctioned IP address can gradually recover its reputation when it
+stops generating malicious activity.
 
-El State Engine representa la evolución.
-
-El Policy Engine decide.
-
-El Firewall Backend ejecuta.
-
-El Installer Engine administra el ciclo de vida del producto.
-
-La colaboración entre estos componentes permite mantener una arquitectura simple, modular y preparada para evolucionar.
+Decisions must evolve together with the observed behavior.
 
 ---
 
-# Persistencia del conocimiento
+# Sanctions are a consequence
 
-Toda decisión importante debe apoyarse en información persistente.
+ARE does not seek to block IP addresses.
 
-ARE conserva:
+It seeks to understand their behavior.
 
-- eventos;
-- reputación;
-- estados;
-- configuración.
+Sanctions are not a punishment.
 
-El conocimiento no desaparece cuando finaliza una sanción.
+They are a response proportional to the risk the system computes.
 
-Permanece disponible para futuras decisiones.
+The intensity of the response depends on accumulated knowledge and not only on the last event
+received.
 
 ---
 
-# Evolución incremental
+# Separation of responsibilities
 
-ARE evoluciona mediante mejoras pequeñas, verificables y documentadas.
+Each component has a single responsibility.
 
-Cada versión debe fortalecer el núcleo existente antes de incorporar nuevas capacidades.
+Sensors observe.
 
-La arquitectura se amplía mediante nuevos componentes sin modificar el comportamiento fundamental del sistema.
+The Reputation Engine builds knowledge.
 
----
+The State Engine represents the evolution.
 
-# Principios
+The Policy Engine decides.
 
-La filosofía de ARE puede resumirse en los siguientes principios.
+The Firewall Backend carries out.
 
-- Comprender antes de responder.
-- La reputación representa evidencia acumulada.
-- El riesgo evoluciona con el comportamiento.
-- Las decisiones son proporcionales al riesgo.
-- La arquitectura prevalece sobre la implementación.
-- Cada componente posee una única responsabilidad.
-- La persistencia constituye la memoria del sistema.
-- La simplicidad favorece la evolución.
-- La documentación evoluciona junto con el código.
+The Installer Engine manages the product lifecycle.
+
+The collaboration between these components keeps an architecture that is simple, modular, and ready
+to evolve.
 
 ---
 
-# Declaración
+# Knowledge persistence
 
-ARE no busca bloquear direcciones IP.
+Every important decision must rest on persistent information.
 
-Busca comprender su comportamiento.
+ARE keeps:
 
-La reputación no representa una sentencia.
+- events;
+- reputation;
+- states;
+- configuration.
 
-Representa evidencia acumulada.
+Knowledge does not disappear when a sanction ends.
 
-Las sanciones no son un castigo.
+It remains available for future decisions.
 
-Son una respuesta proporcional al riesgo.
+---
 
-La confianza tampoco es permanente.
+# Incremental evolution
 
-Se construye.
+ARE evolves through small, verifiable, documented improvements.
 
-Se pierde.
+Each version must strengthen the existing core before adding new capabilities.
 
-Se recupera.
+The architecture grows through new components without changing the system's fundamental behavior.
 
-ARE escucha.
+---
 
-ARE interpreta.
+# Principles
 
-ARE aprende.
+ARE's philosophy can be summarized in the following principles.
 
-ARE decide.
+- Understand before you respond.
+- Reputation represents accumulated evidence.
+- Risk evolves with behavior.
+- Decisions are proportional to risk.
+- Architecture prevails over implementation.
+- Each component has a single responsibility.
+- Persistence is the system's memory.
+- Simplicity favors evolution.
+- Documentation evolves together with the code.
+
+---
+
+# Statement
+
+ARE does not seek to block IP addresses.
+
+It seeks to understand their behavior.
+
+Reputation is not a verdict.
+
+It represents accumulated evidence.
+
+Sanctions are not a punishment.
+
+They are a response proportional to risk.
+
+Trust is not permanent either.
+
+It is built.
+
+It is lost.
+
+It is recovered.
+
+ARE listens.
+
+ARE interprets.
+
+ARE learns.
+
+ARE decides.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`PHILOSOPHY.es.md`](PHILOSOPHY.es.md)

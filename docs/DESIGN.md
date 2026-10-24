@@ -1,310 +1,312 @@
 # ARE Design
 
-## 1. Propósito
+## 1. Purpose
 
-Este documento define los principios y decisiones de diseño que guían la implementación de ARE (Abuse Reputation Engine).
+This document defines the design principles and decisions that guide the implementation of ARE
+(Abuse Reputation Engine).
 
-`ARCHITECTURE.md` describe cómo está compuesto el sistema.
+`ARCHITECTURE.md` describes how the system is composed.
 
-`DESIGN.md` describe por qué el sistema está diseñado de esa manera.
+`DESIGN.md` describes why the system is designed that way.
 
-Las decisiones documentadas aquí corresponden al diseño implementado y validado. Las propuestas futuras pertenecen al Roadmap o a las RFC correspondientes.
-
----
-
-# 2. Principios de diseño
-
-## 2.1 Responsabilidad única
-
-Cada componente de ARE debe mantener una responsabilidad claramente definida.
-
-La observación, reputación, estado, decisión, sanción, aplicación y administración del producto no deben mezclarse innecesariamente.
-
-La separación permite:
-
-* reducir acoplamiento;
-* facilitar pruebas;
-* aislar cambios;
-* evitar duplicación de lógica;
-* facilitar la evolución del sistema.
+The decisions documented here correspond to the implemented and validated design. Future proposals
+belong to the Roadmap or to the corresponding RFCs.
 
 ---
 
-## 2.2 Separación entre observación y decisión
+# 2. Design principles
 
-Los sistemas externos producen eventos.
+## 2.1 Single responsibility
 
-Los sensores transforman esos eventos en información procesable por ARE.
+Each ARE component must keep a clearly defined responsibility.
 
-Los sensores no determinan la respuesta de seguridad.
+Observation, reputation, state, decision, sanction, enforcement, and product administration must
+not be mixed unnecessarily.
 
-La decisión corresponde al núcleo de ARE.
+The separation allows:
 
-El flujo conceptual es:
+* reducing coupling;
+* easing testing;
+* isolating changes;
+* avoiding duplicated logic;
+* easing the system's evolution.
+
+---
+
+## 2.2 Separation between observation and decision
+
+External systems produce events.
+
+Sensors turn those events into information ARE can process.
+
+Sensors do not determine the security response.
+
+The decision belongs to the ARE core.
+
+The conceptual flow is:
 
 ```text
-fuente externa
+external source
       |
       v
     sensor
       |
       v
-    evento
+    event
       |
       v
-ARE interpreta
+ARE interprets
       |
       v
-ARE decide
+ARE decides
 ```
 
-Esta separación fue establecida durante v1.1 mediante el Sensor Framework y se mantiene en v2.0.
+This separation was established during v1.1 through the Sensor Framework and is kept in v2.0.
 
 ---
 
-## 2.3 Separación entre decisión y ejecución
+## 2.3 Separation between decision and execution
 
-El Policy Engine determina la acción.
+The Policy Engine determines the action.
 
-El mecanismo encargado de aplicar la decisión ejecuta la acción mediante el Firewall Backend.
+The mechanism responsible for applying the decision carries out the action through the Firewall
+Backend.
 
-Por lo tanto:
+Therefore:
 
 ```text
 Policy Engine
       |
-      | qué hacer
+      | what to do
       v
 Apply
       |
-      | cómo aplicarlo
+      | how to apply it
       v
 Firewall Backend
 ```
 
-El motor de decisión no debe contener lógica específica innecesaria de un backend concreto.
+The decision engine must not contain unnecessary logic specific to a concrete backend.
 
 ---
 
-## 2.4 Persistencia del conocimiento
+## 2.4 Knowledge persistence
 
-ARE no debe depender exclusivamente del estado momentáneo del sistema externo.
+ARE must not depend exclusively on the momentary state of the external system.
 
-El conocimiento acumulado debe mantenerse de forma persistente.
+Accumulated knowledge must be kept persistently.
 
-El modelo distingue entre:
+The model distinguishes between:
 
 ```text
 events
     |
-    +-- actividad observada
+    +-- observed activity
 
 reputation
     |
-    +-- conocimiento acumulado
+    +-- accumulated knowledge
 
 sanction_state
     |
-    +-- estado de sanción
+    +-- sanction state
 ```
 
-Esta separación permite reconstruir el estado operativo sin confundir el historial de eventos con la reputación o con el ciclo de sanciones.
+This separation makes it possible to reconstruct the operational state without conflating the
+event history with the reputation or the sanction cycle.
 
 ---
 
-# 3. Modelo de reputación
+# 3. Reputation model
 
-## 3.1 Reputación acumulada
+## 3.1 Accumulated reputation
 
-La reputación representa el comportamiento observado de una dirección IP.
+Reputation represents the observed behavior of an IP address.
 
-Un evento individual puede modificar la reputación, pero la decisión no debe depender exclusivamente del último evento.
+An individual event can modify the reputation, but the decision must not depend exclusively on the
+last event.
 
-La información histórica es parte fundamental del modelo de ARE.
-
----
-
-## 3.2 Categorías
-
-Las categorías de reputación permiten clasificar diferentes tipos de comportamiento.
-
-El modelo fue ampliado durante v1.1 y constituye la base utilizada por v2.0.
-
-Los jails no se convierten en columnas independientes de la tabla `reputation`.
-
-La relación entre un jail y una categoría se mantiene mediante `jail_profile`.
-
-Esto permite agregar o modificar perfiles sin modificar la estructura principal de reputación.
-
-El catálogo de categorías soportadas se mantiene explícitamente en
-`config/policy.conf` mediante `REPUTATION_CATEGORIES`, como fuente única
-de verdad consumida tanto por el modelo de reputación como por la
-interfaz de administración (ver Sección 13).
+Historical information is a fundamental part of ARE's model.
 
 ---
 
-# 4. Modelo de decisión basado en riesgo
+## 3.2 Categories
 
-ARE utiliza la reputación acumulada, el estado y la política para determinar la respuesta.
+Reputation categories make it possible to classify different types of behavior.
 
-El modelo evita tratar el tiempo de bloqueo como la única fuente de decisión.
+The model was extended during v1.1 and is the base v2.0 uses.
 
-Conceptualmente:
+Jails do not become independent columns of the `reputation` table.
+
+The relationship between a jail and a category is kept through `jail_profile`.
+
+This allows adding or modifying profiles without changing the main reputation structure.
+
+The catalog of supported categories is kept explicitly in `config/policy.conf` through
+`REPUTATION_CATEGORIES`, as a single source of truth consumed both by the reputation model and by
+the administration interface (see Section 13).
+
+---
+
+# 4. Risk-based decision model
+
+ARE uses accumulated reputation, state, and policy to determine the response.
+
+The model avoids treating block time as the only source of decision.
+
+Conceptually:
 
 ```text
-eventos
+events
    |
    v
-reputación
+reputation
    |
    v
-estado
+state
    |
    v
-política
+policy
    |
    v
-decisión
+decision
 ```
 
-La respuesta puede evolucionar según el comportamiento acumulado de la IP.
+The response can evolve according to the IP's accumulated behavior.
 
-Esto permite diferenciar entre:
+This makes it possible to differentiate between:
 
-* actividad mínima;
-* observación;
-* filtrado;
-* bloqueo temporal;
-* bloqueo permanente.
+* minimal activity;
+* observation;
+* filtering;
+* temporary block;
+* permanent block.
 
 ---
 
-## 4.1 Evaluación de riesgo por categoría
+## 4.1 Per-category risk evaluation
 
-El Policy Engine evalúa el riesgo de una IP por categoría de forma
-independiente antes de emitir una decisión. Cada categoría de
-reputación (Sección 3.2) tiene una regla propia (`policy/rules/*.sh`)
-que conoce únicamente su propio umbral, configurado en `policy.conf`, y
-aporta al riesgo total solo si lo supera. Ninguna regla conoce a las
-demás ni decide una acción por sí misma — esa responsabilidad
-corresponde exclusivamente al orquestador (`policy_evaluate()`).
+The Policy Engine evaluates an IP's risk per category independently before issuing a decision. Each
+reputation category (Section 3.2) has its own rule (`policy/rules/*.sh`) that knows only its own
+threshold, configured in `policy.conf`, and contributes to the total risk only if it is exceeded.
+No rule knows the others or decides an action by itself — that responsibility belongs exclusively
+to the orchestrator (`policy_evaluate()`).
 
 ```text
 IP
  |
  v
-contexto (score por categoría + actividad reciente)
+context (per-category score + recent activity)
  |
  v
-regla EXPLOIT --\
-regla BOT -------\
-regla RECON ------ >-- acumulador de riesgo
-regla PROTOCOL --/
-regla ...       -/
+EXPLOIT rule --\
+BOT rule -------\
+RECON rule ------ >-- risk accumulator
+PROTOCOL rule --/
+... rule       -/
  |
  v
-riesgo por categoría
+per-category risk
  |
  v
-MAX(riesgo por categoría, score total acumulado)  <- piso de seguridad
+MAX(per-category risk, accumulated total score)  <- safety floor
  |
  v
-decisión final
+final decision
 ```
 
-El **piso de seguridad** garantiza que el motor por categoría nunca sea
-menos estricto que una evaluación por score total simple: puede detectar
-más (por ejemplo, una señal de fuerza bruta que ninguna categoría
-individual refleja), pero nunca menos. Esto evita que una IP con riesgo
-repartido entre varias categorías —cada una por debajo de su propio
-umbral— evada la detección aunque su score acumulado total sea alto.
+The **safety floor** guarantees that the per-category engine is never less strict than a simple
+total-score evaluation: it can detect more (for example, a brute-force signal that no individual
+category reflects), but never less. This prevents an IP whose risk is spread across several
+categories — each below its own threshold — from evading detection even when its accumulated total
+score is high.
 
-Una categoría sin umbral configurado en `policy.conf` no evalúa —
-comportamiento explícito, no un error silencioso — lo que permite
-incorporar categorías nuevas de forma progresiva, sin necesidad de
-definir su criterio de riesgo de antemano.
+A category with no threshold configured in `policy.conf` does not evaluate — explicit behavior, not
+a silent error — which makes it possible to add new categories progressively, without having to
+define their risk criterion in advance.
 
 ---
 
-# 5. Ciclo de vida de una IP
+# 5. Lifecycle of an IP
 
-Una dirección IP observada por ARE mantiene información durante todo su ciclo de vida.
+An IP address observed by ARE keeps information throughout its entire lifecycle.
 
-El ciclo general es:
+The general cycle is:
 
 ```text
-observación
+observation
      |
      v
-reputación
+reputation
      |
      v
-estado
+state
      |
      v
-decisión
+decision
      |
      v
-sanción
+sanction
      |
      v
-recuperación
+recovery
      |
      v
-reevaluación
+re-evaluation
 ```
 
-El objetivo es evitar que una IP pierda inmediatamente todo su historial por la desaparición temporal de actividad.
+The goal is to prevent an IP from immediately losing all its history due to a temporary absence of
+activity.
 
 ---
 
-# 6. Decay y recuperación
+# 6. Decay and recovery
 
-## 6.1 Principio
+## 6.1 Principle
 
-La reputación puede disminuir gradualmente cuando cesa la actividad relevante.
+Reputation can gradually decrease when relevant activity stops.
 
-La recuperación no equivale a eliminar la reputación.
+Recovery is not the same as deleting the reputation.
 
-El mecanismo reduce progresivamente el score y permite que ARE vuelva a evaluar el estado y la política.
+The mechanism progressively reduces the score and lets ARE re-evaluate the state and the policy.
 
 ---
 
-## 6.2 Control de frecuencia
+## 6.2 Frequency control
 
-El control de ejecución se separa de la actividad general de la IP.
+Execution control is separate from the IP's general activity.
 
-Para ello se utiliza:
+For this it uses:
 
 ```text
 last_decay
 ```
 
-en `reputation`.
+in `reputation`.
 
-Esto evita utilizar la fecha de última actividad como si fuera la fecha de última ejecución del decay.
+This avoids using the date of last activity as if it were the date of the last decay run.
 
-El diseño permite distinguir:
+The design makes it possible to distinguish:
 
 ```text
-última actividad
+last activity
 ```
 
-de:
+from:
 
 ```text
-último decay aplicado
+last applied decay
 ```
 
 ---
 
-## 6.3 Separación entre recuperación y aplicación
+## 6.3 Separation between recovery and enforcement
 
-El Decay Engine modifica la reputación y provoca una reevaluación.
+The Decay Engine modifies the reputation and triggers a re-evaluation.
 
-No debe confundirse la recuperación de reputación con una orden directa de modificación del firewall.
+Reputation recovery must not be confused with a direct order to modify the firewall.
 
-El flujo es:
+The flow is:
 
 ```text
 Decay
@@ -319,107 +321,107 @@ State Engine
 Policy Engine
   |
   v
-decisión
+decision
 ```
 
-La aplicación de esa decisión permanece bajo las responsabilidades correspondientes del sistema.
+Applying that decision remains under the system's corresponding responsibilities.
 
 ---
 
 # 7. Ban Lifecycle
 
-## 7.1 Separación de responsabilidades
+## 7.1 Separation of responsibilities
 
-El Ban Lifecycle Engine no determina si una IP es peligrosa.
+The Ban Lifecycle Engine does not determine whether an IP is dangerous.
 
-Esa decisión pertenece a:
+That decision belongs to:
 
 * Reputation Engine;
 * State Engine;
 * Policy Engine.
 
-Ban Lifecycle determina cómo evoluciona una sanción una vez que la política decide aplicar una acción de sanción.
+Ban Lifecycle determines how a sanction evolves once the policy decides to apply a sanction action.
 
 ---
 
-## 7.2 Persistencia
+## 7.2 Persistence
 
-El estado de sanción se mantiene en:
+The sanction state is kept in:
 
 ```text
 sanction_state
 ```
 
-La información persistida permite distinguir:
+The persisted information makes it possible to distinguish:
 
-* nivel de sanción;
-* cantidad histórica;
-* duración;
-* finalización;
-* permanencia.
+* sanction level;
+* historical count;
+* duration;
+* termination;
+* permanence.
 
-Esto permite que la reincidencia tenga consecuencias acumulativas.
+This allows recidivism to have cumulative consequences.
 
 ---
 
-## 7.3 Escalado
+## 7.3 Escalation
 
-Las sanciones pueden evolucionar progresivamente.
+Sanctions can evolve progressively.
 
-El diseño contempla:
+The design contemplates:
 
 ```text
 TEMP_BAN
     |
     v
-mayor nivel
+higher level
     |
     v
-mayor duración
+longer duration
     |
     v
-BAN permanente
+permanent BAN
 ```
 
-El escalado se mantiene separado de la determinación inicial del riesgo.
+Escalation stays separate from the initial risk determination.
 
 ---
 
-# 8. Sensores
+# 8. Sensors
 
-Los sensores son adaptadores de entrada.
+Sensors are input adapters.
 
-Su responsabilidad es transformar información externa en eventos que ARE pueda procesar.
+Their responsibility is to turn external information into events ARE can process.
 
-Un sensor no debe:
+A sensor must not:
 
-* decidir la política;
-* modificar directamente la reputación sin pasar por el flujo definido;
-* sustituir al Policy Engine;
-* asumir responsabilidades del Firewall Backend.
+* decide the policy;
+* directly modify the reputation without going through the defined flow;
+* replace the Policy Engine;
+* take on Firewall Backend responsibilities.
 
-El Sensor Framework permite incorporar nuevas fuentes sin modificar innecesariamente el núcleo.
+The Sensor Framework makes it possible to add new sources without unnecessarily changing the core.
 
-La primera implementación oficial es el sensor Fail2Ban.
+The first official implementation is the Fail2Ban sensor.
 
-Actualmente procesa:
+It currently processes:
 
 ```text
 FOUND
 EXTERNAL_UNBAN
 ```
 
-y utiliza un offset persistente para evitar reprocesamiento.
+and uses a persistent offset to avoid reprocessing.
 
 ---
 
-# 9. Fail2Ban como fuente de eventos
+# 9. Fail2Ban as an event source
 
-Fail2Ban no constituye la autoridad final de decisión de ARE.
+Fail2Ban is not ARE's final decision authority.
 
-Su función dentro del modelo es proporcionar información sobre actividad observada.
+Its role within the model is to provide information about observed activity.
 
-El flujo es:
+The flow is:
 
 ```text
 Fail2Ban
@@ -437,17 +439,18 @@ Reputation
 Policy
 ```
 
-Esto permite que ARE conserve una visión acumulada de la IP en lugar de depender exclusivamente de una acción individual de Fail2Ban.
+This lets ARE keep an accumulated view of the IP instead of depending exclusively on an individual
+Fail2Ban action.
 
 ---
 
-# 10. Configuración desacoplada
+# 10. Decoupled configuration
 
-La configuración no debe estar embebida innecesariamente dentro de los motores.
+Configuration must not be unnecessarily embedded inside the engines.
 
-La configuración operativa se mantiene separada del código del producto.
+Operational configuration is kept separate from the product's code.
 
-En v2.0 la estructura oficial utiliza:
+In v2.0 the official structure uses:
 
 ```text
 /opt/are
@@ -456,43 +459,44 @@ En v2.0 la estructura oficial utiliza:
 /var/log/are
 ```
 
-El Product Manifest define qué componentes forman parte del producto y cómo son administrados.
+The Product Manifest defines which components are part of the product and how they are managed.
 
-La configuración distribuida con el producto y la configuración activa de una instalación son conceptos diferentes.
+The configuration distributed with the product and an installation's active configuration are
+different concepts.
 
-El Installer administra esta relación.
+The Installer manages this relationship.
 
 ---
 
 # 11. Product Manifest
 
-`manifest/product.sh` constituye la definición estructural del producto.
+`manifest/product.sh` is the product's structural definition.
 
-El Manifest centraliza:
+The Manifest centralizes:
 
-* identidad del producto;
-* versión;
-* directorios;
-* archivos;
-* configuración;
-* datos persistentes;
-* ejecutables;
-* enlaces;
+* product identity;
+* version;
+* directories;
+* files;
+* configuration;
+* persistent data;
+* executables;
+* links;
 * systemd;
 * logrotate;
-* exclusiones.
+* exclusions.
 
-El Manifest no contiene la lógica de los motores.
+The Manifest does not contain the engines' logic.
 
-Su función es proporcionar una fuente única para que el Installer conozca qué debe administrar.
+Its function is to provide a single source for the Installer to know what it must manage.
 
 ---
 
 # 12. Installer Engine
 
-El Installer Engine administra el ciclo de vida de la instalación.
+The Installer Engine manages the installation lifecycle.
 
-Las operaciones son:
+The operations are:
 
 ```text
 install
@@ -502,251 +506,365 @@ verify
 uninstall
 ```
 
-El diseño mantiene separadas:
+The design keeps separate:
 
 ```text
-producto
-configuración
-datos persistentes
+product
+configuration
+persistent data
 logs
-servicios
-enlaces
+services
+links
 ```
 
-Un `upgrade` puede actualizar componentes del producto sin destruir los datos persistentes.
+An `upgrade` can update the product components without destroying the persistent data.
 
-Un `repair` puede reconstruir componentes faltantes de una instalación incompleta.
+A `repair` can rebuild missing components of an incomplete installation.
 
-Un `verify` comprueba que los componentes requeridos se encuentren presentes y operativos.
+A `verify` checks that the required components are present and operational.
 
-Un `uninstall` elimina el producto sin convertir automáticamente los datos persistentes en parte del contenido eliminado.
-
----
-
-# 13. Interfaz de Administración (ARE ADMIN)
-
-## 13.1 Propósito
-
-ARE ADMIN es la interfaz de administración por línea de comandos de ARE.
-
-Su función es exponer, de forma organizada, las capacidades de consulta, configuración y operación de los componentes ya definidos en este documento.
-
-ARE ADMIN no introduce un nuevo motor ni una nueva autoridad de decisión. Es una capa de administración que se apoya sobre los componentes existentes: Reputation Engine, State Engine, Policy Engine, Sensor Framework, Decay Engine e Installer Engine.
-
-Se accede mediante `are.sh admin`, o directamente mediante `admin.sh` como atajo equivalente. Ambos caminos cargan el mismo `bootstrap.sh` utilizado por el resto del sistema, por lo que ARE ADMIN opera siempre sobre los mismos componentes reales, sin duplicar lógica ni mantener un entorno de carga separado.
+An `uninstall` removes the product without automatically turning the persistent data into part of
+the removed content.
 
 ---
 
-## 13.2 Principio de diseño
+# 13. Administration Interface (ARE ADMIN)
 
-ARE ADMIN respeta la separación de responsabilidades establecida en la Sección 2.
+## 13.1 Purpose
 
-La CLI no decide, no aplica y no sanciona. La CLI consulta, administra y, cuando corresponde, invoca a los motores correspondientes respetando el flujo definido por cada uno de ellos.
+ARE ADMIN is ARE's command-line administration interface.
 
-En consecuencia:
+Its function is to expose, in an organized way, the query, configuration, and operation
+capabilities of the components already defined in this document.
 
-* ARE ADMIN no modifica directamente la tabla `reputation`;
-* ARE ADMIN no modifica directamente el Firewall Backend;
-* ARE ADMIN no reemplaza al Policy Engine ni al Decay Engine;
-* ARE ADMIN administra `jail_profile`, la configuración desacoplada y el ciclo de vida de la instalación a través de las interfaces ya existentes de cada componente.
+ARE ADMIN does not introduce a new engine or a new decision authority. It is an administration
+layer built on top of the existing components: Reputation Engine, State Engine, Policy Engine,
+Sensor Framework, Decay Engine, and Installer Engine.
+
+It is accessed through `are.sh admin`, or directly through `admin.sh` as an equivalent shortcut.
+Both paths load the same `bootstrap.sh` the rest of the system uses, so ARE ADMIN always operates
+on the same real components, without duplicating logic or maintaining a separate loading
+environment.
 
 ---
 
-## 13.3 Estructura del menú
+## 13.2 Design principle
 
-El árbol de navegación de ARE ADMIN refleja directamente la composición de ARE descrita en las secciones anteriores. Cada rama corresponde a un componente ya definido en el diseño.
+ARE ADMIN respects the separation of responsibilities established in Section 2.
 
-Dos ramas incorporan, además de las capacidades de consulta originales, un ítem adicional de resumen/diagnóstico que reutiliza comandos ya existentes del Dashboard (`dashboard_stats`, `dashboard_status`), sin introducir lógica nueva:
+The CLI does not decide, does not enforce, and does not sanction. The CLI queries, administers, and,
+when appropriate, invokes the corresponding engines, respecting the flow each one defines.
+
+Consequently:
+
+* ARE ADMIN does not directly modify the `reputation` table;
+* ARE ADMIN does not directly modify the Firewall Backend;
+* ARE ADMIN does not replace the Policy Engine or the Decay Engine;
+* ARE ADMIN administers `jail_profile`, the decoupled configuration, and the installation lifecycle
+  through each component's already-existing interfaces.
+
+---
+
+## 13.3 Menu structure
+
+ARE ADMIN's navigation tree directly reflects the composition of ARE described in the previous
+sections. Each branch corresponds to a component already defined in the design.
+
+Two branches add, beyond the original query capabilities, an extra summary/diagnostic item that
+reuses already-existing Dashboard commands (`dashboard_stats`, `dashboard_status`), without
+introducing new logic:
 
 ```text
 ARE ADMIN
 │
-├── 1. Jails / Perfiles
-│   ├── Listar
-│   ├── Crear
-│   ├── Modificar
-│   ├── Eliminar
-│   └── Validar
+├── 1. Jails / Profiles
+│   ├── List
+│   ├── Create
+│   ├── Modify
+│   ├── Delete
+│   └── Validate
 │
-├── 2. Categorías
-│   ├── Listar
-│   └── Ver puntuaciones
+├── 2. Categories
+│   ├── List
+│   └── View scores
 │
-├── 3. Sensores
-│   ├── Estado
-│   └── Configuración
+├── 3. Sensors
+│   ├── Status
+│   └── Configuration
 │
-├── 4. Política
-│   ├── Ver configuración
-│   └── Validar
+├── 4. Policy
+│   ├── View configuration
+│   └── Validate
 │
-├── 5. Estado / Reputación
-│   ├── Consultar IP
-│   ├── Eventos
+├── 5. State / Reputation
+│   ├── Query IP
+│   ├── Events
 │   ├── Top
-│   └── Estadísticas
+│   └── Statistics
 │
 ├── 6. Decay
-│   ├── Estado
+│   ├── Status
 │   ├── Dry-run
-│   └── Ejecutar
+│   └── Run
 │
-├── 7. Configuración
-│   ├── Ver
-│   ├── Validar
-│   └── Estado del sistema
+├── 7. Configuration
+│   ├── View
+│   ├── Validate
+│   └── System status
 │
-└── 0. Salir
+└── 0. Exit
 ```
 
 ---
 
-## 13.4 Correspondencia con los componentes del diseño
+## 13.4 Correspondence with the design components
 
-Cada rama del menú se apoya en un componente ya definido, sin duplicar su lógica:
+Each menu branch is built on an already-defined component, without duplicating its logic:
 
-* **Jails / Perfiles** administra `jail_profile` (Sección 3.2) mediante un CRUD completo. Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. La categoría se restringe a `REPUTATION_CATEGORIES` mediante selección numerada, nunca texto libre. Crear y Modificar ofrecen asistencia de peso/confianza en dos niveles: referencia estadística calculada de perfiles reales existentes en la categoría, o una escala de niveles curada por el administrador (`config/jail_scale.conf`) cuando la categoría la define. Eliminar exige escribir el nombre exacto del jail como confirmación, no solo una respuesta s/N, por ser la única operación destructiva del CRUD. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12), comprobando categoría válida y rangos de peso/confianza.
-* **Categorías** expone en modo de solo lectura el modelo de reputación (Sección 3), incluyendo las puntuaciones asociadas a cada categoría. El catálogo de categorías y sus umbrales se leen dinámicamente desde `REPUTATION_CATEGORIES` en `config/policy.conf` (Sección 3.2), evitando que el listado quede hardcodeado en la interfaz.
-* **Sensores** expone el estado y la configuración del Sensor Framework (Sección 8), sin permitir que la CLI decida política ni modifique reputación de forma directa. El estado incluye el offset persistente del sensor y el estado del timer de systemd asociado.
-* **Política** permite inspeccionar y validar la configuración del Policy Engine (Sección 4), sin ejecutar directamente una decisión sobre una IP concreta. Rama pendiente de implementación: existen definiciones concurrentes del motor de decisión en el código base cuya convivencia no está resuelta; la rama se habilitará una vez identificado el motor canónico (ver `docs/TODO.md`).
-* **Estado / Reputación** permite consultar el conocimiento acumulado (Sección 2.4) y el historial de eventos de una IP, obtener un listado priorizado (Top), y consultar un resumen agregado de actividad del sistema (Estadísticas), reutilizando `dashboard_score`, `dashboard_events`, `dashboard_top` y `dashboard_stats` respectivamente.
-* **Decay** expone el ciclo descrito en la Sección 6. *Estado* consulta `last_decay` y candidatas actuales; *Dry-run* simula el efecto del Decay Engine sin modificar `reputation` ni provocar una reevaluación real; *Ejecutar* invoca el flujo completo Decay → Reputation → State Engine → Policy Engine (Sección 6.3), delegando la aplicación efectiva de cualquier decisión resultante al mecanismo de Apply ya definido en la Sección 2.3. La operación de Ejecutar requiere confirmación explícita antes de invocarse.
-* **Configuración** permite ver y validar la configuración desacoplada (Sección 10), sin embeber dicha configuración en el código de los motores, y consultar el estado operativo general del sistema (base de datos, Decay, Firewall, IPSet) reutilizando `dashboard_status`.
-
----
-
-## 13.5 Alcance de las operaciones de escritura
-
-Las operaciones de escritura disponibles desde ARE ADMIN se limitan a los elementos de configuración y administración: perfiles de jail y configuración operativa.
-
-ARE ADMIN no ofrece una operación que module directamente `reputation` o `sanction_state`. Cualquier cambio sobre el conocimiento acumulado de una IP resulta exclusivamente de la operación normal de los motores (Sensor Framework, Decay Engine, Policy Engine), y no de una acción manual ejecutada desde la CLI.
-
-Esto preserva la integridad del modelo de reputación descrito en la Sección 3 y evita que la interfaz de administración se convierta en una vía paralela de decisión.
-
----
-
-## 13.6 Estado de implementación
-
-Las siete ramas definidas en la Sección 13.3 se encuentran implementadas, verificadas mediante pruebas aisladas y confirmadas operando en producción con datos reales: Jails/Perfiles, Categorías, Sensores, Política, Estado/Reputación, Decay y Configuración.
-
-La implementación de la rama Política (ver RFC-009) reveló, a través de su propia validación, una categoría de reputación (`CREDENTIAL`) sin regla de evaluación asociada pese a tener umbral configurado — corregido como parte del mismo trabajo (ver `docs/TODO.md`, BUG-016). Es un ejemplo del propósito de la validación integrada al CLI: detectar inconsistencias entre configuración e implementación antes de que se manifiesten como comportamiento incorrecto silencioso.
-
----
-
-# 14. Compatibilidad y evolución
-
-v2.0 no se diseña como una ruptura conceptual respecto de v1.1.
-
-La versión estable v1.1 proporcionó la base funcional sobre la que se desarrolló v2.0.
-
-La evolución de v2.0 afectó principalmente:
-
-* identidad del producto;
-* estructura operativa;
-* instalación;
-* persistencia;
-* mantenimiento;
-* integración del ciclo de recuperación;
-* organización de componentes;
-* interfaz de administración.
-
-Las capacidades futuras que todavía no hayan sido implementadas y validadas no deben incorporarse como decisiones de diseño ya realizadas.
+* **Jails / Profiles** administers `jail_profile` (Section 3.2) through a full CRUD. Create, Modify,
+  and Delete operate on the jail–category relationship, not on the `reputation` structure. The
+  category is restricted to `REPUTATION_CATEGORIES` through numbered selection, never free text.
+  Create and Modify offer weight/confidence assistance at two levels: a statistical reference
+  computed from real existing profiles in the category, or an admin-curated level scale
+  (`config/jail_scale.conf`) when the category defines one. Delete requires typing the jail's exact
+  name as confirmation, not just a y/N answer, since it is the CRUD's only destructive operation.
+  Validate reuses the consistency-check concept described for the Installer Engine (Section 12),
+  checking for a valid category and weight/confidence ranges.
+* **Categories** exposes the reputation model (Section 3) in read-only mode, including the scores
+  associated with each category. The category catalog and its thresholds are read dynamically from
+  `REPUTATION_CATEGORIES` in `config/policy.conf` (Section 3.2), keeping the listing from being
+  hardcoded in the interface.
+* **Sensors** exposes the status and configuration of the Sensor Framework (Section 8), without
+  letting the CLI decide policy or directly modify reputation. The status includes the sensor's
+  persistent offset and the status of the associated systemd timer.
+* **Policy** allows inspecting and validating the Policy Engine's configuration (Section 4), without
+  directly running a decision on a specific IP. A branch pending implementation: there are concurrent
+  definitions of the decision engine in the code base whose coexistence is not resolved; the branch
+  will be enabled once the canonical engine is identified (see `docs/TODO.md`).
+* **State / Reputation** allows querying the accumulated knowledge (Section 2.4) and an IP's event
+  history, obtaining a prioritized listing (Top), and querying an aggregate activity summary
+  (Statistics), reusing `dashboard_score`, `dashboard_events`, `dashboard_top`, and `dashboard_stats`
+  respectively.
+* **Decay** exposes the cycle described in Section 6. *Status* queries `last_decay` and the current
+  candidates; *Dry-run* simulates the Decay Engine's effect without modifying `reputation` or
+  triggering a real re-evaluation; *Run* invokes the full Decay → Reputation → State Engine → Policy
+  Engine flow (Section 6.3), delegating the actual application of any resulting decision to the Apply
+  mechanism already defined in Section 2.3. The Run operation requires explicit confirmation before
+  being invoked.
+* **Configuration** allows viewing and validating the decoupled configuration (Section 10), without
+  embedding that configuration in the engines' code, and querying the system's general operational
+  status (database, Decay, Firewall, IPSet) by reusing `dashboard_status`.
 
 ---
 
-# 15. Diseño basado en evidencia
+## 13.5 Scope of write operations
 
-Las decisiones de diseño de ARE deben surgir de:
+The write operations available from ARE ADMIN are limited to configuration and administration
+elements: jail profiles and operational configuration.
 
-1. necesidad identificada;
-2. análisis;
-3. implementación;
-4. prueba;
-5. validación;
-6. documentación.
+ARE ADMIN does not offer an operation that directly modulates `reputation` or `sanction_state`. Any
+change to an IP's accumulated knowledge results exclusively from the normal operation of the engines
+(Sensor Framework, Decay Engine, Policy Engine), and not from a manual action run from the CLI.
 
-La documentación no debe utilizarse para definir retrospectivamente un comportamiento que el sistema todavía no implementa.
-
-El comportamiento real y validado del sistema es la referencia principal para actualizar este documento.
+This preserves the integrity of the reputation model described in Section 3 and keeps the
+administration interface from becoming a parallel path to decisions.
 
 ---
 
-# 16. Evolución incremental
+## 13.6 Implementation status
 
-ARE debe evolucionar sin introducir cambios innecesarios.
+The seven branches defined in Section 13.3 are implemented, verified through isolated tests, and
+confirmed operating in production with real data: Jails/Profiles, Categories, Sensors, Policy,
+State/Reputation, Decay, and Configuration.
 
-Una modificación debe integrarse en el componente responsable antes que duplicar una capacidad existente.
-
-Cuando una modificación afecta la arquitectura, debe quedar reflejada en la documentación correspondiente.
-
-Las propuestas que todavía no hayan sido implementadas pertenecen al Roadmap o a las RFC y no forman parte del diseño operativo actual.
+Implementing the Policy branch (see RFC-009) revealed, through its own validation, a reputation
+category (`CREDENTIAL`) with no associated evaluation rule despite having a configured threshold —
+fixed as part of the same work (see `docs/TODO.md`, BUG-016). It is an example of the purpose of the
+validation built into the CLI: detecting inconsistencies between configuration and implementation
+before they manifest as silent incorrect behavior.
 
 ---
 
-# 17. Estado del diseño
+# 14. Compatibility and evolution
 
-El diseño actual conserva los principios establecidos durante v1.1 y los adapta a la estructura operativa consolidada a través de v2.0, v2.1 y v2.2.
+v2.0 is not designed as a conceptual break from v1.1.
 
-## Decisiones consolidadas en v2.0
+The stable v1.1 version provided the functional base on which v2.0 was developed.
 
-* separación entre sensores y decisión;
-* separación entre decisión y ejecución;
-* persistencia independiente de eventos, reputación y sanciones;
-* Ban Lifecycle como componente independiente;
-* recuperación mediante Decay;
-* configuración desacoplada;
-* Product Manifest como definición estructural del producto;
-* Installer Engine como administrador del ciclo de vida de instalación;
-* interfaz de administración ARE ADMIN como capa de consulta y administración sobre los componentes existentes, sin autoridad de decisión propia, integrada al punto de entrada oficial (`are.sh admin`) y operando sobre el mismo `bootstrap.sh` que el resto del sistema;
-* estructura operativa propia de ARE;
-* evolución incremental sobre la base estable de v1.1.
+The v2.0 evolution mainly affected:
 
-## Decisiones consolidadas en v2.1
+* product identity;
+* operational structure;
+* installation;
+* persistence;
+* maintenance;
+* integration of the recovery cycle;
+* component organization;
+* administration interface.
 
-* modelo de reputación por categoría normalizado (`reputation_scores`), donde incorporar una categoría nueva es una operación de datos y no una migración de esquema ni de código;
-* `total_score` derivado siempre como suma de las categorías, en vez de almacenado de forma independiente — elimina estructuralmente la posibilidad de que se desincronice del dato real;
-* segundo patrón de sensor formalizado dentro del Sensor Framework: callback (invocación directa y síncrona en el instante del evento), junto al patrón de polling ya existente;
-* filtro de jails resuelto dinámicamente contra `jail_profile`, en vez de mantenido como lista fija en el código de cada sensor;
-* administración de perfiles entre servidores (exportar/importar), como mecanismo de propagación de calibración sin recrear cada perfil a mano;
-* restauración del Firewall Backend desde la base de datos al arrancar el sistema, dado que IPSet no persiste su contenido de forma nativa entre reinicios.
+Future capabilities that have not yet been implemented and validated must not be incorporated as
+already-made design decisions.
 
-## Decisiones consolidadas en v2.2
+---
 
-* patrón de "adaptador por fuente" dentro de un sensor: la extracción de datos varía según el origen real (hoy, Exim para SpamAssassin), pero el contrato de reporte hacia el Reputation Engine permanece único — sumar una fuente nueva es agregar una función, no reescribir el sensor;
-* separación de responsabilidad entre `config.conf` (infraestructura: qué leer y de dónde) y `policy.conf` (calibración de decisión: cuándo algo importa) aplicada también a la configuración de un sensor, no solo a los umbrales globales;
-* calibración proactiva de un umbral de categoría sin sensor local disponible (`MALWARE_THRESHOLD`), como decisión consciente de motor genérico — útil para cualquier servidor con superficie real de esa amenaza, no solo el que lo calibra;
-* empaquetado y distribución como capa añadida *antes* del Installer Engine, sin modificar su núcleo — el motor de instalación sigue operando exactamente igual, reciba su fuente de un `git clone` o de un paquete descargado y extraído.
+# 15. Evidence-based design
 
-## Decisiones consolidadas en v2.3
+ARE's design decisions must arise from:
 
-* el estado de activación de un sensor (`sensor_registry`) es independiente del estado de un jail (`jail_profile`) — desactivar un sensor detiene la generación de eventos nuevos, sin necesidad de tocar ni marcar los perfiles ya existentes; la reputación histórica permanece intacta sin ningún flag adicional;
-* el mecanismo de activación de un sensor depende de su patrón, no de una interfaz única: `systemctl` para polling, archivo flag liviano para callback — evaluado explícitamente el costo de consultar la base de datos en cada invocación para un sensor que puede dispararse con mucha frecuencia (callback bajo flood real), y descartado en favor de un chequeo de archivo;
-* un motor de riesgo propio decide con su propio criterio, no delega en el veredicto interno de otra herramienta — el sensor de SpamAssassin filtra por score contra `SPAMASSASSIN_MIN_SCORE`, no por el flag booleano "spam"/"NOT spam" que la herramienta externa asigna con su propio criterio interno, potencialmente desalineado del umbral real de riesgo que le importa a ARE.
+1. an identified need;
+2. analysis;
+3. implementation;
+4. testing;
+5. validation;
+6. documentation.
 
-## Decisiones consolidadas en v2.4
+Documentation must not be used to retroactively define behavior the system does not yet implement.
 
-* simplificar un `CREATE TABLE` para instalaciones nuevas no requiere esperar a una versión moderna de SQLite en ningún servidor — solo `ALTER TABLE ... DROP COLUMN` sobre una base ya existente la requiere; separar ambos casos permitió avanzar la mitad del trabajo de inmediato, en vez de bloquear todo por la limitación de un único entorno;
-* la instalación debe dejar el producto completamente operativo por sí sola, sin depender de que el operador ejecute ningún paso manual después — cualquier verificación (`verify`) que dependa de un efecto colateral de una ejecución posterior, en vez de la instalación misma, es una instalación incompleta aunque parezca funcionar en la práctica;
-* una dependencia dura (`Requires=`) entre un componente propio y una herramienta externa opcional asume que esa herramienta siempre va a estar presente — cuando el propio componente ya tolera su ausencia de forma limpia (un log inexistente, por ejemplo), la dependencia de systemd debe reflejar eso mismo (`After=`, no `Requires=`), no ser más estricta que la lógica que ya existe;
-* validar una demostración con comandos manuales de por medio no es lo mismo que validar la instalación en sí — cualquier verificación de un flujo automatizado debe reproducir exactamente ese flujo, sin intervención humana entre el disparador y la comprobación del resultado.
+The system's real, validated behavior is the primary reference for updating this document.
 
-## Decisiones consolidadas en v2.5
+---
 
-* un sensor puede necesitar correlación con estado (agrupar múltiples eventos por ventana de tiempo) en vez de evaluación línea por línea — el contrato de reporte hacia ARE (`found <IP> <JAIL>`) sigue siendo el mismo, la complejidad de agregación queda encapsulada dentro del sensor, sin tocar el modelo de datos ni el motor de decisión;
-* un parámetro de configuración específico de un sensor no debe asumir el caso de uso de quien lo pidió — un marcador de ruta genérico y configurable (`cart`, aplicable a cualquier catálogo de e-commerce) generaliza el sensor mucho más que un valor hardcodeado al negocio puntual que originó la necesidad;
-* documentar la evidencia real que justifica un umbral de detección (capturas de correlación real, verificación de infraestructura de origen) antes de calibrarlo, en vez de elegir un número arbitrario — la calibración del `jail_profile` de un sensor nuevo debe poder explicarse con esa misma evidencia, no solo con intuición.
+# 16. Incremental evolution
 
-## Decisiones consolidadas en v2.6
+ARE must evolve without introducing unnecessary changes.
 
-* no todo dato compartido entre dos instancias del mismo producto tiene el mismo mecanismo de conflicto correcto — la configuración (`jail_profile`) necesita "sobrescribir/conservar" porque cada campo tiene un único valor válido; la reputación no necesita elegir nada, porque ya está diseñada para acumularse, y el import simplemente reutiliza esa misma acumulación;
-* un filtro de relevancia no siempre necesita una decisión explícita del administrador — apoyarse en una estructura que ya existe (`jail_profile`, reflejo del rol real del servidor) resuelve "¿esto le sirve a este servidor?" gratis, sin inventar un concepto nuevo de "rol" en el modelo de datos.
+A modification must be integrated into the responsible component rather than duplicating an
+existing capability.
 
-## Decisiones consolidadas en v2.7
+When a modification affects the architecture, it must be reflected in the corresponding
+documentation.
 
-* un mecanismo que modifica un archivo editado también a mano por el administrador debe delimitar claramente su propia zona (marcadores `BEGIN`/`END`), nunca asumir que puede reemplazar el archivo completo — cualquier entrada manual fuera de ese bloque debe sobrevivir indefinidamente, sin importar cuántas veces se sincronice;
-* una integración con una fuente externa nunca debe dejar el sistema en peor estado que antes de intentarla — validar el contenido descargado antes de escribir nada, y abortar sin tocar el archivo si la validación falla, en vez de aplicar un resultado parcial o vacío;
-* no toda unidad de systemd que se instala debe habilitarse automáticamente — cuando depende de configuración explícita del administrador para tener sentido, activarla sin esa configuración es solo ruido; el Installer Engine necesitaba distinguir entre "instalar" (siempre) y "activar" (solo si corresponde), algo que no existía hasta esta versión.
+Proposals that have not yet been implemented belong to the Roadmap or the RFCs and are not part of
+the current operational design.
 
-Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
+---
 
-La versión v2.8 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+# 17. Design status
+
+The current design keeps the principles established during v1.1 and adapts them to the operational
+structure consolidated through v2.0, v2.1, and v2.2.
+
+## Decisions consolidated in v2.0
+
+* separation between sensors and decision;
+* separation between decision and execution;
+* independent persistence of events, reputation, and sanctions;
+* Ban Lifecycle as an independent component;
+* recovery through Decay;
+* decoupled configuration;
+* Product Manifest as the product's structural definition;
+* Installer Engine as the installation-lifecycle manager;
+* the ARE ADMIN administration interface as a query-and-administration layer over the existing
+  components, with no decision authority of its own, integrated into the official entry point
+  (`are.sh admin`) and operating on the same `bootstrap.sh` as the rest of the system;
+* ARE's own operational structure;
+* incremental evolution on the stable v1.1 base.
+
+## Decisions consolidated in v2.1
+
+* a normalized per-category reputation model (`reputation_scores`), where adding a new category is a
+  data operation and not a schema or code migration;
+* `total_score` always derived as the sum of the categories, instead of stored independently —
+  structurally eliminating the possibility that it drifts from the real data;
+* a second sensor pattern formalized within the Sensor Framework: callback (direct, synchronous
+  invocation at the moment of the event), alongside the already-existing polling pattern;
+* the jail filter resolved dynamically against `jail_profile`, instead of kept as a fixed list in
+  each sensor's code;
+* profile administration across servers (export/import), as a mechanism to propagate calibration
+  without recreating each profile by hand;
+* Firewall Backend restoration from the database at system boot, since IPSet does not natively
+  persist its contents across reboots.
+
+## Decisions consolidated in v2.2
+
+* an "adapter per source" pattern within a sensor: data extraction varies by the real source (today,
+  Exim for SpamAssassin), but the reporting contract toward the Reputation Engine stays single —
+  adding a new source is adding a function, not rewriting the sensor;
+* separating responsibility between `config.conf` (infrastructure: what to read and from where) and
+  `policy.conf` (decision calibration: when something matters), applied to a sensor's configuration
+  too, not just the global thresholds;
+* proactive calibration of a category threshold with no local sensor available (`MALWARE_THRESHOLD`),
+  as a conscious generic-engine decision — useful for any server with real surface for that threat,
+  not just the one calibrating it;
+* packaging and distribution as a layer added *before* the Installer Engine, without changing its
+  core — the installation engine still operates exactly the same, whether it receives its source from
+  a `git clone` or from a downloaded and extracted package.
+
+## Decisions consolidated in v2.3
+
+* a sensor's activation state (`sensor_registry`) is independent of a jail's state (`jail_profile`) —
+  disabling a sensor stops the generation of new events, without needing to touch or mark the
+  already-existing profiles; the historical reputation remains intact without any extra flag;
+* a sensor's activation mechanism depends on its pattern, not on a single interface: `systemctl` for
+  polling, a lightweight flag file for callback — the cost of querying the database on every invocation
+  was explicitly evaluated for a sensor that can fire very frequently (callback under a real flood),
+  and discarded in favor of a file check;
+* a risk engine of our own decides by its own criterion, instead of delegating to another tool's
+  internal verdict — the SpamAssassin sensor filters by score against `SPAMASSASSIN_MIN_SCORE`, not by
+  the boolean "spam"/"NOT spam" flag the external tool assigns by its own internal criterion,
+  potentially misaligned with the real risk threshold that matters to ARE.
+
+## Decisions consolidated in v2.4
+
+* simplifying a `CREATE TABLE` for new installations does not require waiting for a modern SQLite
+  version on any server — only `ALTER TABLE ... DROP COLUMN` on an already-existing database requires
+  it; separating the two cases let half the work proceed immediately, instead of blocking everything
+  on one environment's limitation;
+* the installation must leave the product fully operational on its own, without depending on the
+  operator running any manual step afterward — any verification (`verify`) that depends on a side
+  effect of a later run, instead of the installation itself, is an incomplete installation even if it
+  appears to work in practice;
+* a hard dependency (`Requires=`) between a component of ours and an optional external tool assumes
+  that tool will always be present — when the component itself already tolerates its absence cleanly
+  (a nonexistent log, for example), the systemd dependency must reflect that (`After=`, not
+  `Requires=`), not be stricter than the logic that already exists;
+* validating a demonstration with manual commands in between is not the same as validating the
+  installation itself — any verification of an automated flow must reproduce exactly that flow, with
+  no human intervention between the trigger and the result check.
+
+## Decisions consolidated in v2.5
+
+* a sensor may need stateful correlation (grouping multiple events by a time window) instead of
+  line-by-line evaluation — the reporting contract toward ARE (`found <IP> <JAIL>`) stays the same,
+  the aggregation complexity is encapsulated inside the sensor, without touching the data model or the
+  decision engine;
+* a sensor-specific configuration parameter must not assume the use case of whoever requested it — a
+  generic, configurable path marker (`cart`, applicable to any e-commerce catalog) generalizes the
+  sensor much more than a value hardcoded to the specific business that prompted the need;
+* documenting the real evidence that justifies a detection threshold (captures of real correlation,
+  verification of origin infrastructure) before calibrating it, instead of choosing an arbitrary
+  number — the calibration of a new sensor's `jail_profile` must be explainable with that same
+  evidence, not just intuition.
+
+## Decisions consolidated in v2.6
+
+* not all data shared between two instances of the same product has the same correct conflict
+  mechanism — configuration (`jail_profile`) needs "overwrite/keep" because each field has a single
+  valid value; reputation needs to choose nothing, because it is already designed to accumulate, and
+  the import simply reuses that same accumulation;
+* a relevance filter does not always need an explicit administrator decision — relying on a structure
+  that already exists (`jail_profile`, a reflection of the server's real role) answers "is this useful
+  to this server?" for free, without inventing a new "role" concept in the data model.
+
+## Decisions consolidated in v2.7
+
+* a mechanism that modifies a file also edited by hand by the administrator must clearly delimit its
+  own zone (`BEGIN`/`END` markers), never assume it can replace the whole file — any manual entry
+  outside that block must survive indefinitely, no matter how many times it is synchronized;
+* an integration with an external source must never leave the system in a worse state than before
+  attempting it — validate the downloaded content before writing anything, and abort without touching
+  the file if validation fails, instead of applying a partial or empty result;
+* not every systemd unit that gets installed must be enabled automatically — when it depends on
+  explicit administrator configuration to make sense, enabling it without that configuration is just
+  noise; the Installer Engine needed to distinguish between "install" (always) and "enable" (only when
+  appropriate), something that did not exist until this version.
+
+Future capabilities that have not yet been implemented and validated are not part of the current
+state of the design; they belong to the Roadmap or the corresponding RFCs.
+
+Version v2.8 is in development and validation. This document describes only decisions corresponding
+to the implemented and verified state.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`DESIGN.es.md`](DESIGN.es.md)

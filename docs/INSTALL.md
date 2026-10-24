@@ -1,12 +1,14 @@
 # ARE Installation Guide
 
-## Introducción
+## Introduction
 
-Este documento describe el ciclo de vida de instalación de ARE (Abuse Reputation Engine).
+This document describes the installation lifecycle of ARE (Abuse Reputation Engine).
 
-ARE v2 consolida la identidad y estructura propias del producto, sustituyendo la estructura histórica utilizada por `f2b-ipset` en v1.1. La estructura de instalación, los componentes administrados y sus ubicaciones son definidos por `manifest/product.sh`.
+ARE v2 consolidates the product's own identity and structure, replacing the historical layout
+used by `f2b-ipset` in v1.1. The installation structure, the managed components, and their
+locations are defined by `manifest/product.sh`.
 
-El Installer Engine administra las operaciones:
+The Installer Engine manages these operations:
 
 ```text
 install
@@ -16,65 +18,68 @@ verify
 uninstall
 ```
 
-Estas operaciones mantienen separadas el Core del producto, la configuración y los datos persistentes.
+These operations keep the product Core, the configuration, and the persistent data separate.
 
 ---
 
-# Requisitos
+# Requirements
 
-ARE requiere un sistema Linux con:
+ARE requires a Linux system with:
 
 * Bash
 * SQLite 3
 * IPSet
 * systemd
-* privilegios de `root`
+* `root` privileges
 
-Fail2Ban y ModSecurity son integraciones de ARE. No sustituyen las dependencias básicas verificadas directamente por el Installer.
+Fail2Ban and ModSecurity are ARE integrations. They do not replace the base dependencies that
+the Installer verifies directly.
 
-Desde v2.3, si alguna dependencia obligatoria falta, el propio Installer la instala automáticamente usando el gestor de paquetes nativo del sistema (`apt-get`, `dnf` o `yum`, en ese orden de preferencia) — ver sección "Instalación remota" más abajo.
+Since v2.3, if a required dependency is missing, the Installer itself installs it automatically
+using the system's native package manager (`apt-get`, `dnf`, or `yum`, in that order of
+preference) — see the "Remote installation" section below.
 
 ---
 
-# Estructura de instalación
+# Installation structure
 
-La estructura oficial de ARE v2 es:
+The official ARE v2 structure is:
 
 ```text
 /opt/are
-    Core y componentes del producto
+    Product Core and components
 
 /opt/are/config
-    Configuración del producto
+    Product configuration
 
 /var/lib/are
-    Datos persistentes
+    Persistent data
 
 /var/lib/are/are.db
-    Base de datos de ARE
+    ARE database
 
 /var/log/are
     Logs
 
 /usr/local/sbin
-    Enlaces ejecutables oficiales
+    Official executable links
 
 /etc/systemd/system
-    Unidades systemd
+    systemd units
 
 /etc/logrotate.d
-    Configuración de logrotate
+    logrotate configuration
 ```
 
-Esta estructura forma parte de la definición oficial de ARE v2.
+This structure is part of the official definition of ARE v2.
 
-La base de datos persistente utilizada por ARE v2 es:
+The persistent database used by ARE v2 is:
 
 ```text
 /var/lib/are/are.db
 ```
 
-La estructura incluye, entre otras, las tablas:
+Among others, the structure includes the tables:
 
 ```text
 hosts
@@ -87,114 +92,120 @@ jail_profile
 sanction_state
 ```
 
-`reputation_scores` almacena el score por categoría de forma normalizada, permitiendo incorporar categorías nuevas de reputación sin modificar el esquema de la base ni el código de las funciones de consulta.
+`reputation_scores` stores the per-category score in normalized form, which makes it possible to
+add new reputation categories without changing the database schema or the code of the query
+functions.
 
-Los datos históricos procedentes de la estructura anterior fueron incorporados a la nueva base persistente de ARE durante la evolución hacia v2.
+The historical data from the previous structure was migrated into ARE's new persistent database
+during the evolution toward v2.
 
 ---
 
 # Product Manifest
 
-El archivo:
+The file:
 
 ```text
 manifest/product.sh
 ```
 
-es la referencia oficial utilizada por el Installer para determinar los componentes administrados por ARE.
+is the official reference the Installer uses to determine the components managed by ARE.
 
-El Manifest centraliza:
+The Manifest centralizes:
 
-* identidad y versión del producto;
-* estructura de instalación;
-* configuración;
-* datos persistentes;
-* unidades systemd;
-* enlaces ejecutables;
-* archivos ejecutables;
-* configuración de logrotate;
-* exclusiones.
+* product identity and version;
+* installation structure;
+* configuration;
+* persistent data;
+* systemd units;
+* executable links;
+* executable files;
+* logrotate configuration;
+* exclusions.
 
-El Installer utiliza los valores definidos por el Manifest en lugar de mantener una segunda definición independiente de la estructura del producto.
-
----
-
-# Árbol fuente
-
-Las operaciones de instalación, actualización y reparación utilizan el árbol fuente que contiene `are-installer`.
-
-El árbol fuente debe ser diferente del destino instalado.
-
-Esto permite que una actualización copie el Core de una versión fuente sobre una instalación existente sin utilizar la instalación activa como origen.
-
-Si el árbol fuente y el destino resuelven al mismo directorio, la operación debe finalizar con error.
+The Installer uses the values defined by the Manifest instead of maintaining a second,
+independent definition of the product structure.
 
 ---
 
-# Instalación inicial
+# Source tree
 
-La instalación se ejecuta mediante:
+The install, upgrade, and repair operations use the source tree that contains `are-installer`.
+
+The source tree must be different from the installed target.
+
+This lets an upgrade copy the Core from a source version over an existing installation without
+using the live installation as the origin.
+
+If the source tree and the target resolve to the same directory, the operation must abort with
+an error.
+
+---
+
+# Initial installation
+
+Installation is run with:
 
 ```bash
 are-installer install
 ```
 
-La operación corresponde a una instalación nueva.
+The operation corresponds to a fresh installation.
 
-El flujo general es:
+The general flow is:
 
 ```text
-Verificar root
+Check root
        |
        v
-Verificar dependencias
+Check dependencies
        |
        v
-Preparar entorno
+Prepare environment
        |
        v
-Detectar estado
+Detect state
        |
        v
-Crear estructura
+Create structure
        |
        v
-Instalar Core
+Install Core
        |
        v
-Instalar configuración inicial
+Install initial configuration
        |
        v
-Crear enlaces oficiales
+Create official links
        |
        v
-Aplicar permisos
+Apply permissions
        |
        v
-Inicializar base de datos
+Initialize database
        |
        v
-Preparar logging
+Prepare logging
        |
        v
-Instalar systemd
+Install systemd
        |
        v
-Instalar logrotate
+Install logrotate
        |
        v
-Validar instalación
+Validate installation
 ```
 
-La operación `install` solo corresponde a una instalación nueva.
+The `install` operation is only for a fresh installation.
 
-Si ARE ya está instalado, debe utilizarse:
+If ARE is already installed, use:
 
 ```bash
 are-installer upgrade
 ```
 
-Si la instalación se encuentra incompleta, debe utilizarse:
+If the installation is incomplete, use:
 
 ```bash
 are-installer repair
@@ -202,69 +213,78 @@ are-installer repair
 
 ---
 
-# Instalación remota
+# Remote installation
 
-Desde v2.3, ARE no requiere clonar el repositorio con git para instalarse. Un servidor nuevo, sin ningún archivo de ARE presente, puede instalarse con un único comando:
+Since v2.3, ARE does not require cloning the repository with git in order to install. A brand-new
+server, with no ARE files present at all, can be installed with a single command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hvalero2001-commits/ARE/main/scripts/install.sh | sudo bash
 ```
 
-El `sudo` va al final del pipe (aplicado a `bash`, no a `curl`) — de otro modo, el privilegio de root no le llega al script que efectivamente ejecuta la instalación.
+The `sudo` goes at the end of the pipe (applied to `bash`, not to `curl`) — otherwise root
+privilege would not reach the script that actually performs the installation.
 
-Este bootstrap (`scripts/install.sh`):
+This bootstrap (`scripts/install.sh`):
 
-1. consulta la API de GitHub por la última release publicada (o una versión específica, vía la variable de entorno `ARE_VERSION`);
-2. descarga el paquete `.tar.gz` correspondiente;
-3. verifica su checksum (`.sha256`);
-4. lo extrae a un directorio temporal;
-5. delega en `are-installer install` desde ese árbol extraído.
+1. queries the GitHub API for the latest published release (or a specific version, via the
+   `ARE_VERSION` environment variable);
+2. downloads the corresponding `.tar.gz` package;
+3. verifies its checksum (`.sha256`);
+4. extracts it to a temporary directory;
+5. delegates to `are-installer install` from that extracted tree.
 
-El mismo mecanismo sirve para actualizar una instalación existente:
+The same mechanism can upgrade an existing installation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hvalero2001-commits/ARE/main/scripts/install.sh | sudo bash -s -- upgrade
 ```
 
-o, de forma equivalente, desde una instalación ya activa:
+or, equivalently, from an already-active installation:
 
 ```bash
 are-installer upgrade --remote
 ```
 
-que internamente delega en el mismo bootstrap, sin duplicar la lógica de descarga y verificación.
+which internally delegates to the same bootstrap, without duplicating the download-and-verify
+logic.
 
-## Consultar si hay una versión más nueva
+## Checking whether a newer version exists
 
-Sin descargar ni modificar nada, de solo lectura:
+Read-only, without downloading or changing anything:
 
 ```bash
 are-installer check-updates
 ```
 
-Compara la versión instalada (`PRODUCT_VERSION`, leída del propio manifiesto activo) contra la última release publicada, e informa si hay una más reciente disponible.
+It compares the installed version (`PRODUCT_VERSION`, read from the active manifest itself)
+against the latest published release, and reports whether a newer one is available.
 
-## Dependencias faltantes
+## Missing dependencies
 
-El auto-instalador de dependencias (ver sección "Requisitos") actúa automáticamente, sin preguntar, durante `install`, `upgrade` y `repair` — tanto por el camino remoto como por el árbol fuente local. `bash` y `systemctl` quedan fuera de este mecanismo: su ausencia implicaría un sistema en un estado que requiere intervención manual, no una instalación automática a ciegas.
-
----
-
-# Configuración inicial
-
-La configuración forma parte del área administrada por el producto pero se mantiene separada del Core operativo.
-
-Durante una instalación inicial se crean los archivos de configuración definidos por el Manifest.
-
-Una configuración existente no debe ser reemplazada arbitrariamente durante las operaciones de mantenimiento.
-
-La separación entre Core, configuración y datos persistentes es uno de los principios establecidos para ARE v2.
+The dependency auto-installer (see the "Requirements" section) runs automatically, without
+prompting, during `install`, `upgrade`, and `repair` — on both the remote path and the local
+source-tree path. `bash` and `systemctl` are excluded from this mechanism: their absence would
+mean a system in a state that needs manual intervention, not a blind automatic install.
 
 ---
 
-# Enlaces ejecutables
+# Initial configuration
 
-ARE v2 proporciona los siguientes comandos oficiales:
+Configuration is part of the product-managed area but is kept separate from the operational Core.
+
+During a fresh installation, the configuration files defined by the Manifest are created.
+
+An existing configuration must not be replaced arbitrarily during maintenance operations.
+
+Separating Core, configuration, and persistent data is one of the principles established for
+ARE v2.
+
+---
+
+# Executable links
+
+ARE v2 provides the following official commands:
 
 ```text
 are
@@ -272,15 +292,15 @@ are-installer
 are-fail2ban-sensor
 ```
 
-Los enlaces son administrados por el Product Manifest.
+The links are managed by the Product Manifest.
 
-El comando principal queda establecido como:
+The main command is established as:
 
 ```text
 /usr/local/sbin/are -> /opt/are/are.sh
 ```
 
-El Installer también garantiza la disponibilidad de `/usr/local/sbin` en el `PATH` de `root` durante las operaciones:
+The Installer also ensures `/usr/local/sbin` is on `root`'s `PATH` during the operations:
 
 ```text
 install
@@ -288,174 +308,194 @@ upgrade
 repair
 ```
 
-La modificación del `PATH` se realiza de forma idempotente.
+The `PATH` modification is applied idempotently.
 
-**Nota:** esta modificación del `PATH` se aplica al archivo `/root/.bash_profile`, y solo la leen automáticamente las sesiones de terminal **nuevas** que se abran después de la instalación (un nuevo `ssh`, por ejemplo). Una terminal que ya estaba abierta antes de instalar/actualizar ARE no recarga su `PATH` en memoria sola; requiere `source /root/.bash_profile` manual, o simplemente abrir una sesión nueva.
+**Note:** this `PATH` change is written to `/root/.bash_profile`, and only **new** terminal
+sessions opened after the installation read it automatically (a new `ssh`, for example). A
+terminal that was already open before installing/upgrading ARE does not reload its in-memory
+`PATH` on its own; it requires a manual `source /root/.bash_profile`, or simply opening a new
+session.
 
 ---
 
-# Actualización
+# Upgrade
 
-La actualización se ejecuta mediante:
+An upgrade is run with:
 
 ```bash
 are-installer upgrade
 ```
 
-La operación requiere una instalación existente.
+The operation requires an existing installation.
 
-El árbol fuente utilizado para la actualización debe corresponder a la versión que se desea instalar y debe ser diferente del árbol instalado.
+The source tree used for the upgrade must correspond to the version you want to install and must
+be different from the installed tree.
 
-El proceso actualiza los componentes administrados por el Manifest y conserva los datos persistentes.
+The process updates the components managed by the Manifest and preserves the persistent data.
 
-El objetivo de `upgrade` es actualizar el Core sin sustituir arbitrariamente:
+The goal of `upgrade` is to update the Core without arbitrarily replacing:
 
 ```text
-configuración
-base de datos
-reputación histórica
-estado persistente
+configuration
+database
+historical reputation
+persistent state
 ```
 
-ARE v2 define explícitamente `upgrade` como la operación destinada a actualizar una instalación existente manteniendo los datos persistentes.
+ARE v2 explicitly defines `upgrade` as the operation meant to update an existing installation
+while keeping the persistent data.
 
-Alternativamente, `are-installer upgrade --remote` realiza la misma operación sin necesitar un árbol fuente local — ver sección "Instalación remota". **Advertencia:** esta variante no compara la versión instalada contra la disponible antes de actuar; aplica siempre la última release publicada, lo que puede downgradear una instalación en una rama de desarrollo más nueva. Verificar con `are-installer check-updates` antes de usar `--remote` si existe esa duda.
+Alternatively, `are-installer upgrade --remote` performs the same operation without needing a
+local source tree — see the "Remote installation" section. **Warning:** this variant does not
+compare the installed version against the available one before acting; it always applies the
+latest published release, which can downgrade an installation on a newer development branch.
+Verify with `are-installer check-updates` before using `--remote` if that is a concern.
 
 ---
 
-# Reparación
+# Repair
 
-La reparación se ejecuta mediante:
+A repair is run with:
 
 ```bash
 are-installer repair
 ```
 
-Está destinada a una instalación existente que no satisface las condiciones requeridas para considerarse completa.
+It is meant for an existing installation that does not meet the conditions required to be
+considered complete.
 
-El objetivo es reconstruir los componentes administrados que sean necesarios para recuperar una instalación funcional.
+The goal is to rebuild whatever managed components are necessary to recover a working
+installation.
 
-La reparación conserva la información persistente del sistema.
+Repair preserves the system's persistent information.
 
-No debe utilizarse `repair` como sustituto de `upgrade` cuando existe una instalación completa.
+Do not use `repair` as a substitute for `upgrade` when a complete installation already exists.
 
 ---
 
-# Verificación
+# Verification
 
-La verificación se ejecuta mediante:
+Verification is run with:
 
 ```bash
 are-installer verify
 ```
 
-La operación determina primero el estado de la instalación.
+The operation first determines the state of the installation.
 
-Una instalación válida debe disponer de los componentes requeridos por el Product Manifest y de los elementos necesarios para su funcionamiento.
+A valid installation must have the components required by the Product Manifest and the elements
+needed to function.
 
-La verificación comprueba, según corresponda:
+Verification checks, as applicable:
 
-* integridad de componentes;
-* enlaces oficiales;
-* comandos ejecutables;
-* permisos;
-* base de datos;
-* conjuntos IPSet;
-* unidades systemd;
-* configuración de logrotate;
-* ejecución funcional del runtime.
+* component integrity;
+* official links;
+* executable commands;
+* permissions;
+* database;
+* IPSet sets;
+* systemd units;
+* logrotate configuration;
+* functional runtime execution.
 
-La validación de una instalación no modifica deliberadamente su configuración ni sus datos persistentes.
+Validating an installation does not deliberately modify its configuration or its persistent data.
 
 ---
 
 # Systemd
 
-ARE v2 utiliza systemd para integrar componentes operativos del producto.
+ARE v2 uses systemd to integrate the product's operational components.
 
-El mecanismo de Reputation Decay forma parte del ciclo operativo de v2 mediante:
+The Reputation Decay mechanism is part of the v2 operational cycle through:
 
 ```text
 are-fail2ban-decay.service
 are-fail2ban-decay.timer
 ```
 
-El servicio ejecuta las fases:
+The service runs the phases:
 
 ```text
 dry-run
 apply
 ```
 
-La restauración del Firewall Backend al arrancar el sistema, incorporada en v2.1, se ejecuta una única vez por arranque mediante:
+The Firewall Backend restoration at system boot, introduced in v2.1, runs exactly once per boot
+through:
 
 ```text
 are-restore-ipsets.service
 ```
 
-Este servicio repuebla los conjuntos IPSet a partir de la base de datos, ya que IPSet no conserva su contenido de forma nativa entre reinicios.
+This service repopulates the IPSet sets from the database, since IPSet does not natively keep its
+contents across reboots.
 
-El Installer administra las unidades declaradas por el Product Manifest.
+The Installer manages the units declared by the Product Manifest.
 
 ---
 
 # Fail2Ban
 
-ARE mantiene el Sensor Framework para la integración con Fail2Ban.
+ARE maintains the Sensor Framework for the Fail2Ban integration.
 
-Los eventos procesados por el sensor son:
+The events processed by the sensor are:
 
 ```text
 FOUND
 EXTERNAL_UNBAN
 ```
 
-El sensor utiliza un offset persistente para procesar nuevos eventos, y valida cada jail dinámicamente contra `jail_profile`.
+The sensor uses a persistent offset to process new events, and validates each jail dynamically
+against `jail_profile`.
 
-La integración con Fail2Ban permite que los eventos externos sean incorporados al flujo operativo de ARE sin convertir Fail2Ban en el mecanismo central de reputación del producto.
+The Fail2Ban integration lets external events feed into ARE's operational flow without turning
+Fail2Ban into the product's central reputation mechanism.
 
 ---
 
-# Desinstalación
+# Uninstall
 
-La desinstalación se ejecuta mediante:
+Uninstallation is run with:
 
 ```bash
 are-installer uninstall
 ```
 
-Su objetivo es retirar los componentes administrados por ARE del sistema.
+Its goal is to remove the ARE-managed components from the system.
 
-La operación elimina los componentes del Core, enlaces ejecutables, unidades systemd y configuración de logrotate administrados por el producto.
+The operation removes the Core components, executable links, systemd units, and logrotate
+configuration managed by the product.
 
-Los datos persistentes no forman parte de la eliminación normal del Core.
+Persistent data is not part of the normal Core removal.
 
-Por tanto, la desinstalación conserva separadamente:
+Therefore, uninstallation separately preserves:
 
 ```text
-configuración
-datos persistentes
-base de datos
-reputación histórica
+configuration
+persistent data
+database
+historical reputation
 logs
 ```
 
-La separación entre software instalado y datos persistentes permite retirar ARE sin eliminar automáticamente información histórica del sistema.
+Separating installed software from persistent data makes it possible to remove ARE without
+automatically deleting the system's historical information.
 
 ---
 
-# Evolución desde v1.1
+# Evolution from v1.1
 
-ARE v2 nace sobre la base funcional desarrollada en la rama v1.1.
+ARE v2 is built on the functional foundation developed in the v1.1 branch.
 
-La rama v1.1 incorporó el Sensor Framework inicial para Fail2Ban y consolidó el modelo de reputación que posteriormente continúa en v2.
+The v1.1 branch introduced the initial Sensor Framework for Fail2Ban and consolidated the
+reputation model that v2 later continues.
 
-La evolución hacia v2 cambia principalmente la identidad y estructura operativa del producto:
+The evolution toward v2 mainly changes the product's identity and operational structure:
 
 ```text
 ARE v1.1
     |
-    | estructura histórica f2b-ipset
+    | historical f2b-ipset structure
     v
 ARE v2.0
     |
@@ -469,61 +509,62 @@ ARE v2.0
     +-- ARE ADMIN
 ```
 
-La versión 2.0 establece oficialmente `/opt/are` como Core del producto y `/var/lib/are` como ubicación de datos persistentes.
+Version 2.0 officially establishes `/opt/are` as the product Core and `/var/lib/are` as the
+persistent data location.
 
 ---
 
-# Uso
+# Usage
 
-## Instalar
+## Install
 
-Desde un árbol fuente independiente:
+From an independent source tree:
 
 ```bash
 are-installer install
 ```
 
-O de forma remota, sin git ni árbol fuente local (ver "Instalación remota"):
+Or remotely, without git or a local source tree (see "Remote installation"):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hvalero2001-commits/ARE/main/scripts/install.sh | sudo bash
 ```
 
-## Actualizar
+## Upgrade
 
-Desde el árbol fuente de la versión que se desea instalar:
+From the source tree of the version you want to install:
 
 ```bash
 are-installer upgrade
 ```
 
-O de forma remota:
+Or remotely:
 
 ```bash
 are-installer upgrade --remote
 ```
 
-## Reparar
+## Repair
 
-Desde un árbol fuente válido:
+From a valid source tree:
 
 ```bash
 are-installer repair
 ```
 
-## Verificar
+## Verify
 
 ```bash
 are-installer verify
 ```
 
-## Consultar actualizaciones disponibles
+## Check for available updates
 
 ```bash
 are-installer check-updates
 ```
 
-## Desinstalar
+## Uninstall
 
 ```bash
 are-installer uninstall
@@ -531,20 +572,26 @@ are-installer uninstall
 
 ---
 
-# Principio de mantenimiento
+# Maintenance principle
 
-El Installer Engine mantiene separadas tres áreas:
+The Installer Engine keeps three areas separate:
 
 ```text
-Core del producto
+Product Core
        |
-       +---- configuración
+       +---- configuration
        |
-       +---- datos persistentes
+       +---- persistent data
 ```
 
-Las operaciones de mantenimiento deben actuar únicamente sobre los componentes correspondientes a la operación solicitada.
+Maintenance operations must act only on the components corresponding to the requested operation.
 
-El Product Manifest constituye la referencia única de los componentes administrados por el Installer, mientras que la información persistente permanece separada del Core.
+The Product Manifest is the single reference for the components the Installer manages, while the
+persistent information stays separate from the Core.
 
-ARE v2 continúa así la evolución iniciada en v1.1 sin confundir la documentación del Installer con la documentación interna de implementación del script.
+ARE v2 thus continues the evolution begun in v1.1 without conflating the Installer documentation
+with the script's internal implementation documentation.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`INSTALL.es.md`](INSTALL.es.md)

@@ -1,23 +1,29 @@
 # ARE Architecture
 
-## Introducción
+## Introduction
 
-ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado para transformar eventos de seguridad en decisiones basadas en evidencia.
+ARE (Abuse Reputation Engine) is a reputation and decision engine designed to turn security
+events into evidence-based decisions.
 
-La arquitectura separa la observación de los eventos, la construcción de reputación, la evaluación del estado, la decisión de política y la ejecución de las acciones.
+The architecture separates event observation, reputation building, state evaluation, policy
+decision, and action enforcement.
 
-ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3, v2.4, v2.5 y v2.6 extendieron esa misma base sin introducir una ruptura arquitectónica.
+ARE v2.0 continued this architecture from the functional base established in v1.1, adding the
+product's own identity, an operational structure independent of the historical `f2b-ipset`
+implementation, and the new components needed to manage the full reputation-and-sanction cycle.
+Versions v2.1, v2.2, v2.3, v2.4, v2.5, and v2.6 extended that same base without introducing an
+architectural break.
 
-La versión v2.8.2 constituye la última versión estable liberada.
+Version v2.8.2 is the latest stable release.
 
 ---
 
-# Arquitectura general
+# General architecture
 
-La arquitectura actual puede representarse mediante el siguiente flujo:
+The current architecture can be represented by the following flow:
 
 ```text
-                         FUENTES EXTERNAS
+                         EXTERNAL SOURCES
                                |
              +-----------------+-----------------+
              |                                   |
@@ -27,7 +33,7 @@ La arquitectura actual puede representarse mediante el siguiente flujo:
              v                                   v
        Sensor Framework  <----------------------->
              |
-             | eventos internos
+             | internal events
              v
       +-------------------+
       | Reputation Engine |
@@ -76,121 +82,147 @@ La arquitectura actual puede representarse mediante el siguiente flujo:
         Policy Engine
 ```
 
-El flujo representa la arquitectura funcional actual. Los componentes externos generan información; ARE procesa esa información y determina la respuesta; el backend ejecuta la acción correspondiente.
+The flow represents the current functional architecture. External components generate
+information; ARE processes that information and determines the response; the backend carries out
+the corresponding action.
 
-El Sensor Framework admite dos patrones de entrega de eventos: por *polling* (el sensor consulta periódicamente una fuente externa, como el log de Fail2Ban) y por *callback* (la fuente externa invoca directamente al sensor en el instante del evento, como hace Apache con `mod_evasive`). Ambos patrones convergen en el mismo contrato de entrada hacia el Reputation Engine.
+The Sensor Framework supports two event-delivery patterns: *polling* (the sensor periodically
+queries an external source, such as the Fail2Ban log) and *callback* (the external source invokes
+the sensor directly at the moment of the event, as Apache does with `mod_evasive`). Both patterns
+converge on the same input contract toward the Reputation Engine.
 
 ---
 
-# Relación entre v1.1 y v2.0/v2.1
+# Relationship between v1.1 and v2.0/v2.1
 
-v2.0 no constituye un sistema independiente de v1.1.
+v2.0 is not a system independent of v1.1.
 
-La nueva versión se construye sobre las capacidades desarrolladas, probadas y estabilizadas durante v1.1.
+The new version is built on the capabilities developed, tested, and stabilized during v1.1.
 
-Entre los elementos heredados se encuentran:
+Inherited elements include:
 
 * Reputation Engine.
 * State Engine.
 * Policy Engine.
 * Sensor Framework.
-* Sensor Fail2Ban.
+* Fail2Ban Sensor.
 * Firewall Backend.
 * SQLite.
 * Dashboard.
 * Ban Lifecycle Engine.
 * Installer Engine.
 
-La evolución hacia v2.0 incorporó una reorganización de identidad, estructura operativa, instalación y mantenimiento, la interfaz de administración ARE ADMIN, y la reconstrucción del Policy Engine hacia un modelo de evaluación por categoría (ver Sección "Policy Engine" más abajo). v2.1 extendió esa base con administración avanzada de perfiles, la extensibilidad del modelo de reputación, la visibilidad temporal y la persistencia del Firewall Backend a través de reinicios. v2.2 incorporó un sensor real para la categoría SOCIAL, completó el catálogo de umbrales de categoría, y dio los primeros pasos hacia la distribución del producto como paquete instalable.
+The evolution toward v2.0 added a reorganization of identity, operational structure, installation
+and maintenance, the ARE ADMIN administration interface, and the rebuild of the Policy Engine
+toward a per-category evaluation model (see the "Policy Engine" section below). v2.1 extended that
+base with advanced profile management, extensibility of the reputation model, time-based
+visibility, and Firewall Backend persistence across reboots. v2.2 added a real sensor for the
+SOCIAL category, completed the category-threshold catalog, and took the first steps toward
+distributing the product as an installable package.
 
-La arquitectura v2 mantiene como principio que las nuevas capacidades deben integrarse sin duplicar responsabilidades existentes.
+The v2 architecture keeps as a principle that new capabilities must integrate without duplicating
+existing responsibilities.
 
 ---
 
-# Capas de ARE
+# ARE layers
 
 ## Sensor Framework
 
-El Sensor Framework constituye la capa de observación.
+The Sensor Framework is the observation layer.
 
-Su responsabilidad es recibir información generada por sistemas externos y transformarla en eventos que puedan ser procesados por ARE.
+Its responsibility is to receive information generated by external systems and turn it into events
+ARE can process.
 
-Los sensores no determinan la política de seguridad.
+Sensors do not determine the security policy.
 
-### Sensor Fail2Ban (patrón polling)
+### Fail2Ban Sensor (polling pattern)
 
-El sensor Fail2Ban es la primera implementación oficial del Sensor Framework.
+The Fail2Ban sensor is the first official implementation of the Sensor Framework.
 
-Actualmente procesa:
+It currently processes:
 
 ```text
 FOUND
 EXTERNAL_UNBAN
 ```
 
-El sensor utiliza un offset persistente para evitar reprocesar eventos ya procesados.
+The sensor uses a persistent offset to avoid reprocessing events it has already processed.
 
-El flujo general es:
+The general flow is:
 
 ```text
 Fail2Ban
     |
     v
-Sensor Fail2Ban
+Fail2Ban Sensor
     |
     v
-Evento ARE
+ARE Event
 ```
 
-El jail que reporta cada evento se valida dinámicamente contra `jail_profile` — un jail sin perfil administrado se descarta sin generar evento, sin necesidad de mantener una lista fija de jails permitidos en el código del sensor.
+The jail reporting each event is validated dynamically against `jail_profile` — a jail without a
+managed profile is discarded without generating an event, with no need to keep a fixed list of
+allowed jails in the sensor's code.
 
-### Sensor Apache/mod_evasive (patrón callback)
+### Apache/mod_evasive Sensor (callback pattern)
 
-Segundo patrón oficial del Sensor Framework, estructuralmente distinto del polling: Apache invoca al sensor directa y síncronamente en el instante en que `mod_evasive` confirma un flood, sin esperar a un ciclo de lectura periódica.
+The Sensor Framework's second official pattern, structurally different from polling: Apache invokes
+the sensor directly and synchronously the moment `mod_evasive` confirms a flood, without waiting
+for a periodic read cycle.
 
-El flujo general es:
+The general flow is:
 
 ```text
 mod_evasive (Apache)
     |
     v
-Sensor Apache Evasive
+Apache Evasive Sensor
     |
     v
-Evento ARE (categoría DOS)
+ARE Event (DOS category)
 ```
 
-El sensor mantiene, durante su período de transición, doble escritura: aplica el bloqueo directamente sobre el Firewall Backend y, en paralelo, reporta el evento a ARE para su incorporación al modelo de reputación.
+During its transition period, the sensor performs a double write: it applies the block directly on
+the Firewall Backend and, in parallel, reports the event to ARE so it is incorporated into the
+reputation model.
 
-La arquitectura permite incorporar otros sensores, de cualquiera de los dos patrones, sin modificar la responsabilidad del núcleo de reputación.
+The architecture allows adding other sensors, of either pattern, without changing the
+responsibility of the reputation core.
 
 ---
 
 # Reputation Engine
 
-El Reputation Engine mantiene el conocimiento acumulado sobre las direcciones IP.
+The Reputation Engine maintains the accumulated knowledge about IP addresses.
 
-Los eventos procesados producen cambios en las categorías de reputación correspondientes y en el `total_score`.
+Processed events produce changes in the corresponding reputation categories and in the
+`total_score`.
 
-La reputación se mantiene de forma persistente en SQLite.
+Reputation is kept persistently in SQLite.
 
-El modelo de reputación utilizado por ARE se construyó y amplió durante v1.1 y forma parte de la base sobre la que continuó evolucionando en v2.0, v2.1 y v2.2.
+The reputation model ARE uses was built and extended during v1.1 and is part of the base it
+continued evolving on in v2.0, v2.1, and v2.2.
 
-La reputación representa comportamiento acumulado y no solamente el último evento recibido.
+Reputation represents accumulated behavior, not just the last event received.
 
-Las categorías de reputación soportadas son administradas mediante `REPUTATION_CATEGORIES`, en `config/policy.conf`, como catálogo explícito — no una lista fija en el código de ningún componente.
+The supported reputation categories are managed through `REPUTATION_CATEGORIES` in
+`config/policy.conf`, as an explicit catalog — not a fixed list in any component's code.
 
-A partir de v2.1, el modelo de almacenamiento por categoría transiciona de columnas fijas por categoría en la tabla `reputation` hacia un esquema normalizado (`reputation_scores`), donde una categoría nueva se incorpora como dato, sin requerir modificación de esquema ni de código.
+From v2.1, the per-category storage model transitions from fixed per-category columns in the
+`reputation` table toward a normalized schema (`reputation_scores`), where a new category is added
+as data, requiring no schema or code change.
 
 ---
 
 # State Engine
 
-El State Engine determina el estado operativo de una dirección IP a partir de la información disponible en ARE.
+The State Engine determines the operational state of an IP address from the information available
+in ARE.
 
-Su función es representar la situación actual de la IP dentro del ciclo de decisión.
+Its function is to represent the IP's current situation within the decision cycle.
 
-Los estados definidos por el modelo actual incluyen:
+The states defined by the current model include:
 
 ```text
 NEW
@@ -199,19 +231,22 @@ FILTER
 BANNED
 ```
 
-El State Engine es independiente del mecanismo utilizado posteriormente para ejecutar una acción.
+The State Engine is independent of the mechanism used afterward to carry out an action.
 
-El estado se recalcula por completo en cada evaluación, en función del score vigente en ese momento — no conserva memoria del estado anterior. Esto permite que una IP pase de `BANNED` a un estado inferior cuando su score disminuye por acción del Decay Engine, sin requerir intervención manual.
+The state is fully recalculated on every evaluation, based on the score in effect at that moment —
+it keeps no memory of the previous state. This lets an IP move from `BANNED` to a lower state when
+its score drops through the Decay Engine, without requiring manual intervention.
 
-La evolución de v1.1 demostró además la necesidad de mantener sincronizados State Engine y Policy Engine, evitando estados incompatibles con las decisiones generadas por la política.
+The v1.1 evolution also demonstrated the need to keep the State Engine and Policy Engine in sync,
+avoiding states incompatible with the decisions the policy generates.
 
 ---
 
 # Policy Engine
 
-El Policy Engine transforma la información de reputación y estado en una decisión.
+The Policy Engine turns reputation and state information into a decision.
 
-Las decisiones disponibles incluyen:
+The available decisions include:
 
 ```text
 ALLOW
@@ -221,72 +256,92 @@ TEMP_BAN
 BAN
 ```
 
-El Policy Engine no ejecuta directamente las modificaciones del firewall.
+The Policy Engine does not directly carry out firewall modifications.
 
-Su responsabilidad termina en la generación de una decisión coherente con la información disponible.
+Its responsibility ends at generating a decision consistent with the available information.
 
-La ejecución corresponde a las capas posteriores.
+Enforcement belongs to the later layers.
 
-## Evaluación por categoría
+## Per-category evaluation
 
-A partir de v2.0, el Policy Engine evalúa el riesgo de una IP por categoría de reputación de forma independiente, en lugar de depender exclusivamente del score total agregado. Cada categoría cuenta con una regla propia (`policy/rules/<categoria>.sh`), que conoce únicamente su propio umbral —configurado en `config/policy.conf`— y aporta al riesgo total solo si lo supera. Ninguna regla conoce a las demás ni decide una acción por sí misma; esa responsabilidad corresponde exclusivamente al orquestador del motor.
+From v2.0, the Policy Engine evaluates an IP's risk per reputation category independently, instead
+of relying exclusively on the aggregate total score. Each category has its own rule
+(`policy/rules/<category>.sh`), which knows only its own threshold — configured in
+`config/policy.conf` — and contributes to the total risk only if it is exceeded. No rule knows the
+others or decides an action by itself; that responsibility belongs exclusively to the engine's
+orchestrator.
 
-El orquestador itera dinámicamente sobre `REPUTATION_CATEGORIES`, por lo que una categoría nueva con su regla correspondiente ya escrita comienza a evaluarse sin necesidad de modificar el orquestador.
+The orchestrator iterates dynamically over `REPUTATION_CATEGORIES`, so a new category whose
+corresponding rule is already written starts being evaluated without changing the orchestrator.
 
-Se incorpora además un multiplicador de riesgo por reincidencia, aplicado cuando la IP ya se encuentra en estado de observación o sanción activa, configurable en `config/policy.conf`.
+A recidivism risk multiplier is also added, applied when the IP is already in an observation state
+or has an active sanction, configurable in `config/policy.conf`.
 
-### Piso de seguridad
+### Safety floor
 
-La decisión final del Policy Engine nunca es menos estricta que la que resultaría de evaluar únicamente el score total acumulado. El motor por categoría puede ser más estricto —detectando señales que el score simple no distingue, como una frecuencia elevada de eventos en poco tiempo— pero nunca menos. Esto evita que una IP con riesgo repartido entre varias categorías, cada una por debajo de su propio umbral individual, evada la detección aunque su score total sea alto.
+The Policy Engine's final decision is never less strict than the one that would result from
+evaluating only the accumulated total score. The per-category engine can be stricter — detecting
+signals a simple score does not distinguish, such as a high frequency of events in a short time —
+but never less strict. This prevents an IP whose risk is spread across several categories, each
+below its own individual threshold, from evading detection even when its total score is high.
 
-### Validación no invasiva
+### Non-invasive validation
 
-Se dispone de un mecanismo de comparación (`policy-compare`) que ejecuta simultáneamente el motor de decisión activo y una evaluación alternativa sobre la misma IP, sin aplicar ninguna decisión, permitiendo validar cambios de comportamiento contra datos reales de producción antes de su adopción definitiva.
+A comparison mechanism (`policy-compare`) runs the active decision engine and an alternative
+evaluation on the same IP at the same time, without applying any decision, letting you validate
+behavioral changes against real production data before adopting them for good.
 
 ---
 
 # Ban Lifecycle Engine
 
-El Ban Lifecycle Engine administra la evolución de las sanciones.
+The Ban Lifecycle Engine manages how sanctions evolve.
 
-No determina si una IP representa riesgo. Esa responsabilidad corresponde a Reputation Engine, State Engine y Policy Engine.
+It does not determine whether an IP represents a risk. That responsibility belongs to the
+Reputation Engine, State Engine, and Policy Engine.
 
-Su responsabilidad comienza cuando ARE determina una acción de sanción.
+Its responsibility begins when ARE determines a sanction action.
 
-El estado de sanción se mantiene de forma persistente mediante:
+The sanction state is kept persistently through:
 
 ```text
 sanction_state
 ```
 
-La información administrada incluye:
+The managed information includes:
 
-* nivel de sanción;
-* cantidad acumulada de sanciones;
-* duración;
-* finalización de sanciones temporales;
-* estado permanente.
+* sanction level;
+* accumulated number of sanctions;
+* duration;
+* end of temporary sanctions;
+* permanent state.
 
-El mecanismo permite escalar progresivamente las sanciones hasta un bloqueo permanente cuando la política correspondiente lo determina.
+The mechanism allows escalating sanctions progressively up to a permanent block when the
+corresponding policy determines it.
 
-El Ban Lifecycle Engine fue implementado y validado durante la evolución de v1.1 y forma parte de la arquitectura sobre la que continuó v2.0, v2.1 y v2.2.
+The Ban Lifecycle Engine was implemented and validated during the v1.1 evolution and is part of
+the architecture that v2.0, v2.1, and v2.2 continued on.
 
-Un bloqueo permanente (`sanction_state.permanent = 1`) no es alcanzado por el Reputation Decay Engine — su reconsideración requiere una decisión administrativa explícita, no una recuperación automática por inactividad.
+A permanent block (`sanction_state.permanent = 1`) is not reached by the Reputation Decay Engine —
+reconsidering it requires an explicit administrative decision, not an automatic recovery from
+inactivity.
 
 ---
 
 # Apply Engine
 
-El Apply Engine recibe la decisión generada por el Policy Engine y coordina su aplicación.
+The Apply Engine receives the decision generated by the Policy Engine and coordinates its
+enforcement.
 
-Su responsabilidad es separar la decisión lógica de la ejecución concreta sobre el sistema operativo.
+Its responsibility is to separate the logical decision from the concrete execution on the
+operating system.
 
-El flujo es:
+The flow is:
 
 ```text
 Policy Engine
       |
-      | decisión
+      | decision
       v
 Apply Engine
       |
@@ -294,9 +349,10 @@ Apply Engine
 Firewall Backend
 ```
 
-Esta separación permite que el motor de decisión no dependa directamente de la implementación concreta del firewall.
+This separation lets the decision engine avoid depending directly on the concrete firewall
+implementation.
 
-El Apply Engine procesa acciones como:
+The Apply Engine processes actions such as:
 
 ```text
 ALLOW
@@ -306,60 +362,74 @@ TEMP_BAN
 BAN
 ```
 
-y coordina las operaciones necesarias para materializar la decisión mediante el backend.
+and coordinates the operations needed to materialize the decision through the backend.
 
-Toda duración aplicada al Firewall Backend se ajusta al límite máximo soportado por el mecanismo utilizado (`IPSET_MAX_TIMEOUT` en `config/policy.conf`), registrando explícitamente cuando una sanción calculada excede ese límite.
+Every duration applied to the Firewall Backend is clamped to the maximum limit the mechanism in
+use supports (`IPSET_MAX_TIMEOUT` in `config/policy.conf`), explicitly logging when a computed
+sanction exceeds that limit.
 
 ---
 
 # Firewall Backend
 
-El Firewall Backend es la capa encargada de aplicar las decisiones sobre el sistema operativo.
+The Firewall Backend is the layer responsible for applying decisions on the operating system.
 
-La implementación actual continúa utilizando IPSet junto con las reglas de firewall correspondientes.
+The current implementation still uses IPSet together with the corresponding firewall rules.
 
-La arquitectura mantiene separado el backend del Policy Engine.
+The architecture keeps the backend separate from the Policy Engine.
 
-Actualmente se utilizan conjuntos diferenciados para las funciones de filtrado y bloqueo, incluyendo soporte IPv4 e IPv6.
+Currently, differentiated sets are used for the filtering and blocking functions, including IPv4
+and IPv6 support.
 
-El objetivo arquitectónico es que una decisión de ARE no dependa de una implementación específica del mecanismo de firewall.
+The architectural goal is that an ARE decision does not depend on a specific implementation of the
+firewall mechanism.
 
-La incorporación de otros backends pertenece a la evolución futura del proyecto y no debe considerarse una capacidad implementada mientras no haya sido desarrollada y validada.
+Adding other backends belongs to the project's future evolution and must not be considered an
+implemented capability until it has been developed and validated.
 
-## Persistencia del Firewall Backend
+## Firewall Backend persistence
 
-`ipset` no persiste nativamente su contenido entre reinicios del sistema operativo. ARE restaura el estado del Firewall Backend al arrancar a partir de la base de datos —fuente de verdad del sistema—, no de un snapshot congelado del firewall: las sanciones activas (permanentes o temporales, preservando el tiempo restante exacto de estas últimas) y las IPs en estado de filtrado se reincorporan a los conjuntos correspondientes mediante una unidad de ejecución única al inicio del sistema, separada del ciclo normal de procesamiento de eventos.
+`ipset` does not natively persist its contents across operating-system reboots. ARE restores the
+Firewall Backend state at boot from the database — the system's source of truth — not from a
+frozen firewall snapshot: active sanctions (permanent or temporary, preserving the exact remaining
+time of the latter) and IPs in filtering state are re-added to the corresponding sets through a
+single run-once unit at system start, separate from the normal event-processing cycle.
 
 ---
 
 # Reputation Decay Engine
 
-El Reputation Decay Engine permite reducir gradualmente la reputación de direcciones IP que no presentan actividad reciente.
+The Reputation Decay Engine makes it possible to gradually reduce the reputation of IP addresses
+that show no recent activity.
 
-El mecanismo fue desarrollado durante la evolución de v1.1 y continúa formando parte del ciclo operativo de v2.0, v2.1 y v2.2.
+The mechanism was developed during the v1.1 evolution and continues to be part of the operational
+cycle of v2.0, v2.1, and v2.2.
 
-El proceso utiliza:
+The process uses:
 
 ```text
 decay-dry-run
 decay-apply
 ```
 
-`decay-dry-run` permite identificar candidatas y calcular el resultado esperado sin modificar los datos.
+`decay-dry-run` identifies candidates and computes the expected result without changing the data.
 
-`decay-apply` aplica la reducción de reputación y actualiza el estado correspondiente.
+`decay-apply` applies the reputation reduction and updates the corresponding state.
 
-La tabla `reputation` mantiene:
+The `reputation` table keeps:
 
 ```text
 last_decay
 ```
 
-para controlar la frecuencia de aplicación del decay.
+to control how often decay is applied.
 
-La reducción se aplica sobre el score total agregado de la IP, redistribuyendo el resultado proporcionalmente entre sus categorías activas — no se trunca cada categoría de forma independiente, lo que evitaría que una IP con actividad repartida entre varias categorías decayera más rápido que una con actividad concentrada en una sola, ante el mismo score total.
+The reduction is applied to the IP's aggregate total score, redistributing the result
+proportionally across its active categories — each category is not truncated independently, which
+would prevent an IP with activity spread across several categories from decaying faster than one
+with activity concentrated in a single category, given the same total score.
 
-Después de una reducción se reevalúan:
+After a reduction, the following are re-evaluated:
 
 ```text
 Reputation
@@ -371,30 +441,30 @@ State Engine
 Policy Engine
 ```
 
-La ejecución periódica se integra mediante systemd.
+Periodic execution is integrated through systemd.
 
-Las unidades actuales son:
+The current units are:
 
 ```text
 are-fail2ban-decay.service
 are-fail2ban-decay.timer
 ```
 
-El Decay Engine mantiene separada la recuperación de reputación de la ejecución directa sobre el firewall.
+The Decay Engine keeps reputation recovery separate from direct execution on the firewall.
 
 ---
 
-# Persistencia
+# Persistence
 
-ARE utiliza SQLite como mecanismo de persistencia.
+ARE uses SQLite as its persistence mechanism.
 
-En v2.0 la base de datos principal se encuentra en:
+In v2.0, the main database is located at:
 
 ```text
 /var/lib/are/are.db
 ```
 
-La estructura persistente incluye, entre otras, las siguientes tablas:
+The persistent structure includes, among others, the following tables:
 
 ```text
 config
@@ -407,40 +477,41 @@ reputation_scores
 sanction_state
 ```
 
-La persistencia mantiene separadas distintas clases de información:
+Persistence keeps different classes of information separate:
 
 ```text
-Eventos
+Events
    |
-   +---- actividad observada
+   +---- observed activity
 
 Reputation / Reputation Scores
    |
-   +---- conocimiento acumulado
+   +---- accumulated knowledge
 
 sanction_state
    |
-   +---- estado del ciclo de sanciones
+   +---- sanction-cycle state
 ```
 
-Esta separación permite que el historial de eventos, la reputación y el estado de sanción evolucionen de manera independiente.
+This separation lets the event history, the reputation, and the sanction state evolve
+independently.
 
 ---
 
-# Estructura operativa de v2.0
+# v2.0 operational structure
 
-La identidad y estructura operativa del producto fueron reorganizadas en v2.0.
+The product's identity and operational structure were reorganized in v2.0.
 
-La estructura principal es:
+The main structure is:
 
 ```text
 /opt/are
     |
-    +---- producto ARE
+    +---- ARE product
 
 /var/lib/are
     |
-    +---- datos persistentes
+    +---- persistent data
 
 /var/log/are
     |
@@ -448,46 +519,54 @@ La estructura principal es:
 
 /usr/local/sbin
     |
-    +---- enlaces ejecutables oficiales
+    +---- official executable links
 
 /etc/systemd/system
     |
-    +---- unidades systemd
+    +---- systemd units
 
 /etc/logrotate.d
     |
-    +---- configuración logrotate
+    +---- logrotate configuration
 ```
 
-La estructura del producto está definida centralmente mediante:
+The product structure is defined centrally through:
 
 ```text
 manifest/product.sh
 ```
 
-El Product Manifest no implementa lógica de negocio. Define los componentes que forman parte del producto y que deben ser administrados por el Installer Engine.
+The Product Manifest does not implement business logic. It defines the components that are part of
+the product and must be managed by the Installer Engine.
 
 ---
 
-# Interfaz de Administración (ARE ADMIN)
+# Administration Interface (ARE ADMIN)
 
-ARE ADMIN es la interfaz de administración por línea de comandos de ARE, incorporada en v2.0.
+ARE ADMIN is ARE's command-line administration interface, introduced in v2.0.
 
-Se accede mediante `are.sh admin` o el atajo equivalente `admin.sh`, ambos cargando el mismo `bootstrap.sh` utilizado por el resto del sistema — ARE ADMIN opera siempre sobre los mismos componentes reales, sin duplicar lógica ni mantener un entorno de carga separado.
+It is accessed through `are.sh admin` or the equivalent shortcut `admin.sh`, both loading the same
+`bootstrap.sh` the rest of the system uses — ARE ADMIN always operates on the same real components,
+without duplicating logic or maintaining a separate loading environment.
 
-ARE ADMIN no introduce una nueva autoridad de decisión. Es una capa de consulta y administración que se apoya sobre los componentes existentes, respetando la separación de responsabilidades del resto de la arquitectura: no modifica directamente `reputation` ni el Firewall Backend, no reemplaza al Policy Engine ni al Decay Engine.
+ARE ADMIN does not introduce a new decision authority. It is a query-and-administration layer built
+on top of the existing components, respecting the separation of responsibilities of the rest of the
+architecture: it does not directly modify `reputation` or the Firewall Backend, and does not
+replace the Policy Engine or the Decay Engine.
 
-Las ramas administradas son: Jails/Perfiles, Categorías, Sensores, Política, Estado/Reputación, Decay y Configuración. Las operaciones de escritura quedan registradas en un log de auditoría independiente, con usuario, fecha y detalle de cada acción.
+The managed branches are: Jails/Profiles, Categories, Sensors, Policy, State/Reputation, Decay, and
+Configuration. Write operations are recorded in a separate audit log, with user, date, and details
+of each action.
 
-El diseño completo de ARE ADMIN se documenta en `docs/DESIGN.md`, Sección 13.
+The complete design of ARE ADMIN is documented in `docs/DESIGN.md`, Section 13.
 
 ---
 
 # Installer Engine
 
-El Installer Engine administra el ciclo de vida de la instalación de ARE.
+The Installer Engine manages ARE's installation lifecycle.
 
-Las operaciones oficiales son:
+The official operations are:
 
 ```text
 install
@@ -497,9 +576,9 @@ verify
 uninstall
 ```
 
-El Installer utiliza el Product Manifest como fuente de definición de los componentes administrados.
+The Installer uses the Product Manifest as the source of the definition of the managed components.
 
-El ciclo general es:
+The general cycle is:
 
 ```text
 Product Manifest
@@ -514,59 +593,60 @@ Installer Engine
        +---- uninstall
 ```
 
-El Installer mantiene separadas:
+The Installer keeps separate:
 
 ```text
-Core del producto
-Configuración
-Datos persistentes
+Product Core
+Configuration
+Persistent data
 Logs
-Componentes systemd
-Enlaces ejecutables
+systemd components
+Executable links
 ```
 
-`upgrade` actualiza los componentes administrados sin sustituir los datos persistentes.
+`upgrade` updates the managed components without replacing the persistent data.
 
-`repair` permite reconstruir una instalación incompleta.
+`repair` rebuilds an incomplete installation.
 
-`verify` comprueba la integridad y los componentes operativos definidos para la instalación.
+`verify` checks the integrity and the operational components defined for the installation.
 
-`uninstall` elimina el producto y conserva los elementos persistentes que forman parte de la política de conservación establecida por ARE.
+`uninstall` removes the product and preserves the persistent elements that are part of ARE's
+retention policy.
 
 ---
 
 # Product Manifest
 
-El Product Manifest constituye la definición estructural del producto.
+The Product Manifest is the product's structural definition.
 
-Se encuentra en:
+It is located at:
 
 ```text
 manifest/product.sh
 ```
 
-Centraliza información como:
+It centralizes information such as:
 
-* nombre del producto;
-* versión;
-* directorios administrados;
-* archivos administrados;
-* configuración;
-* datos persistentes;
-* ejecutables;
-* enlaces oficiales;
-* unidades systemd;
+* product name;
+* version;
+* managed directories;
+* managed files;
+* configuration;
+* persistent data;
+* executables;
+* official links;
+* systemd units;
 * logrotate.
 
-El Manifest permite que el Installer opere sobre una definición única de la estructura del producto.
+The Manifest lets the Installer operate on a single definition of the product structure.
 
-No contiene la lógica de los motores de ARE.
+It does not contain the logic of ARE's engines.
 
 ---
 
-# Comandos oficiales
+# Official commands
 
-v2.0 establece los comandos oficiales:
+v2.0 establishes the official commands:
 
 ```text
 are
@@ -574,52 +654,52 @@ are-installer
 are-fail2ban-sensor
 ```
 
-El comando principal se expone mediante:
+The main command is exposed through:
 
 ```text
 /usr/local/sbin/are
 ```
 
-apuntando al ejecutable principal del producto:
+pointing to the product's main executable:
 
 ```text
 /opt/are/are.sh
 ```
 
-Los enlaces forman parte de los componentes administrados por el Product Manifest.
+The links are part of the components managed by the Product Manifest.
 
 ---
 
 # Systemd
 
-ARE utiliza systemd para la ejecución de procesos periódicos y de arranque único que forman parte del ciclo operativo.
+ARE uses systemd to run the periodic and run-once processes that are part of the operational cycle.
 
-Entre los componentes actualmente administrados se encuentran:
+Among the currently managed components are:
 
 ```text
-Fail2Ban Sensor (periódico)
-Reputation Decay (periódico)
-Restauración del Firewall Backend (arranque único)
+Fail2Ban Sensor (periodic)
+Reputation Decay (periodic)
+Firewall Backend restoration (run-once at boot)
 ```
 
-El uso de systemd permite separar la lógica de ejecución de la lógica de los motores.
+Using systemd lets the execution logic stay separate from the engines' logic.
 
-Los servicios y timers forman parte de la estructura administrada por el Installer Engine.
+The services and timers are part of the structure managed by the Installer Engine.
 
 ---
 
-# Flujo completo de procesamiento
+# Full processing flow
 
-El flujo principal de una señal de seguridad es:
+The main flow of a security signal is:
 
 ```text
-Sistema externo
+External system
        |
        v
 Sensor
        |
        v
-Evento interno ARE
+Internal ARE event
        |
        v
 Reputation Engine
@@ -640,12 +720,12 @@ Apply Engine
 Firewall Backend
        |
        v
-Sistema operativo
+Operating system
 ```
 
-La información generada durante el procesamiento queda registrada en la persistencia correspondiente.
+The information generated during processing is recorded in the corresponding persistence.
 
-El flujo de recuperación mediante Decay utiliza una trayectoria diferente:
+The recovery flow through Decay uses a different path:
 
 ```text
 Reputation Decay
@@ -660,155 +740,187 @@ State Engine
 Policy Engine
 ```
 
-La decisión resultante se mantiene separada de la ejecución directa del firewall según el estado actual del mecanismo de recuperación.
+The resulting decision stays separate from direct firewall execution, according to the current
+state of the recovery mechanism.
 
 ---
 
-# Separación de responsabilidades
+# Separation of responsibilities
 
-La arquitectura mantiene las siguientes responsabilidades:
+The architecture keeps the following responsibilities:
 
-| Componente           | Responsabilidad                        |
-| -------------------- | --------------------------------------- |
-| Sensor Framework     | Observación y normalización de eventos |
-| Reputation Engine    | Construcción de reputación             |
-| State Engine         | Determinación del estado               |
-| Policy Engine        | Generación de decisiones, por categoría |
-| Ban Lifecycle Engine | Evolución de sanciones                 |
-| Apply Engine         | Coordinación de aplicación             |
-| Firewall Backend     | Ejecución sobre el sistema operativo, con persistencia entre reinicios |
-| Reputation Decay     | Recuperación gradual de reputación     |
-| ARE ADMIN            | Administración y consulta del sistema completo |
-| Installer Engine     | Ciclo de vida del producto             |
-| Product Manifest     | Definición estructural del producto    |
-| SQLite               | Persistencia                           |
+| Component            | Responsibility                           |
+| -------------------- | ---------------------------------------- |
+| Sensor Framework     | Observation and normalization of events  |
+| Reputation Engine    | Reputation building                      |
+| State Engine         | State determination                      |
+| Policy Engine        | Decision generation, per category        |
+| Ban Lifecycle Engine | Sanction evolution                       |
+| Apply Engine         | Enforcement coordination                 |
+| Firewall Backend     | Execution on the operating system, with persistence across reboots |
+| Reputation Decay     | Gradual reputation recovery              |
+| ARE ADMIN            | Administration and query of the whole system |
+| Installer Engine     | Product lifecycle                        |
+| Product Manifest     | Product structural definition            |
+| SQLite               | Persistence                              |
 
-Ningún componente debe asumir responsabilidades pertenecientes a otra capa.
-
----
-
-# Principios arquitectónicos
-
-## Separación entre observación y decisión
-
-Los sistemas externos generan información.
-
-ARE interpreta esa información y construye conocimiento.
-
-Los sensores no sustituyen al motor de decisión.
+No component should take on responsibilities belonging to another layer.
 
 ---
 
-## Separación entre decisión y ejecución
+# Architectural principles
 
-ARE determina qué acción corresponde.
+## Separation between observation and decision
 
-El backend determina cómo ejecutar dicha acción sobre el sistema operativo.
+External systems generate information.
 
----
+ARE interprets that information and builds knowledge.
 
-## Persistencia del conocimiento
-
-La reputación, los eventos y el estado de sanción deben conservarse de forma independiente.
-
-La pérdida de uno de estos elementos no debe convertir automáticamente los demás en información inválida.
+Sensors do not replace the decision engine.
 
 ---
 
-## Una responsabilidad por componente
+## Separation between decision and execution
 
-Cada motor debe mantener una responsabilidad claramente definida.
+ARE determines which action is appropriate.
 
-La ampliación de capacidades debe realizarse mediante componentes o extensiones apropiadas antes que mediante duplicación de lógica.
-
----
-
-## Configuración desacoplada
-
-Los parámetros operativos deben mantenerse fuera de la lógica de los motores.
-
-La estructura de configuración es administrada por el producto y su Installer.
-
-Las plantillas distribuidas con el producto se diferencian de la configuración operativa utilizada por una instalación.
+The backend determines how to carry out that action on the operating system.
 
 ---
 
-## Evolución incremental
+## Knowledge persistence
 
-v2.0, v2.1 y v2.2 continúan la arquitectura desarrollada en v1.1.
+Reputation, events, and sanction state must be kept independently.
 
-Las modificaciones deben realizarse de forma incremental:
+Losing one of these elements must not automatically make the others invalid.
+
+---
+
+## One responsibility per component
+
+Each engine must keep a clearly defined responsibility.
+
+Extending capabilities must be done through appropriate components or extensions rather than by
+duplicating logic.
+
+---
+
+## Decoupled configuration
+
+Operational parameters must be kept out of the engines' logic.
+
+The configuration structure is managed by the product and its Installer.
+
+The templates distributed with the product are distinct from the operational configuration an
+installation uses.
+
+---
+
+## Incremental evolution
+
+v2.0, v2.1, and v2.2 continue the architecture developed in v1.1.
+
+Changes must be made incrementally:
 
 ```text
-analizar
+analyze
    ↓
-desarrollar
+develop
    ↓
-probar
+test
    ↓
-validar
+validate
    ↓
-documentar
+document
 ```
 
-La documentación debe reflejar el comportamiento validado del sistema y no anticipar funcionalidades que todavía no hayan sido implementadas.
+The documentation must reflect the system's validated behavior and not anticipate features that
+have not yet been implemented.
 
 ---
 
-# Estado arquitectónico
+# Architectural status
 
-La arquitectura base de v1.1 permanece como fundamento de v2.0, v2.1 y v2.2.
+The v1.1 base architecture remains the foundation of v2.0, v2.1, and v2.2.
 
-v2.0 introdujo una evolución estructural y operativa que incluye:
+v2.0 introduced a structural and operational evolution that includes:
 
-* identidad oficial ARE;
-* estructura de producto `/opt/are`;
-* datos persistentes en `/var/lib/are`;
-* logs en `/var/log/are`;
+* official ARE identity;
+* `/opt/are` product structure;
+* persistent data in `/var/lib/are`;
+* logs in `/var/log/are`;
 * Product Manifest;
-* Installer Engine ampliado;
-* comandos oficiales ARE;
-* persistencia de `sanction_state`;
-* integración operativa del Reputation Decay;
-* administración de componentes mediante systemd;
-* interfaz de administración ARE ADMIN;
-* Policy Engine reconstruido con evaluación por categoría.
+* extended Installer Engine;
+* official ARE commands;
+* `sanction_state` persistence;
+* operational integration of Reputation Decay;
+* component management through systemd;
+* ARE ADMIN administration interface;
+* Policy Engine rebuilt with per-category evaluation.
 
-v2.1 extendió esa base con:
+v2.1 extended that base with:
 
-* administración avanzada de perfiles (exportar/importar entre servidores);
-* modelo de reputación extensible sin migración de esquema;
-* visibilidad temporal de la actividad del sistema;
-* persistencia del Firewall Backend a través de reinicios.
+* advanced profile management (export/import between servers);
+* an extensible reputation model with no schema migration;
+* time-based visibility of system activity;
+* Firewall Backend persistence across reboots.
 
-v2.2 extendió esa base con:
+v2.2 extended that base with:
 
-* segundo sensor por adaptador (SpamAssassin, categoría SOCIAL), estableciendo el patrón de "adaptador por fuente" dentro del Sensor Framework — la extracción de datos varía según el origen (hoy: Exim), pero el contrato de reporte hacia el Reputation Engine permanece único;
-* catálogo de categorías de reputación completo, con umbral definido para las 9 categorías;
-* visibilidad temporal ampliada (desglose por categoría, exportación a CSV);
-* primera capa de distribución del producto (empaquetado con verificación de integridad, publicación automatizada por versión etiquetada, instalación remota sin depender de clonar el repositorio) — el Installer Engine en sí no fue modificado, esta capa opera exclusivamente antes de la instalación.
+* a second adapter-based sensor (SpamAssassin, SOCIAL category), establishing the "adapter per
+  source" pattern within the Sensor Framework — data extraction varies by source (today: Exim),
+  but the reporting contract toward the Reputation Engine stays single;
+* a complete reputation-category catalog, with a defined threshold for all 9 categories;
+* extended time-based visibility (per-category breakdown, CSV export);
+* a first product-distribution layer (packaging with integrity verification, automated publication
+  per tagged version, remote installation without depending on cloning the repository) — the
+  Installer Engine itself was not modified; this layer operates exclusively before installation.
 
-v2.3 extendió esa base con:
+v2.3 extended that base with:
 
-* administración operativa de sensores desde ARE ADMIN — registro dinámico (`sensor_registry`), activar/desactivar controlando directamente el timer de systemd para sensores de polling o un archivo flag para sensores de callback, sin tocar configuración externa a ARE en ningún caso;
-* cierre de la línea de auto-actualización del Installer Engine iniciada en v2.2 — consulta de versión disponible, actualización remota reutilizando el bootstrap existente, e instalación automática de dependencias del sistema faltantes;
-* detección estadística de anomalías en tendencias, comparando la actividad del día contra el promedio reciente por categoría, sin instrumentación nueva.
+* operational sensor administration from ARE ADMIN — dynamic registration (`sensor_registry`),
+  enable/disable by controlling the systemd timer directly for polling sensors or a flag file for
+  callback sensors, without touching configuration external to ARE in any case;
+* closing the Installer Engine's self-update line begun in v2.2 — available-version query, remote
+  update reusing the existing bootstrap, and automatic installation of missing system dependencies;
+* statistical anomaly detection in trends, comparing the day's activity against the recent average
+  per category, with no new instrumentation.
 
-v2.4 extendió esa base con:
+v2.4 extended that base with:
 
-* modelo de reputación extensible completo — las columnas de categoría redundantes en `reputation` eliminadas, tanto para instalaciones nuevas (esquema reducido desde el `CREATE TABLE`) como para el mecanismo de migración de datos existentes, sin depender de ninguna versión específica de SQLite salvo para la migración de bases ya creadas con el esquema viejo;
-* el Installer Engine pasó a ser responsable de dejar una instalación completamente operativa por sí sola — conjuntos IPSet, reglas de firewall, y unidades systemd sin dependencias externas duras, sin depender de que el operador ejecute pasos manuales adicionales después de instalar.
+* a complete extensible reputation model — the redundant category columns in `reputation` removed,
+  both for new installations (reduced schema from the `CREATE TABLE`) and for the mechanism that
+  migrates existing data, without depending on any specific SQLite version except for migrating
+  databases already created with the old schema;
+* the Installer Engine became responsible for leaving an installation fully operational on its own
+  — IPSet sets, firewall rules, and systemd units with no hard external dependencies, without
+  relying on the operator running extra manual steps after installing.
 
-v2.5 extendió esa base con:
+v2.5 extended that base with:
 
-* un patrón de sensor nuevo dentro del Sensor Framework — correlación de comportamiento entre múltiples IPs distintas (no evaluación aislada por IP), necesario para detectar amenazas que Fail2Ban no puede ver por diseño; el reporte a ARE sigue reutilizando el contrato existente (`found <IP> <JAIL>`) por cada IP del grupo, sin introducir un concepto nuevo de "grupo/campaña" en el modelo de datos.
+* a new sensor pattern within the Sensor Framework — behavior correlation across multiple distinct
+  IPs (not isolated per-IP evaluation), needed to detect threats Fail2Ban cannot see by design; the
+  report to ARE still reuses the existing contract (`found <IP> <JAIL>`) for each IP in the group,
+  without introducing a new "group/campaign" concept into the data model.
 
-v2.6 extendió esa base con:
+v2.6 extended that base with:
 
-* propagación de reputación entre instancias de ARE — un mecanismo de exportar/importar que respeta la separación de responsabilidades ya establecida: la reputación se sigue acumulando exclusivamente vía `db_add_score()`, sin ninguna ruta de escritura alternativa; el filtro de qué se aplica al importar se apoya en `jail_profile`, ya existente, sin necesitar ningún concepto de "rol de servidor" nuevo en el modelo de datos.
+* reputation propagation between ARE instances — an export/import mechanism that respects the
+  already-established separation of responsibilities: reputation is still accumulated exclusively
+  via `db_add_score()`, with no alternative write path; the filter for what is applied on import
+  relies on the already-existing `jail_profile`, needing no new "server role" concept in the data
+  model.
 
-v2.7 extendió esa base con:
+v2.7 extended that base with:
 
-* el Installer Engine incorpora el concepto de unidad systemd opcional (`PRODUCT_SYSTEMD_UNITS_OPTIONAL`) — se instala en toda actualización, pero no se activa automáticamente si depende de configuración explícita del administrador; evita que una capacidad de nicho, útil para algunos servidores y sin sentido para otros, se convierta en ruido para quien no la necesita.
+* the Installer Engine adopting the concept of an optional systemd unit
+  (`PRODUCT_SYSTEMD_UNITS_OPTIONAL`) — installed on every update, but not activated automatically if
+  it depends on explicit administrator configuration; this keeps a niche capability, useful for some
+  servers and pointless for others, from becoming noise for those who do not need it.
 
-Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.
+Future capabilities that have not yet been implemented and validated are not part of the current
+state of the architecture.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`ARCHITECTURE.es.md`](ARCHITECTURE.es.md)

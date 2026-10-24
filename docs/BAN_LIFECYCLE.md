@@ -1,54 +1,66 @@
-ARE Ban Lifecycle
-Introducción
+# ARE Ban Lifecycle
 
-El Ban Lifecycle Engine es el componente encargado de calcular la siguiente sanción cuando el Policy Engine determina que corresponde una sanción temporal (TEMP_BAN).
+## Introduction
 
-Su responsabilidad es determinar el nivel de sanción siguiente a partir del nivel de ban actualmente registrado para una dirección IP y de los tiempos configurados para cada nivel.
+The Ban Lifecycle Engine is the component responsible for computing the next sanction when the
+Policy Engine determines that a temporary sanction (`TEMP_BAN`) is appropriate.
 
-El Ban Lifecycle Engine no determina si una dirección IP representa una amenaza. Esa responsabilidad corresponde al flujo de reputación, estado y política.
+Its responsibility is to determine the next sanction level from the ban level currently recorded
+for an IP address and from the times configured for each level.
 
-Tampoco modifica directamente el firewall. La aplicación de la sanción corresponde a Policy Apply.
+The Ban Lifecycle Engine does not determine whether an IP address represents a threat. That
+responsibility belongs to the reputation, state, and policy flow.
 
-Objetivo
+Nor does it modify the firewall directly. Applying the sanction belongs to Policy Apply.
 
-El objetivo del Ban Lifecycle Engine es proporcionar una progresión consistente de las sanciones temporales.
+## Objective
 
-Para cada solicitud de TEMP_BAN, el motor:
+The goal of the Ban Lifecycle Engine is to provide a consistent progression of temporary
+sanctions.
 
-Inicializa el registro de sanción de la IP si es necesario.
-Obtiene el nivel de ban actual.
-Incrementa el nivel en uno.
-Determina la duración correspondiente al nuevo nivel.
-Devuelve la sanción calculada.
-Escala a BAN permanente cuando se alcanza el nivel máximo configurado.
+For each `TEMP_BAN` request, the engine:
 
-Responsabilidad
+1. Initializes the IP's sanction record if necessary.
+2. Gets the current ban level.
+3. Increments the level by one.
+4. Determines the duration corresponding to the new level.
+5. Returns the computed sanction.
+6. Escalates to a permanent `BAN` when the configured maximum level is reached.
 
-La función principal del componente es:
+## Responsibility
 
+The component's main function is:
+
+```text
 ban_lifecycle_calculate()
+```
 
-Recibe:
+It receives:
 
-dirección IP.
+* IP address.
 
-Utiliza:
+It uses:
 
-nivel de ban almacenado en SQLite;
-BAN_LEVEL_MAX;
-tiempos configurados para los niveles de sanción.
+* ban level stored in SQLite;
+* `BAN_LEVEL_MAX`;
+* times configured for the sanction levels.
 
-Devuelve una decisión con el formato:
+It returns a decision in the format:
 
-ACCIÓN|TIEMPO|RAZÓN
+```text
+ACTION|TIME|REASON
+```
 
-Ejemplos:
+Examples:
 
+```text
 TEMP_BAN|3600|BAN_LEVEL_1
-
 BAN|0|BAN_LEVEL_MAX
+```
 
-Flujo
+## Flow
+
+```text
 Policy Engine
       |
       | TEMP_BAN
@@ -58,122 +70,160 @@ Policy Apply
       v
 Ban Lifecycle Engine
       |
-      +--> Obtener ban_level
+      +--> Get ban_level
       |
-      +--> Incrementar nivel
+      +--> Increment level
       |
-      +--> Comparar con BAN_LEVEL_MAX
+      +--> Compare with BAN_LEVEL_MAX
       |
       +-------------------------+
       |                         |
       v                         v
-  Nivel disponible          Nivel máximo
+  Level available          Maximum level
       |                         |
       v                         v
  TEMP_BAN                      BAN
       |                         |
       v                         v
- Tiempo configurado       Escalamiento permanente
+ Configured time         Permanent escalation
+```
 
-Nivel de sanción
+## Sanction level
 
-El nivel actual de sanción se obtiene desde la información persistente asociada a la dirección IP.
+The current sanction level is obtained from the persistent information associated with the IP
+address.
 
-El siguiente nivel se calcula como:
+The next level is computed as:
 
+```text
 NEXT_LEVEL = CURRENT_LEVEL + 1
+```
 
-Si no existe un nivel registrado, el nivel actual se considera 0.
+If there is no recorded level, the current level is treated as 0.
 
-Por lo tanto, la primera sanción temporal corresponde al nivel 1.
+Therefore, the first temporary sanction corresponds to level 1.
 
-Niveles temporales
+## Temporary levels
 
-El Ban Lifecycle Engine utiliza los tiempos configurados para los siguientes niveles:
+The Ban Lifecycle Engine uses the configured times for the following levels:
 
+```text
 BAN_LEVEL_1_TIME
 BAN_LEVEL_2_TIME
 BAN_LEVEL_3_TIME
 BAN_LEVEL_4_TIME
 BAN_LEVEL_5_TIME
 BAN_LEVEL_6_TIME
+```
 
-El nivel siguiente, BAN_LEVEL_7 (BAN_LEVEL_MAX), no tiene un tiempo configurado — corresponde al escalamiento a bloqueo permanente, ver sección "Escalamiento".
+The next level, `BAN_LEVEL_7` (`BAN_LEVEL_MAX`), has no configured time — it corresponds to the
+escalation to a permanent block, see the "Escalation" section.
 
-El tiempo utilizado para una sanción depende exclusivamente del nivel siguiente calculado y de su configuración correspondiente.
+The time used for a sanction depends exclusively on the computed next level and its corresponding
+configuration.
 
-Un nivel cuyo tiempo configurado exceda el máximo soportado por el Firewall Backend (ver sección "Firewall Backend" e "IPSET_MAX_TIMEOUT") se ajusta automáticamente a ese límite en el momento de aplicar la sanción — el nivel registrado en sanction_state refleja la escalada real, aunque el timeout efectivamente aplicado al firewall pueda ser menor al configurado para ese nivel.
+A level whose configured time exceeds the maximum supported by the Firewall Backend (see the
+"Firewall Backend" section and `IPSET_MAX_TIMEOUT`) is automatically clamped to that limit at the
+moment the sanction is applied — the level recorded in `sanction_state` reflects the real
+escalation, even though the timeout actually applied to the firewall may be lower than the one
+configured for that level.
 
-Escalamiento
+## Escalation
 
-Antes de seleccionar la duración, el motor comprueba:
+Before selecting the duration, the engine checks:
 
+```text
 NEXT_LEVEL >= BAN_LEVEL_MAX
+```
 
-Cuando esta condición se cumple, el motor devuelve:
+When this condition is met, the engine returns:
 
+```text
 BAN|0|BAN_LEVEL_MAX
+```
 
-Esto indica que la sanción debe escalar a un bloqueo permanente.
+This indicates that the sanction must escalate to a permanent block.
 
-No se calcula un timeout para esta situación.
+No timeout is computed for this situation.
 
-Un bloqueo permanente no es alcanzado por el Reputation Decay Engine — su liberación requiere una decisión administrativa explícita, no una recuperación automática por inactividad.
+A permanent block is not reached by the Reputation Decay Engine — its release requires an explicit
+administrative decision, not an automatic recovery from inactivity.
 
-TEMP_BAN
+## TEMP_BAN
 
-Cuando el nivel siguiente no alcanza BAN_LEVEL_MAX, el motor devuelve:
+When the next level does not reach `BAN_LEVEL_MAX`, the engine returns:
 
+```text
 TEMP_BAN|TIME|BAN_LEVEL_N
+```
 
-donde:
+where:
 
-TIME es el tiempo configurado para el nivel;
-N es el siguiente nivel de sanción.
+* `TIME` is the time configured for the level;
+* `N` is the next sanction level.
 
-Por ejemplo:
+For example:
 
+```text
 TEMP_BAN|3600|BAN_LEVEL_1
+```
 
-representa una sanción temporal correspondiente al nivel 1 con una duración de 3600 segundos.
+represents a temporary sanction corresponding to level 1 with a duration of 3600 seconds.
 
-Mientras una sanción temporal permanece activa, el Reputation Decay Engine reduce el score de la IP de forma periódica, aplicando la reducción sobre el total agregado y redistribuyéndola proporcionalmente entre las categorías activas de esa IP — no se trunca cada categoría de forma independiente. Esto evita que una IP con actividad repartida entre varias categorías decaiga más rápido que otra con actividad concentrada en una sola, ante el mismo score total. El decay no adelanta ni acorta el timeout ya aplicado al Firewall Backend para una sanción en curso; su efecto se refleja en la evaluación de la siguiente reincidencia.
+While a temporary sanction remains active, the Reputation Decay Engine periodically reduces the
+IP's score, applying the reduction to the aggregate total and redistributing it proportionally
+across that IP's active categories — each category is not truncated independently. This prevents an
+IP with activity spread across several categories from decaying faster than one with activity
+concentrated in a single category, given the same total score. Decay does not advance or shorten
+the timeout already applied to the Firewall Backend for an ongoing sanction; its effect is
+reflected in the evaluation of the next recidivism.
 
-BAN
+## BAN
 
-Cuando se alcanza el nivel máximo configurado, el Ban Lifecycle Engine devuelve:
+When the configured maximum level is reached, the Ban Lifecycle Engine returns:
 
+```text
 BAN|0|BAN_LEVEL_MAX
+```
 
-La aplicación de este resultado corresponde posteriormente a Policy Apply.
+Applying this result subsequently belongs to Policy Apply.
 
-El Ban Lifecycle Engine no modifica directamente los conjuntos IPSet ni las reglas de firewall.
+The Ban Lifecycle Engine does not directly modify the IPSet sets or the firewall rules.
 
-Persistencia
+## Persistence
 
-El nivel de sanción se mantiene de forma persistente mediante SQLite.
+The sanction level is kept persistently through SQLite.
 
-El Ban Lifecycle Engine utiliza la información almacenada para determinar la siguiente sanción.
+The Ban Lifecycle Engine uses the stored information to determine the next sanction.
 
-La reputación y los eventos pertenecen a otros componentes del sistema y no son modificados directamente por este motor.
+Reputation and events belong to other components of the system and are not modified directly by
+this engine.
 
-Una sanción activa (permanente o temporal, con su tiempo restante exacto) se restaura en el Firewall Backend a partir de esta misma información persistente cuando el sistema operativo se reinicia — ver sección "Firewall Backend".
+An active sanction (permanent or temporary, with its exact remaining time) is restored in the
+Firewall Backend from this same persistent information when the operating system reboots — see the
+"Firewall Backend" section.
 
-Relación con Policy Engine
+## Relationship with the Policy Engine
 
-El Policy Engine determina que una dirección IP requiere una sanción mediante la decisión:
+The Policy Engine determines that an IP address requires a sanction through the decision:
 
+```text
 TEMP_BAN
+```
 
-Policy Apply recibe esa decisión y solicita al Ban Lifecycle Engine calcular la sanción concreta.
+Policy Apply receives that decision and asks the Ban Lifecycle Engine to compute the concrete
+sanction.
 
-El Ban Lifecycle Engine puede devolver:
+The Ban Lifecycle Engine can return:
 
+```text
 TEMP_BAN
 BAN
+```
 
-Por lo tanto, el flujo es:
+Therefore, the flow is:
 
+```text
 Policy Engine
       |
       v
@@ -189,68 +239,78 @@ Ban Lifecycle Engine
       |        |
       v        v
  TEMP_BAN    BAN
+```
 
-Relación con Policy Apply
+## Relationship with Policy Apply
 
-Ban Lifecycle Engine calcula la sanción.
+The Ban Lifecycle Engine computes the sanction.
 
-Policy Apply ejecuta el resultado.
+Policy Apply carries out the result.
 
-Cuando el resultado es TEMP_BAN, Policy Apply:
+When the result is `TEMP_BAN`, Policy Apply:
 
-calcula el momento de expiración;
-incrementa el nivel de ban;
-registra la sanción;
-ajusta el timeout calculado al máximo soportado por el Firewall Backend, si lo excede;
-aplica el timeout al IPSet;
-establece el estado correspondiente.
+* computes the expiration moment;
+* increments the ban level;
+* records the sanction;
+* clamps the computed timeout to the maximum supported by the Firewall Backend, if it exceeds it;
+* applies the timeout to IPSet;
+* sets the corresponding state.
 
-Cuando el resultado es BAN, Policy Apply:
+When the result is `BAN`, Policy Apply:
 
-establece el nivel máximo;
-marca la sanción como permanente;
-elimina contenciones anteriores;
-incorpora la IP al conjunto de ban sin timeout;
-registra el evento;
-establece el estado BANNED.
+* sets the maximum level;
+* marks the sanction as permanent;
+* removes previous containments;
+* adds the IP to the ban set with no timeout;
+* records the event;
+* sets the `BANNED` state.
 
-Firewall Backend
+## Firewall Backend
 
-El Ban Lifecycle Engine no interactúa directamente con el firewall.
+The Ban Lifecycle Engine does not interact directly with the firewall.
 
-La modificación del sistema operativo corresponde a Policy Apply mediante los mecanismos de backend utilizados por ARE.
+Modifying the operating system belongs to Policy Apply through the backend mechanisms ARE uses.
 
-Desde ARE v2.0, este mecanismo utiliza exclusivamente:
+Since ARE v2.0, this mechanism uses exclusively:
 
-IPSet.
+```text
+IPSet
+```
 
-iptables e ip6tables ya no forman parte del Firewall Backend de ARE — la gestión directa de reglas de firewall fue reemplazada por el uso exclusivo de conjuntos IPSet, que ARE administra de forma completa, incluyendo su restauración al arrancar el sistema (IPSet no persiste su contenido de forma nativa entre reinicios; ARE lo repuebla desde sanction_state y reputation al inicio, preservando el tiempo restante exacto de las sanciones temporales activas).
+`iptables` and `ip6tables` are no longer part of ARE's Firewall Backend — direct management of
+firewall rules was replaced by the exclusive use of IPSet sets, which ARE manages completely,
+including their restoration at system boot (IPSet does not natively persist its contents across
+reboots; ARE repopulates it from `sanction_state` and `reputation` at start, preserving the exact
+remaining time of active temporary sanctions).
 
-El tiempo máximo que IPSet admite para un timeout está limitado (IPSET_MAX_TIMEOUT, en config/policy.conf). Cualquier duración calculada por el Ban Lifecycle Engine que exceda ese límite se ajusta al máximo soportado antes de aplicarse — ver sección "Niveles temporales".
+The maximum time IPSet allows for a timeout is limited (`IPSET_MAX_TIMEOUT`, in
+`config/policy.conf`). Any duration computed by the Ban Lifecycle Engine that exceeds that limit is
+clamped to the maximum supported before being applied — see the "Temporary levels" section.
 
-Principios
+## Principles
 
-El Ban Lifecycle Engine mantiene una responsabilidad específica:
+The Ban Lifecycle Engine keeps a specific responsibility:
 
-calcular la siguiente sanción;
-aplicar la progresión de niveles;
-seleccionar el tiempo configurado;
-determinar cuándo corresponde escalar a BAN.
+* compute the next sanction;
+* apply the level progression;
+* select the configured time;
+* determine when it is appropriate to escalate to `BAN`.
 
-No es responsable de:
+It is not responsible for:
 
-detectar eventos;
-calcular reputación;
-determinar el estado general de la IP;
-decidir inicialmente si corresponde TEMP_BAN;
-modificar directamente el firewall;
-restaurar el estado del firewall tras un reinicio del sistema.
+* detecting events;
+* computing reputation;
+* determining the IP's general state;
+* initially deciding whether `TEMP_BAN` is appropriate;
+* directly modifying the firewall;
+* restoring the firewall state after a system reboot.
 
-Resumen
+## Summary
 
-El ciclo de una sanción temporal en ARE es:
+The cycle of a temporary sanction in ARE is:
 
-Evento
+```text
+Event
    |
    v
 Reputation Engine
@@ -276,9 +336,9 @@ Ban Lifecycle Engine
 TEMP_BAN             BAN
    |                  |
    v                  v
-Tiempo configurado   Nivel máximo
-(ajustado al límite   |
- de IPSet si excede)  |
+Configured time      Maximum level
+(clamped to IPSet     |
+ limit if exceeded)   |
    |                  |
    +--------+---------+
             |
@@ -287,3 +347,8 @@ Tiempo configurado   Nivel máximo
             |
             v
       Firewall Backend
+```
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`BAN_LIFECYCLE.es.md`](BAN_LIFECYCLE.es.md)

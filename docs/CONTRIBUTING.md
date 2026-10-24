@@ -1,14 +1,17 @@
 # Contributing to ARE
 
-## Introducción
+## Introduction
 
-ARE (Abuse Reputation Engine) es un proyecto desarrollado bajo principios de simplicidad, modularidad, separación de responsabilidades y evolución controlada.
+ARE (Abuse Reputation Engine) is a project developed under principles of simplicity, modularity,
+separation of responsibilities, and controlled evolution.
 
-Toda contribución deberá respetar la arquitectura, las decisiones de diseño y la metodología oficial de desarrollo del proyecto.
+Every contribution must respect the project's architecture, design decisions, and official
+development methodology.
 
-Antes de modificar el proyecto debe comprenderse el comportamiento existente y verificarse qué componentes están realmente involucrados en el cambio.
+Before modifying the project, you must understand the existing behavior and verify which
+components are actually involved in the change.
 
-Para comprender el proyecto se recomienda consultar:
+To understand the project, we recommend reading:
 
 * `README.md`
 * `docs/PROJECT.md`
@@ -18,132 +21,137 @@ Para comprender el proyecto se recomienda consultar:
 
 ---
 
-# Principios
+# Principles
 
-Toda contribución deberá seguir los siguientes principios:
+Every contribution must follow these principles:
 
-* Comprender antes de implementar.
-* Una responsabilidad por componente.
-* Modificar únicamente lo necesario.
-* Reutilizar componentes existentes antes de duplicar lógica.
-* Preservar el comportamiento no afectado.
-* Mantener la arquitectura desacoplada.
-* Verificar los cambios antes de considerarlos terminados.
-* Mantener la documentación sincronizada con el estado real del proyecto.
-* Mantener cada cambio trazable.
+* Understand before implementing.
+* One responsibility per component.
+* Change only what is necessary.
+* Reuse existing components before duplicating logic.
+* Preserve unaffected behavior.
+* Keep the architecture decoupled.
+* Verify changes before considering them finished.
+* Keep the documentation in sync with the project's real state.
+* Keep each change traceable.
 
-La estabilidad del sistema tiene prioridad sobre la incorporación de cambios no necesarios.
-
----
-
-# Antes de comenzar
-
-Antes de implementar un cambio deberá verificarse:
-
-* qué comportamiento existe actualmente;
-* si la funcionalidad ya existe;
-* qué componente es responsable del comportamiento;
-* qué otros componentes dependen de él;
-* si el cambio corresponde al alcance de la versión en desarrollo;
-* si existe una tarea, bug o feature relacionado;
-* si el cambio modifica una relación arquitectónica existente.
-
-No deberán modificarse archivos o componentes que no sean necesarios para resolver el objetivo definido.
-
-Si el cambio altera responsabilidades, interfaces o relaciones fundamentales entre componentes, deberá analizarse y documentarse como modificación arquitectónica antes de su implementación.
+System stability takes priority over adding unnecessary changes.
 
 ---
 
-# Clasificación de cambios
+# Before you start
 
-Toda modificación deberá clasificarse según su naturaleza.
+Before implementing a change, you must verify:
+
+* what behavior currently exists;
+* whether the functionality already exists;
+* which component is responsible for the behavior;
+* which other components depend on it;
+* whether the change belongs to the scope of the version in development;
+* whether there is a related task, bug, or feature;
+* whether the change modifies an existing architectural relationship.
+
+Files or components that are not necessary to solve the defined objective must not be modified.
+
+If the change alters fundamental responsibilities, interfaces, or relationships between components,
+it must be analyzed and documented as an architectural modification before being implemented.
+
+---
+
+# Change classification
+
+Every modification must be classified according to its nature.
 
 ## BUG
 
-Corrección de un comportamiento incorrecto existente.
+A fix for existing incorrect behavior.
 
-La corrección debe resolver el problema sin alterar comportamientos que no formen parte del bug.
+The fix must resolve the problem without altering behaviors that are not part of the bug.
 
 ## TASK
 
-Trabajo técnico, mantenimiento, reorganización o refactorización que no incorpora una nueva capacidad funcional.
+Technical work, maintenance, reorganization, or refactoring that does not add a new functional
+capability.
 
 ## FEATURE
 
-Incorporación de una nueva funcionalidad al proyecto.
+Adding a new feature to the project.
 
 ## RFC
 
-Propuesta de modificación arquitectónica o de una decisión que pueda alterar la estructura o responsabilidades fundamentales de ARE.
+A proposal for an architectural modification or a decision that could alter ARE's fundamental
+structure or responsibilities.
 
-Una RFC no representa una funcionalidad implementada hasta que su propuesta haya sido aprobada e implementada.
+An RFC does not represent an implemented feature until its proposal has been approved and
+implemented.
 
 ## IDEA
 
-Propuesta que todavía no forma parte de una implementación definida.
+A proposal that is not yet part of a defined implementation.
 
-Una idea no representa una funcionalidad disponible ni comprometida.
+An idea does not represent an available or committed feature.
 
 ---
 
-# Flujo de contribución
+# Contribution flow
 
-Toda modificación deberá seguir un proceso controlado:
+Every modification must follow a controlled process:
 
 ```text
-Problema o necesidad
+Problem or need
         ↓
-Análisis del comportamiento actual
+Analysis of current behavior
         ↓
-Identificación del componente afectado
+Identification of the affected component
         ↓
-Clasificación
+Classification
 (BUG / TASK / FEATURE / RFC / IDEA)
         ↓
-Definición del cambio
+Definition of the change
         ↓
-Diseño, cuando corresponda
+Design, where appropriate
         ↓
-Implementación
+Implementation
         ↓
-Verificación
+Verification
         ↓
-Actualización de documentación
+Documentation update
         ↓
-Revisión del repositorio
+Repository review
         ↓
 Commit
 ```
 
-Cada etapa deberá completarse antes de considerar terminado el cambio.
+Each stage must be completed before the change is considered finished.
 
-Cuando durante la verificación aparezca un problema relacionado con el cambio, éste deberá resolverse y verificarse antes de continuar con cambios dependientes.
-
----
-
-# Un cambio, una responsabilidad
-
-Cada contribución deberá mantener un objetivo identificable.
-
-Ejemplos:
-
-* corregir un bug;
-* incorporar una funcionalidad;
-* modificar un componente concreto;
-* reorganizar un módulo;
-* actualizar documentación relacionada con un cambio real.
-
-No deberán mezclarse cambios independientes únicamente para aprovechar una misma modificación.
+When a problem related to the change appears during verification, it must be resolved and verified
+before continuing with dependent changes.
 
 ---
 
-# Arquitectura y componentes
+# One change, one responsibility
 
-Las contribuciones deberán respetar la separación de responsabilidades existente en ARE.
+Each contribution must keep an identifiable objective.
 
-Los cambios deberán realizarse dentro del componente correspondiente a su responsabilidad.
+Examples:
 
-Entre los componentes actualmente organizados en el proyecto se encuentran:
+* fix a bug;
+* add a feature;
+* modify a specific component;
+* reorganize a module;
+* update documentation related to a real change.
+
+Independent changes must not be mixed just to take advantage of a single modification.
+
+---
+
+# Architecture and components
+
+Contributions must respect the separation of responsibilities that exists in ARE.
+
+Changes must be made within the component corresponding to their responsibility.
+
+Among the components currently organized in the project are:
 
 * `admin/`
 * `sensors/`
@@ -154,36 +162,38 @@ Entre los componentes actualmente organizados en el proyecto se encuentran:
 * `systemd/`
 * `templates/`
 
-La existencia de un componente no autoriza a trasladarle responsabilidades pertenecientes a otro.
+The existence of a component does not authorize moving responsibilities belonging to another onto
+it.
 
-Cuando una modificación requiera cambiar la relación entre componentes, deberá verificarse el comportamiento de todos los componentes directamente afectados.
-
----
-
-# Pruebas y verificación
-
-Toda modificación deberá verificarse antes de considerarse terminada.
-
-La verificación deberá basarse en resultados observables y deberá comprobar, según corresponda:
-
-* que el cambio funciona;
-* que el comportamiento esperado se mantiene;
-* que no se introducen regresiones;
-* que los componentes relacionados continúan funcionando;
-* que los datos persistentes no resultan afectados indebidamente;
-* que las operaciones modificadas del sistema continúan siendo coherentes.
-
-No deberá considerarse suficiente una comprobación basada únicamente en que el código no produzca errores sintácticos.
+When a modification requires changing the relationship between components, the behavior of all
+directly affected components must be verified.
 
 ---
 
-# Documentación
+# Testing and verification
 
-La documentación forma parte del proyecto.
+Every modification must be verified before being considered finished.
 
-Cuando una modificación cambie el comportamiento real de ARE, deberán actualizarse los documentos afectados.
+Verification must be based on observable results and must check, as applicable:
 
-Según el alcance del cambio podrán verse involucrados:
+* that the change works;
+* that the expected behavior is maintained;
+* that no regressions are introduced;
+* that related components continue to work;
+* that persistent data is not unduly affected;
+* that the modified system operations remain consistent.
+
+A check based only on the code not producing syntax errors must not be considered sufficient.
+
+---
+
+# Documentation
+
+Documentation is part of the project.
+
+When a modification changes ARE's real behavior, the affected documents must be updated.
+
+Depending on the scope of the change, the following may be involved:
 
 * `README.md`
 * `docs/PROJECT.md`
@@ -200,17 +210,18 @@ Según el alcance del cambio podrán verse involucrados:
 * `docs/USER_GUIDE.md`
 * `docs/TODO.md`
 
-Cada documento debe conservar su responsabilidad específica.
+Each document must keep its specific responsibility.
 
-No deberá trasladarse a un documento información que corresponda a otro únicamente para evitar actualizar el documento correcto.
+Information belonging to one document must not be moved to another just to avoid updating the
+correct one.
 
-La documentación no debe describir como implementado aquello que únicamente está planificado.
+The documentation must not describe as implemented something that is only planned.
 
 ---
 
 # Installer Engine
 
-Los cambios relacionados con el Installer Engine deberán considerar las operaciones que actualmente administra:
+Changes related to the Installer Engine must consider the operations it currently manages:
 
 * `install`
 * `upgrade`
@@ -218,26 +229,28 @@ Los cambios relacionados con el Installer Engine deberán considerar las operaci
 * `verify`
 * `uninstall`
 
-Las modificaciones deberán verificarse únicamente sobre las operaciones afectadas y sus dependencias directas.
+Modifications must be verified only on the affected operations and their direct dependencies.
 
-La estructura definida mediante el manifest deberá mantenerse como referencia de los componentes administrados por el ciclo de instalación y actualización.
+The structure defined through the manifest must be kept as the reference for the components managed
+by the installation and upgrade cycle.
 
-No deberán introducirse archivos o componentes en el proceso de instalación sin determinar previamente su relación con la estructura administrada por el manifest.
+Files or components must not be introduced into the installation process without first determining
+their relationship to the structure managed by the manifest.
 
 ---
 
 # Commits
 
-Cada commit deberá representar un cambio identificable y coherente.
+Each commit must represent an identifiable and coherent change.
 
-Los mensajes deberán ser:
+Messages must be:
 
-* claros;
-* específicos;
-* trazables;
-* representativos del contenido real del commit.
+* clear;
+* specific;
+* traceable;
+* representative of the commit's real content.
 
-Ejemplos:
+Examples:
 
 ```text
 BUG-008 Fix state and policy inconsistency
@@ -249,34 +262,40 @@ FEAT-005 Add sensor integration
 DOC-006 Update installation documentation
 ```
 
-Un commit no deberá utilizarse para ocultar modificaciones no relacionadas con su objetivo.
+A commit must not be used to hide modifications unrelated to its objective.
 
 ---
 
-# Revisión antes de cerrar un cambio
+# Review before closing a change
 
-Antes de cerrar una contribución deberá verificarse:
+Before closing a contribution, you must verify:
 
-* objetivo definido;
-* componente correcto;
-* implementación limitada al alcance necesario;
-* pruebas realizadas;
-* comportamiento verificado;
-* ausencia de modificaciones innecesarias;
-* documentación afectada actualizada;
-* coherencia con la arquitectura;
-* estado del repositorio revisado.
+* defined objective;
+* correct component;
+* implementation limited to the necessary scope;
+* tests performed;
+* behavior verified;
+* no unnecessary modifications;
+* affected documentation updated;
+* consistency with the architecture;
+* repository state reviewed.
 
-El cambio sólo deberá considerarse terminado cuando estos puntos hayan sido comprobados según corresponda.
+The change should only be considered finished when these points have been checked as appropriate.
 
 ---
 
-# Filosofía
+# Philosophy
 
-ARE evoluciona mediante cambios incrementales.
+ARE evolves through incremental changes.
 
-Cada modificación debe partir del comportamiento real existente, resolver un objetivo concreto y ser verificada antes de continuar con cambios posteriores.
+Each modification must start from the real existing behavior, resolve a concrete objective, and be
+verified before continuing with later changes.
 
-Las nuevas capacidades deben incorporarse sin romper las responsabilidades existentes ni introducir complejidad innecesaria.
+New capabilities must be added without breaking existing responsibilities or introducing
+unnecessary complexity.
 
-La documentación debe evolucionar junto con el software y representar el estado real del proyecto.
+The documentation must evolve together with the software and represent the project's real state.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`CONTRIBUTING.es.md`](CONTRIBUTING.es.md)
