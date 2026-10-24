@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.8.2
+v2.8.3
 ```
 
 Status:
@@ -566,6 +566,12 @@ See `TASK-025` in `docs/TODO.md`.
 
 Validated in isolation (test files in `/tmp`) and in real production (`upgrade` / `verify`, no
 regressions). Merged to `main` and published as the tag `v2.8.2`.
+
+## Patch v2.8.3
+
+Documentation-only patch. English becomes the canonical documentation language: `README.md` and 13 documents under `docs/` are now in English (`docs/TODO.md`, the internal work log, stays in Spanish), and the original Spanish versions are preserved unchanged as `README.es.md` and `docs/*.es.md`. No code changes. It is the first release package to ship the English documentation (the `v2.8.2` package still carries the Spanish documents). See `TASK-026` in `docs/TODO.md`.
+
+Validated by comparing each `.es.md` byte for byte against the previous version of its document.
 
 ---
 

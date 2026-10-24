@@ -1553,6 +1553,37 @@ Probado en aislamiento con archivos de prueba en `/tmp` (sin tocar `/opt/are`): 
 
 ---
 
+## TASK-026
+
+**Título:** Documentación en inglés como idioma canónico, con los originales en español conservados como `.es.md`
+
+**Estado:** ✔ Implementada
+
+**Versión:** v2.8.3
+
+**Contexto**
+
+El proyecto se presenta como trabajo de ciberseguridad y su documentación estaba solo en español. Quien instala con `scripts/install.sh` (que descarga `releases/latest`) recibía únicamente esa documentación.
+
+**Corrección**
+
+`README.md` y los 13 documentos de `docs/` (todos salvo `TODO.md`, que permanece en español como registro interno de trabajo) se tradujeron al inglés; los originales en español se conservan sin cambios como `README.es.md` y `docs/*.es.md` (`README.es.md` agrega un selector de idioma). El `README.md` en inglés es una portada concisa, no una traducción literal: el README completo anterior vive en `README.es.md`. Publicado en `main` como `e45b354`. Este patch sincroniza las versiones (`VERSION`, `config/config.conf`, `templates/config/config.conf`, `manifest/product.sh`) a `2.8.3` y taggea, para que el paquete de release incluya la documentación en inglés (el paquete `v2.8.2` conserva la documentación en español).
+
+**Validación**
+
+Cada `.es.md` comparado byte a byte contra la versión anterior de su documento (`git show HEAD:<archivo> | cmp`): idénticos, salvo `README.es.md`, que solo agrega el selector de idioma. Encabezados y bloques de código verificados par a par, sin residuo de español en los `.md` en inglés. Hallazgos: el original de `PROJECT.md` tenía un bloque de código sin cerrar (línea 146) que hacía renderizar como código todo el resto del documento — la versión en inglés lo corrige, el `.es.md` conserva el defecto por ser copia fiel; y `docs/BAN_LIFECYCLE.md` no tenía formato Markdown en el original — la versión en inglés lo agrega.
+
+**Archivos relacionados**
+
+* `README.md`, `README.es.md`
+* `docs/*.md`, `docs/*.es.md`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -5142,7 +5173,7 @@ Las ideas no constituyen compromisos de implementación.
 La versión estable documentada actualmente es:
 
 ```text
-v2.8.2
+v2.8.3
 ```
 
 El trabajo futuro deberá incorporarse al Roadmap antes de convertirse en una línea formal de desarrollo.

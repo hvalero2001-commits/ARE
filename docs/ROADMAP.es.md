@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.8.2
+v2.8.3
 ```
 
 Estado:
@@ -449,6 +449,12 @@ Aplicado y validado en producción real (`upgrade` corrido con el fix, árbol de
 Consecuencia directa de `v2.8.1`: al dejar de sobrescribir un config existente en `upgrade`, una variable nueva agregada en una versión futura al template nunca llegaría a un servidor ya instalado. `install_install_configs()` ahora fusiona — agrega al config existente solo las variables que falten respecto al template, sin tocar ni sobrescribir ninguna existente. No aplica a archivos que no son `KEY=valor` (`whitelist.conf`, `jail_scale.conf`), que se comportan exactamente igual que antes. Ver `TASK-025` en `docs/TODO.md`.
 
 Validado en aislamiento (archivos de prueba en `/tmp`) y en producción real (`upgrade`/`verify`, sin regresiones). Mergeado a `main` y publicado como tag `v2.8.2`.
+
+## Patch v2.8.3
+
+Patch solo de documentación. El inglés pasa a ser el idioma canónico de la documentación: `README.md` y 13 documentos de `docs/` están ahora en inglés (`docs/TODO.md`, el registro interno de trabajo, sigue en español), y las versiones originales en español se conservan sin cambios como `README.es.md` y `docs/*.es.md`. Sin cambios de código. Es el primer paquete de release que incluye la documentación en inglés (el paquete `v2.8.2` todavía lleva los documentos en español). Ver `TASK-026` en `docs/TODO.md`.
+
+Validado comparando cada `.es.md` byte a byte contra la versión anterior de su documento.
 
 ---
 

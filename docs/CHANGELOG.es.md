@@ -6,6 +6,41 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.8.3
+
+**Fecha:** 2026-10-24
+
+## Resumen
+
+Patch solo de documentación: el inglés pasa a ser el idioma canónico de la documentación. Sin cambios de código.
+
+## Novedades
+
+* `README.md` y 13 documentos de `docs/` están ahora en inglés (`docs/TODO.md`, el registro interno de trabajo, sigue en español). `README.md` es una portada concisa; el README completo anterior vive en `README.es.md`.
+* Los documentos originales en español se conservan sin cambios como `README.es.md` y `docs/*.es.md` (`README.es.md` solo agrega un selector de idioma).
+* `PROJECT.md`: la versión en inglés corrige un bloque de código sin cerrar del original (hacía que el resto del documento se renderizara como código).
+* El paquete de release generado desde este tag es el primero que incluye la documentación en inglés; el paquete `v2.8.2` todavía lleva los documentos en español.
+
+## Validación
+
+Cada `.es.md` se comparó byte a byte contra la versión anterior de su documento: idénticos, salvo `README.es.md` (solo el selector de idioma). Encabezados y bloques de código verificados par a par.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.8.2
 
 **Fecha:** 2026-09-26

@@ -6,6 +6,41 @@ The project follows versioning based on stable releases.
 
 ---
 
+# v2.8.3
+
+**Date:** 2026-10-24
+
+## Summary
+
+Documentation-only patch: English becomes the canonical documentation language. No code changes.
+
+## What's new
+
+* `README.md` and 13 documents under `docs/` are now in English (`docs/TODO.md`, the internal work log, stays in Spanish). `README.md` is a concise landing page; the full previous README lives in `README.es.md`.
+* The original Spanish documents are preserved unchanged as `README.es.md` and `docs/*.es.md` (`README.es.md` only adds a language switch).
+* `PROJECT.md`: the English version fixes an unclosed code block in the original (it made the rest of the document render as code).
+* The release package built from this tag is the first to ship the English documentation; the `v2.8.2` package still carries the Spanish documents.
+
+## Validation
+
+Each `.es.md` was compared byte for byte against the previous version of its document: identical, except `README.es.md` (language switch only). Headings and code blocks were checked pair by pair.
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.8.2
 
 **Date:** 2026-09-26
