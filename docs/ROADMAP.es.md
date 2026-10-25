@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.8.3
+v2.8.4
 ```
 
 Estado:
@@ -455,6 +455,10 @@ Validado en aislamiento (archivos de prueba en `/tmp`) y en producción real (`u
 Patch solo de documentación. El inglés pasa a ser el idioma canónico de la documentación: `README.md` y 13 documentos de `docs/` están ahora en inglés (`docs/TODO.md`, el registro interno de trabajo, sigue en español), y las versiones originales en español se conservan sin cambios como `README.es.md` y `docs/*.es.md`. Sin cambios de código. Es el primer paquete de release que incluye la documentación en inglés (el paquete `v2.8.2` todavía lleva los documentos en español). Ver `TASK-026` en `docs/TODO.md`.
 
 Validado comparando cada `.es.md` byte a byte contra la versión anterior de su documento.
+
+## Patch v2.8.4
+
+Patch solo de documentación. Tabla de versiones soportadas de `SECURITY.md` corregida (había quedado en 2.3.x), demo de asciinema incorporada al `README.md` y `docs/TODO.md` traducido al inglés (el original en español se conserva como `docs/TODO.es.md`, congelado en v2.8.3). Sin cambios de código. Ver `TASK-027` en `docs/TODO.md`.
 
 ---
 

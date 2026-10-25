@@ -1582,6 +1582,38 @@ Each `.es.md` compared byte by byte against the previous version of its document
 
 ---
 
+## TASK-027
+
+**Title:** Supported-versions table in SECURITY, asciinema demo in README, and TODO translated to English
+
+**Status:** ✔ Implemented
+
+**Version:** v2.8.4
+
+**Context**
+
+After v2.8.3, three gaps remained: the supported-versions table in `docs/SECURITY.md` was still at the 2.3.x line (the per-release sync checklist did not include that file), the `README.md` demo was only a placeholder, and `docs/TODO.md` was still Spanish-only, so the documentation set was not fully English.
+
+**Fix**
+
+`SECURITY.md` / `SECURITY.es.md`: table updated to 2.8.x (supported), 2.7.x (limited support), 2.6.x and earlier (not supported), plus the private vulnerability-reporting channel. `README.md`: asciinema demo embedded. `docs/TODO.md`: translated to English; the Spanish original is preserved as `docs/TODO.es.md`, frozen at v2.8.3 and no longer updated. `SECURITY.md` and `SECURITY.es.md` are now part of the per-release sync checklist. Committed as `a634ed9`.
+
+**Validation**
+
+`TODO.es.md` is identical to the previous `TODO.md`; English and Spanish `TODO` have the same 89 entry IDs in the same order and 118 code fences each.
+
+**Related files**
+
+* `README.md`
+* `docs/SECURITY.md`, `docs/SECURITY.es.md`
+* `docs/TODO.md`, `docs/TODO.es.md`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -5170,7 +5202,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.8.3
+v2.8.4
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

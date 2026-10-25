@@ -6,6 +6,41 @@ The project follows versioning based on stable releases.
 
 ---
 
+# v2.8.4
+
+**Date:** 2026-10-24
+
+## Summary
+
+Documentation-only patch: supported-versions table corrected, demo recording embedded, and the internal work log translated to English. No code changes.
+
+## What's new
+
+* `README.md`: embeds the asciinema demo (a single attacker escalating `WATCH → FILTER → TEMP_BAN`, with the per-category breakdown from `are score`).
+* `SECURITY.md`: the supported-versions table had been left at the 2.3.x line; it now reflects 2.8.x (supported), 2.7.x (limited support) and 2.6.x and earlier (not supported). Adds the private vulnerability-reporting channel (GitHub private security advisory).
+* `docs/TODO.md` is now in English (89 entries, all IDs preserved). The Spanish original is preserved unchanged as `docs/TODO.es.md`, frozen at v2.8.3 and no longer updated; the English `TODO.md` is canonical.
+* All project documentation is now in English, with the Spanish originals kept as `*.es.md`.
+
+## Validation
+
+`docs/TODO.es.md` compared against the previous `docs/TODO.md`: identical. English and Spanish `TODO` checked entry by entry: same 89 IDs in the same order and the same number of code blocks (118 fences each).
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.8.3
 
 **Date:** 2026-10-24
