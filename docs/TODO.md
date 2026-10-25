@@ -1,10 +1,10 @@
 # ARE TODO
 
-Este documento mantiene el registro de trabajo y evolución técnica de ARE (Abuse Reputation Engine).
+This document maintains the record of work and technical evolution of ARE (Abuse Reputation Engine).
 
-El documento conserva tanto el historial técnico relevante como el trabajo pendiente. Las tareas resueltas permanecen documentadas cuando contienen decisiones, fases, validaciones o información útil para comprender la evolución del proyecto.
+The document keeps both the relevant technical history and the pending work. Resolved tasks remain documented when they contain decisions, phases, validations, or information useful for understanding the project's evolution.
 
-Se organiza en:
+It is organized into:
 
 * Bugs
 * Tasks
@@ -22,61 +22,61 @@ Se organiza en:
 
 ## FEAT-001
 
-**Título:** Sensor Fail2Ban
+**Title:** Fail2Ban Sensor
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Implementado**
+**Implemented**
 
-* Evento `FOUND`.
-* Sensor Fail2Ban.
-* Cursor persistente.
-* Modo `--dry-run`.
-* Modo `--execute`.
-* Ejecución automática mediante systemd timer.
-* Registro en SQLite.
-* Integración con Policy Engine.
-* Validación en producción.
+* `FOUND` event.
+* Fail2Ban Sensor.
+* Persistent cursor.
+* `--dry-run` mode.
+* `--execute` mode.
+* Automatic execution via systemd timer.
+* Logging in SQLite.
+* Integration with the Policy Engine.
+* Production validation.
 
-**Evolución**
+**Evolution**
 
-El sensor fue incorporado como primera implementación del Sensor Framework.
+The sensor was added as the first implementation of the Sensor Framework.
 
-El procesamiento utiliza un offset persistente para evitar reprocesar eventos ya procesados.
+Processing uses a persistent offset to avoid reprocessing already-processed events.
 
-El framework permite incorporar nuevos sensores sin modificar el núcleo de ARE.
+The framework allows adding new sensors without modifying the ARE core.
 
-**Pendiente histórico**
+**Historical pending**
 
-Quedan registradas como parte de la evolución del sensor las tareas de limpieza y normalización de configuración que fueron identificadas durante su desarrollo. Estas tareas deberán considerarse únicamente si todavía existen dependencias en la implementación actual.
+The cleanup and configuration-normalization tasks identified during its development remain recorded as part of the sensor's evolution. These tasks should only be considered if dependencies still exist in the current implementation.
 
 ---
 
 ## FEAT-003
 
-**Título:** Mostrar TOP JAILS en `stats`
+**Title:** Show TOP JAILS in `stats`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Objetivo**
+**Objective**
 
-Mostrar en el dashboard estadístico cuáles jails generan mayor actividad.
+Show in the statistics dashboard which jails generate the most activity.
 
-**Fuente de datos**
+**Data source**
 
-Tabla `events`.
+`events` table.
 
-**Implementación**
+**Implementation**
 
-* `stats` muestra TOP JAILS.
-* Se excluyen eventos internos como `fail2ban` y `policy_apply`.
-* La información se obtiene desde `events`.
+* `stats` shows TOP JAILS.
+* Internal events such as `fail2ban` and `policy_apply` are excluded.
+* The information is obtained from `events`.
 
-**Salida esperada**
+**Expected output**
 
 ```text
 TOP JAILS:
@@ -91,287 +91,286 @@ recidive ............... 6
 
 ## FEAT-004
 
-**Título:** Reputation Decay Engine
+**Title:** Reputation Decay Engine
 
-**Estado:** ✔ Resuelto — recuperación controlada inicial
+**Status:** ✔ Resolved — initial controlled recovery
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Objetivo**
+**Objective**
 
-Implementar un mecanismo de reducción gradual del score de reputación para IPs sin actividad reciente.
+Implement a mechanism for the gradual reduction of the reputation score for IPs with no recent activity.
 
-**Reglas iniciales**
+**Initial rules**
 
-* Aplicar decay únicamente a IPs sin actividad durante al menos 24 horas.
-* Utilizar un factor inicial de reducción de `0.95`.
-* Recalcular `total_score` después de aplicar decay.
-* Reevaluar la IP mediante el State Engine.
-* Reevaluar la IP mediante el Policy Engine.
-* No eliminar la reputación de forma inmediata.
+* Apply decay only to IPs with no activity for at least 24 hours.
+* Use an initial reduction factor of `0.95`.
+* Recalculate `total_score` after applying decay.
+* Re-evaluate the IP through the State Engine.
+* Re-evaluate the IP through the Policy Engine.
+* Do not remove reputation immediately.
 
-**Parámetros iniciales**
+**Initial parameters**
 
 ```text
 DECAY_MIN_AGE=86400
 DECAY_FACTOR=0.95
 ```
 
-**Modos**
+**Modes**
 
 `decay-dry-run`:
 
-* muestra IPs candidatas;
-* calcula el score estimado;
-* no modifica datos.
+* shows candidate IPs;
+* computes the estimated score;
+* does not modify data.
 
 `decay-apply`:
 
-* aplica la reducción real;
-* actualiza `last_decay`;
-* reevalúa State Engine;
-* reevalúa Policy Engine;
-* no ejecuta directamente cambios sobre firewall.
+* applies the real reduction;
+* updates `last_decay`;
+* re-evaluates the State Engine;
+* re-evaluates the Policy Engine;
+* does not directly execute firewall changes.
 
-**Control de frecuencia**
+**Frequency control**
 
-Se incorporó:
+Added:
 
 ```text
 last_decay
 ```
 
-en la tabla `reputation`.
+to the `reputation` table.
 
-Su finalidad es impedir que una misma IP reciba múltiples reducciones dentro de la misma ventana de recuperación.
+Its purpose is to prevent the same IP from receiving multiple reductions within the same recovery window.
 
-**Validación**
+**Validation**
 
-* Score reducido correctamente.
-* State Engine actualizado.
-* Policy Engine evaluado.
-* `decay-dry-run` muestra candidatas.
-* `decay-dry-run` calcula score estimado.
-* `decay-apply` reduce score real.
-* `decay-apply` actualiza `last_decay`.
-* Se evita aplicar decay múltiples veces dentro de la misma ventana.
-* Se validó el procesamiento de 487 IPs.
-* Una segunda ejecución sin transcurrir la ventana no genera nuevas candidatas.
-* **Validación adicional en producción (2026-08-17):** se confirmó mediante log
-  real de `decay-apply` que la recuperación funciona correctamente para IPs en
-  estado `WATCH`/`NEW` (liberación efectiva vía `ALLOW` → `apply_decision`), y
-  que el estado `BANNED` no es persistente por diseño: `state_update()` lo
-  recalcula en cada corrida según el score vigente, sin memoria del estado
-  anterior. Ver nota en RFC-005 sobre el caso distinto de `sanction_state.permanent`.
+* Score reduced correctly.
+* State Engine updated.
+* Policy Engine evaluated.
+* `decay-dry-run` shows candidates.
+* `decay-dry-run` computes the estimated score.
+* `decay-apply` reduces the real score.
+* `decay-apply` updates `last_decay`.
+* Applying decay multiple times within the same window is avoided.
+* Processing of 487 IPs was validated.
+* A second run before the window elapses does not generate new candidates.
+* **Additional production validation (2026-08-17):** confirmed via a real
+  `decay-apply` log that recovery works correctly for IPs in the
+  `WATCH`/`NEW` state (effective release via `ALLOW` → `apply_decision`), and
+  that the `BANNED` state is not persistent by design: `state_update()`
+  recomputes it on each run based on the current score, with no memory of the
+  previous state. See the note in RFC-005 on the distinct case of `sanction_state.permanent`.
 
-**Recuperación controlada**
+**Controlled recovery**
 
-La recuperación se encuentra vinculada a la decisión del Policy Engine.
+Recovery is tied to the Policy Engine's decision.
 
-* `ALLOW` puede generar liberación.
-* `WATCH` no libera automáticamente.
-* `FILTER` no libera automáticamente.
-* `TEMP_BAN` no libera automáticamente.
-* `BAN` no libera automáticamente.
+* `ALLOW` can generate a release.
+* `WATCH` does not release automatically.
+* `FILTER` does not release automatically.
+* `TEMP_BAN` does not release automatically.
+* `BAN` does not release automatically.
 
-**Siguiente etapa**
+**Next stage**
 
-Evaluar la activación controlada de las decisiones generadas por el Decay Engine sobre el estado del firewall, manteniendo separadas la recuperación de reputación y la decisión de aplicación.
+Evaluate the controlled activation of the decisions generated by the Decay Engine over the firewall state, keeping reputation recovery and the enforcement decision separate.
 
 ---
 
 ## FEAT-005
 
-**Título:** Interfaz de Administración (ARE ADMIN)
+**Title:** Administration Interface (ARE ADMIN)
 
-**Estado:** ✔ Resuelto — 7/7 ramas implementadas y probadas en producción
+**Status:** ✔ Resolved — 7/7 branches implemented and tested in production
 
-**Versión objetivo:** v2.0
+**Target version:** v2.0
 
-**Objetivo**
+**Objective**
 
-Implementar una interfaz de administración por línea de comandos que
-exponga, de forma organizada, las capacidades de consulta, configuración y
-operación de los componentes ya existentes de ARE, sin introducir una
-nueva autoridad de decisión (ver `docs/DESIGN.md`, Sección 13).
+Implement a command-line administration interface that exposes, in an
+organized way, the query, configuration, and operation capabilities of
+ARE's existing components, without introducing a new decision authority
+(see `docs/DESIGN.md`, Section 13).
 
-**Diseño**
+**Design**
 
-* Documentado en `docs/DESIGN.md`, Sección 13.
-* Estructura: `admin.sh` (entrypoint) + `admin/*.sh` (un módulo por rama
-  del menú), replicando el mismo patrón ya validado en `dashboard.sh` +
+* Documented in `docs/DESIGN.md`, Section 13.
+* Structure: `admin.sh` (entrypoint) + `admin/*.sh` (one module per menu
+  branch), replicating the same pattern already validated in `dashboard.sh` +
   `dashboard/`.
-* Cambios puramente aditivos: no se movió ni renombró ningún archivo
-  existente.
+* Purely additive changes: no existing file was moved or renamed.
 
-**Estado por rama del menú**
+**Status per menu branch**
 
-| Rama | Estado |
+| Branch | Status |
 |---|---|
-| 1. Jails / Perfiles | ✔ Implementada y probada (RFC-007) |
-| 2. Categorías | ✔ Implementada y probada |
-| 3. Sensores | ✔ Implementada y probada |
-| 4. Política | ✔ Implementada y probada |
-| 5. Estado / Reputación | ✔ Implementada y probada |
-| 6. Decay | ✔ Implementada y probada |
-| 7. Configuración | ✔ Implementada y probada |
+| 1. Jails / Profiles | ✔ Implemented and tested (RFC-007) |
+| 2. Categories | ✔ Implemented and tested |
+| 3. Sensors | ✔ Implemented and tested |
+| 4. Policy | ✔ Implemented and tested |
+| 5. Status / Reputation | ✔ Implemented and tested |
+| 6. Decay | ✔ Implemented and tested |
+| 7. Configuration | ✔ Implemented and tested |
 
-**Validación**
+**Validation**
 
-Todas las ramas implementadas fueron probadas de forma aislada con
-dependencias simuladas antes de cablearse, y posteriormente **confirmadas
-en producción real** tras la integración completa con `are.sh` (subcomando
-`admin`) y `bootstrap.sh` (carga de `admin/*.sh` junto al resto de
-módulos del sistema).
+All implemented branches were tested in isolation with simulated
+dependencies before being wired in, and later **confirmed in real
+production** after the full integration with `are.sh` (the `admin`
+subcommand) and `bootstrap.sh` (loading `admin/*.sh` alongside the rest of
+the system modules).
 
-**Pendiente**
+**Pending**
 
-* Rama 4 (Política) permanece sin implementar hasta resolver RFC-009.
-* `config/jail_scale.conf` — la escala curada de referencia está definida
-  solo para la categoría `BOT`. Otras categorías pueden agregarse con el
-  mismo formato cuando exista un caso de uso real (no se inventan
-  escalas sin evidencia).
-* Definir `ANOMALY_THRESHOLD`, `MALWARE_THRESHOLD`, `DOS_THRESHOLD`,
-  `SOCIAL_THRESHOLD` en `policy.conf` (ver TASK-018) — sigue pendiente,
-  no relacionado con el cierre de RFC-007.
+* Branch 4 (Policy) remains unimplemented until RFC-009 is resolved.
+* `config/jail_scale.conf` — the curated reference scale is defined
+  only for the `BOT` category. Other categories can be added with the
+  same format when a real use case exists (scales are not invented
+  without evidence).
+* Define `ANOMALY_THRESHOLD`, `MALWARE_THRESHOLD`, `DOS_THRESHOLD`,
+  `SOCIAL_THRESHOLD` in `policy.conf` (see TASK-018) — still pending,
+  unrelated to the closing of RFC-007.
 
 ---
 
-# HISTORIAL DE TASKS RESUELTAS
+# HISTORY OF RESOLVED TASKS
 
 ## TASK-001
 
-**Título:** Reorganizar reglas del Policy Engine
+**Title:** Reorganize Policy Engine rules
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Descripción**
+**Description**
 
-Las reglas fueron reorganizadas dentro de:
+The rules were reorganized inside:
 
 ```text
 policy/rules/
 ```
 
-La reorganización permitió separar las reglas de decisión de la implementación general del Policy Engine.
+The reorganization made it possible to separate the decision rules from the general implementation of the Policy Engine.
 
 ---
 
 ## TASK-002
 
-**Título:** Cursor persistente para sensores
+**Title:** Persistent cursor for sensors
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Descripción**
+**Description**
 
-Implementación de un mecanismo persistente de offset para evitar reprocesar eventos ya leídos desde los logs.
+Implementation of a persistent offset mechanism to avoid reprocessing events already read from the logs.
 
-El mecanismo quedó integrado en el Sensor Fail2Ban.
+The mechanism was integrated into the Fail2Ban Sensor.
 
 ---
 
 ## TASK-003
 
-**Título:** Automatizar ejecución del Fail2Ban Sensor
+**Title:** Automate Fail2Ban Sensor execution
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Descripción**
+**Description**
 
-Se creó un servicio y un timer de systemd para ejecutar automáticamente el sensor Fail2Ban.
+A systemd service and timer were created to run the Fail2Ban sensor automatically.
 
-La ejecución periódica permite procesar nuevos eventos sin intervención manual.
+Periodic execution allows processing new events without manual intervention.
 
 ---
 
 ## TASK-004
 
-**Título:** Agregar estadísticas por jail
+**Title:** Add per-jail statistics
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Descripción**
+**Description**
 
-Se incorporó la sección TOP JAILS al comando `stats`.
+The TOP JAILS section was added to the `stats` command.
 
-La información se obtiene desde la tabla `events`, permitiendo distinguir actividad por jail sin depender de la tabla `reputation`.
+The information is obtained from the `events` table, allowing per-jail activity to be distinguished without depending on the `reputation` table.
 
 ---
 
 ## TASK-005
 
-**Título:** Ampliar categorías del Reputation Engine
+**Title:** Expand Reputation Engine categories
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Objetivo**
+**Objective**
 
-Expandir el modelo de reputación para soportar categorías adicionales de amenazas.
+Expand the reputation model to support additional threat categories.
 
-**Categorías incorporadas**
+**Categories added**
 
 * ANOMALY
 * MALWARE
 * DOS
 * SOCIAL
 
-**Implementación**
+**Implementation**
 
-* Base de datos.
+* Database.
 * `database.sh`.
 * `dashboard/stats.sh`.
 * `dashboard/score.sh`.
-* cálculo de `total_score`.
+* `total_score` calculation.
 
-**Validación**
+**Validation**
 
-* Nuevas columnas agregadas a `reputation`.
-* Todas las categorías integradas al modelo.
-* `stats` muestra las categorías.
-* `score <ip>` muestra las categorías.
-* `total_score` incluye las categorías.
+* New columns added to `reputation`.
+* All categories integrated into the model.
+* `stats` shows the categories.
+* `score <ip>` shows the categories.
+* `total_score` includes the categories.
 
-**Regla**
+**Rule**
 
-Los jails continúan mapeándose mediante `jail_profile` hacia una categoría de reputación.
+Jails continue to be mapped through `jail_profile` to a reputation category.
 
-No se crean columnas específicas por jail.
+No jail-specific columns are created.
 
-**Nota (2026-08-17):** si bien las 9 categorías existen como columnas
-persistentes, solo 5 (`RECON`, `EXPLOIT`, `CREDENTIAL`, `PROTOCOL`, `BOT`)
-tienen una regla de política activa evaluándolas. Ver BUG-012 (ANOMALY
-desconectada) y RFC-006 (MALWARE, DOS, SOCIAL sin regla).
+**Note (2026-08-17):** although the 9 categories exist as persistent
+columns, only 5 (`RECON`, `EXPLOIT`, `CREDENTIAL`, `PROTOCOL`, `BOT`)
+have an active policy rule evaluating them. See BUG-012 (ANOMALY
+disconnected) and RFC-006 (MALWARE, DOS, SOCIAL with no rule).
 
 ---
 
 ## TASK-006
 
-**Título:** Incorporar perfiles de reputación para sshd, telnet y recidive
+**Title:** Add reputation profiles for sshd, telnet, and recidive
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Objetivo**
+**Objective**
 
-Asignar perfiles de reputación a jails críticos.
+Assign reputation profiles to critical jails.
 
 **Jails**
 
@@ -379,251 +378,251 @@ Asignar perfiles de reputación a jails críticos.
 * `telnet` → `CREDENTIAL`
 * `recidive` → `EXPLOIT`
 
-**Validación**
+**Validation**
 
-* `sshd` agregado como perfil `CREDENTIAL`.
-* `telnet` agregado como perfil `CREDENTIAL`.
-* `recidive` validado como perfil existente `EXPLOIT`.
-* Sensor Fail2Ban permite `sshd` y `telnet`.
-* `FOUND sshd` suma score correctamente.
-* `FOUND telnet` suma score correctamente.
+* `sshd` added as a `CREDENTIAL` profile.
+* `telnet` added as a `CREDENTIAL` profile.
+* `recidive` validated as an existing `EXPLOIT` profile.
+* The Fail2Ban Sensor allows `sshd` and `telnet`.
+* `FOUND sshd` adds score correctly.
+* `FOUND telnet` adds score correctly.
 
 ---
 
 ## TASK-007
 
-**Título:** Mejorar Dashboard de Reputación con información temporal
+**Title:** Improve the Reputation Dashboard with time-based information
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Media
+**Priority:** Medium
 
-**Objetivo**
+**Objective**
 
-Mejorar la salida de `score <IP>` para mostrar información temporal comprensible.
+Improve the `score <IP>` output to show understandable time-based information.
 
-**Implementación**
+**Implementation**
 
-Se reemplazó la presentación directa del timestamp Unix por información temporal legible para administración.
+The direct presentation of the Unix timestamp was replaced with time-based information that is legible for administration.
 
-**Validación**
+**Validation**
 
-* `score` muestra fecha legible de última actividad.
-* `score` muestra antigüedad relativa.
-* Se eliminó la presentación del timestamp Unix como única información temporal.
+* `score` shows a legible date of last activity.
+* `score` shows a relative age.
+* The presentation of the Unix timestamp as the only time-based information was removed.
 
 ---
 
 ## TASK-008
 
-**Título:** Controlar frecuencia de ejecución del Decay Engine
+**Title:** Control the Decay Engine's execution frequency
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Problema**
+**Problem**
 
-`updated` representa la última actividad o modificación de reputación, pero no la última ejecución del decay.
+`updated` represents the last activity or reputation modification, but not the last decay execution.
 
-Utilizarlo directamente para controlar ejecuciones podía provocar múltiples reducciones dentro de una misma ventana.
+Using it directly to control executions could cause multiple reductions within the same window.
 
-**Solución**
+**Solution**
 
-Se agregó:
+Added:
 
 ```text
 last_decay
 ```
 
-a `reputation`.
+to `reputation`.
 
-**Validación**
+**Validation**
 
-* `db_init()` crea `last_decay` en instalaciones nuevas.
-* `decay-dry-run` respeta `last_decay`.
-* `decay-apply` actualiza `last_decay`.
-* Se evita aplicar decay múltiples veces dentro de la misma ventana.
-* Validado con 487 IPs procesadas.
+* `db_init()` creates `last_decay` on new installations.
+* `decay-dry-run` respects `last_decay`.
+* `decay-apply` updates `last_decay`.
+* Applying decay multiple times within the same window is avoided.
+* Validated with 487 IPs processed.
 
 ---
 
 ## TASK-009
 
-**Título:** Consolidar el módulo Policy
+**Title:** Consolidate the Policy module
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Objetivo**
+**Objective**
 
-Mover progresivamente los archivos `policy*.sh` desde la raíz hacia `policy/`, sin modificar la lógica funcional.
+Progressively move the `policy*.sh` files from the root into `policy/`, without modifying the functional logic.
 
-### Fase 1 — `policy_apply.sh`
+### Phase 1 — `policy_apply.sh`
 
-✔ Resuelta.
+✔ Resolved.
 
-* Movido a `policy/apply.sh`.
-* `bootstrap.sh` actualizado.
-* Se agregó wrapper `apply_decision()` para mantener compatibilidad.
-* Validado con `top`.
-* Validado con `found modsec-protocol`.
+* Moved to `policy/apply.sh`.
+* `bootstrap.sh` updated.
+* An `apply_decision()` wrapper was added to maintain compatibility.
+* Validated with `top`.
+* Validated with `found modsec-protocol`.
 
-### Fase 2 — Context
+### Phase 2 — Context
 
-✔ Resuelta.
+✔ Resolved.
 
-* `policy_context.sh` movido a `policy/context.sh`.
-* `policy_context_api.sh` movido a `policy/context_api.sh`.
-* `bootstrap.sh` actualizado.
-* Referencia antigua corregida en `policy/rules/anomaly.sh`.
-* Validado con `top`.
-* Validado con `found modsec-protocol`.
+* `policy_context.sh` moved to `policy/context.sh`.
+* `policy_context_api.sh` moved to `policy/context_api.sh`.
+* `bootstrap.sh` updated.
+* Old reference fixed in `policy/rules/anomaly.sh`.
+* Validated with `top`.
+* Validated with `found modsec-protocol`.
 
-### Fase 3 — Decision
+### Phase 3 — Decision
 
-✔ Resuelta.
+✔ Resolved.
 
-* `policy_decision.sh` movido a `policy/decision.sh`.
-* `policy_decision_engine.sh` movido a `policy/decision_engine.sh`.
-* `bootstrap.sh` actualizado.
-* Referencias internas corregidas.
-* Validado con `top`.
-* Validado con `found modsec-protocol`.
+* `policy_decision.sh` moved to `policy/decision.sh`.
+* `policy_decision_engine.sh` moved to `policy/decision_engine.sh`.
+* `bootstrap.sh` updated.
+* Internal references fixed.
+* Validated with `top`.
+* Validated with `found modsec-protocol`.
 
-**Nota (2026-08-17):** se detectó que `policy/decision.sh` y
-`policy/decision_engine.sh` definen ambos una función `policy_decide()`.
-`bootstrap.sh` carga únicamente `decision_engine.sh`. Investigado y
-resuelto: ver RFC-009 — `decision_engine.sh` es el motor real;
-`decision.sh` es código muerto, cargado únicamente por `policy/engine.sh`,
-que a su vez no es cargado por nadie.
+**Note (2026-08-17):** it was detected that `policy/decision.sh` and
+`policy/decision_engine.sh` both define a `policy_decide()` function.
+`bootstrap.sh` loads only `decision_engine.sh`. Investigated and
+resolved: see RFC-009 — `decision_engine.sh` is the real engine;
+`decision.sh` is dead code, loaded only by `policy/engine.sh`,
+which in turn is not loaded by anyone.
 
-### Fase 4 — Engine
+### Phase 4 — Engine
 
-✔ Resuelta.
+✔ Resolved.
 
-* `policy_engine.sh` movido a `policy/engine.sh`.
-* `policy_risk.sh` movido a `policy/risk.sh`.
-* `policy_env.sh` movido a `policy/env.sh`.
-* `policy.sh` movido a `policy/policy.sh`.
-* `bootstrap.sh` actualizado.
-* Validado con `top`.
-* Validado con `found modsec-protocol`.
+* `policy_engine.sh` moved to `policy/engine.sh`.
+* `policy_risk.sh` moved to `policy/risk.sh`.
+* `policy_env.sh` moved to `policy/env.sh`.
+* `policy.sh` moved to `policy/policy.sh`.
+* `bootstrap.sh` updated.
+* Validated with `top`.
+* Validated with `found modsec-protocol`.
 
-**Nota (2026-08-17):** `policy/engine.sh` contiene un `source
-"$BASE/policy_env.sh"` que referencia la ruta anterior a esta migración
-(`policy_env.sh` en la raíz), no la ruta final `policy/env.sh`.
-Investigado y resuelto: ver RFC-009 — `policy/engine.sh` no es cargado
-por ningún archivo del proyecto (confirmado mediante búsqueda
-exhaustiva), por lo que esta referencia rota nunca llega a ejecutarse en
-producción. Queda como código muerto pendiente de decisión bajo RFC-009.
+**Note (2026-08-17):** `policy/engine.sh` contains a `source
+"$BASE/policy_env.sh"` that references the path prior to this migration
+(`policy_env.sh` in the root), not the final path `policy/env.sh`.
+Investigated and resolved: see RFC-009 — `policy/engine.sh` is not loaded
+by any file in the project (confirmed through an exhaustive search),
+so this broken reference never actually executes in production. It
+remains as dead code pending a decision under RFC-009.
 
 ---
 
 ## TASK-010
 
-**Título:** Implementar Ban Lifecycle Engine
+**Title:** Implement the Ban Lifecycle Engine
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Objetivo**
+**Objective**
 
-Implementar un motor encargado de administrar el ciclo de vida de las sanciones aplicadas por ARE.
+Implement an engine responsible for managing the lifecycle of the sanctions applied by ARE.
 
-El Ban Lifecycle Engine no determina si una IP es peligrosa. Esa decisión corresponde al Reputation Engine, State Engine y Policy Engine.
+The Ban Lifecycle Engine does not determine whether an IP is dangerous. That decision belongs to the Reputation Engine, State Engine, and Policy Engine.
 
-Su responsabilidad consiste en determinar cómo evoluciona una sanción cuando ARE decide aplicar `TEMP_BAN` o `BAN`.
+Its responsibility is to determine how a sanction evolves when ARE decides to apply `TEMP_BAN` or `BAN`.
 
-### Persistencia
+### Persistence
 
-Se creó:
+Created:
 
 ```text
 sanction_state
 ```
 
-para almacenar el estado de sanción de cada IP.
+to store the sanction state of each IP.
 
-**Información administrada**
+**Managed information**
 
-* nivel de ban;
-* cantidad de sanciones;
-* duración;
-* finalización del ban;
-* estado permanente.
+* ban level;
+* number of sanctions;
+* duration;
+* ban expiration;
+* permanent state.
 
-### Funciones de persistencia
+### Persistence functions
 
 * `db_init_sanction()`
 * `db_increment_ban_level()`
 * `db_get_ban_level()`
 
-La persistencia fue validada con `sanction-test`.
+Persistence was validated with `sanction-test`.
 
-IP utilizada durante la validación:
+IP used during validation:
 
 ```text
 84.84.84.84
 ```
 
-**Nota (2026-08-17):** `db_increment_ban_level()` quedó posteriormente
-duplicada en `database.sh` con una versión sin tope de nivel conviviendo
-con la versión que sí respeta `BAN_LEVEL_MAX`. Ver BUG-011.
+**Note (2026-08-17):** `db_increment_ban_level()` was later left
+duplicated in `database.sh`, with a version lacking a level cap coexisting
+with the version that does respect `BAN_LEVEL_MAX`. See BUG-011.
 
 ### Simulation Mode
 
-Se implementó el cálculo de la siguiente sanción sin modificar firewall, reputation, policy ni DB.
+The calculation of the next sanction was implemented without modifying firewall, reputation, policy, or DB.
 
-**Entrada**
+**Input**
 
 * IP
 * `ban_level`
 * `ban_count`
 * `permanent`
 
-**Salida**
+**Output**
 
 ```text
 ACTION|TIME|REASON
 ```
 
-**Política inicial**
+**Initial policy**
 
-* Nivel 1: 1 hora.
-* Nivel 2: 6 horas.
-* Nivel 3: 24 horas.
-* Nivel 4: 7 días.
-* Nivel 5: 15 días.
-* Nivel 6: 30 días.
-* Nivel 7: permanente.
+* Level 1: 1 hour.
+* Level 2: 6 hours.
+* Level 3: 24 hours.
+* Level 4: 7 days.
+* Level 5: 15 days.
+* Level 6: 30 days.
+* Level 7: permanent.
 
-El nivel máximo se controla mediante:
+The maximum level is controlled via:
 
 ```text
 BAN_LEVEL_MAX
 ```
 
-`ban_level` queda limitado al máximo configurado, mientras `ban_count` continúa acumulando las sanciones históricas.
+`ban_level` is capped at the configured maximum, while `ban_count` keeps accumulating the historical sanctions.
 
-### Integración con TEMP_BAN
+### Integration with TEMP_BAN
 
-✔ Resuelta.
+✔ Resolved.
 
-Flujo implementado:
+Implemented flow:
 
 ```text
 Policy Engine
       ↓
 Ban Lifecycle Engine
       ↓
-siguiente nivel
+next level
       ↓
 ban_level / ban_count
       ↓
@@ -632,38 +631,38 @@ ban_until
 Backend
 ```
 
-Validación:
+Validation:
 
-* `TEMP_BAN` integrado.
-* Primera sanción calculada como `BAN_LEVEL_1`.
-* Duración aplicada: `3600` segundos.
-* `ban_level`, `ban_count` y `ban_until` actualizados.
-* Backend ejecutó el bloqueo temporal.
-* **Confirmado en producción (2026-08-17):** IP `45.33.70.56` mostró
-  escalado real de `BAN_LEVEL_4` → `BAN_LEVEL_5` → `BAN_LEVEL_6` en
-  eventos consecutivos, validando la progresión de niveles por
-  reincidencia.
+* `TEMP_BAN` integrated.
+* First sanction computed as `BAN_LEVEL_1`.
+* Applied duration: `3600` seconds.
+* `ban_level`, `ban_count`, and `ban_until` updated.
+* Backend executed the temporary block.
+* **Confirmed in production (2026-08-17):** IP `45.33.70.56` showed
+  real escalation of `BAN_LEVEL_4` → `BAN_LEVEL_5` → `BAN_LEVEL_6` on
+  consecutive events, validating the level progression by
+  recidivism.
 
-### Escalado permanente
+### Permanent escalation
 
-✔ Resuelto.
+✔ Resolved.
 
-Se implementó el escalado hasta ban permanente.
+Escalation up to a permanent ban was implemented.
 
-Con el nivel previo al máximo:
+With the level just below the maximum:
 
 ```text
 BAN|0|BAN_LEVEL_MAX
 ```
 
-se ejecuta el bloqueo permanente.
+the permanent block is executed.
 
-Validación:
+Validation:
 
-* `policy/apply.sh` ejecuta escalado permanente.
-* La IP se elimina del conjunto `FILTER`.
-* La IP se incorpora al conjunto permanente.
-* `sanction_state` conserva:
+* `policy/apply.sh` executes the permanent escalation.
+* The IP is removed from the `FILTER` set.
+* The IP is added to the permanent set.
+* `sanction_state` keeps:
 
 ```text
 ban_level = 7
@@ -676,81 +675,81 @@ permanent = 1
 
 ## TASK-011
 
-**Título:** Mostrar estado de sanción en el dashboard de reputación
+**Title:** Show sanction state in the reputation dashboard
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Objetivo**
+**Objective**
 
-Mostrar en `score <IP>` el estado almacenado en `sanction_state`.
+Show in `score <IP>` the state stored in `sanction_state`.
 
-**Datos**
+**Data**
 
-* Nivel actual de sanción.
-* Cantidad total de sanciones.
-* Tipo de sanción actual.
-* Fecha de finalización del ban temporal.
-* Estado permanente.
-* Último ban.
-* Último unban.
+* Current sanction level.
+* Total number of sanctions.
+* Current sanction type.
+* Temporary ban expiration date.
+* Permanent state.
+* Last ban.
+* Last unban.
 
-**Archivos relacionados**
+**Related files**
 
 * `dashboard/score.sh`
 * `database.sh`
 * `sanction_state`
 
-**Validación**
+**Validation**
 
-* Dashboard consulta `sanction_state`.
-* Muestra nivel actual.
-* Muestra cantidad total.
-* Distingue sanción temporal y permanente.
-* Muestra fecha de finalización cuando corresponde.
-* Muestra último ban y último unban.
-* Validado con IP `84.84.84.84`.
-* **Reutilizado (2026-08-17):** `dashboard_score()` fue conectado
-  directamente a la rama "Estado / Reputación → Consultar IP" de ARE ADMIN
-  (FEAT-005), sin duplicar lógica.
+* Dashboard queries `sanction_state`.
+* Shows current level.
+* Shows total count.
+* Distinguishes temporary and permanent sanction.
+* Shows the expiration date when applicable.
+* Shows last ban and last unban.
+* Validated with IP `84.84.84.84`.
+* **Reused (2026-08-17):** `dashboard_score()` was wired
+  directly to the "Status / Reputation → Query IP" branch of ARE ADMIN
+  (FEAT-005), without duplicating logic.
 
 ---
 
 ## TASK-012
 
-**Título:** Centralizar rutas y eliminar dependencias estáticas
+**Title:** Centralize paths and remove static dependencies
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Objetivo**
+**Objective**
 
-Eliminar rutas estáticas del código fuente y centralizar las ubicaciones operativas mediante `config.conf`.
+Remove static paths from the source code and centralize operational locations through `config.conf`.
 
-**Alcance**
+**Scope**
 
-* Ruta del código.
-* Ruta de configuración.
-* Ruta de datos.
-* Ruta de base de datos.
-* Ruta de logs.
-* Ruta de sensores.
-* Ruta de archivos temporales.
-* Ejecutable principal.
+* Code path.
+* Configuration path.
+* Data path.
+* Database path.
+* Logs path.
+* Sensors path.
+* Temporary files path.
+* Main executable.
 
-**Regla**
+**Rule**
 
-No renombrar directorios ni ejecutables hasta eliminar previamente las dependencias estáticas.
+Do not rename directories or executables until the static dependencies have first been removed.
 
-### Inventario inicial
+### Initial inventory
 
-Se encontraron referencias en:
+References were found in:
 
 * `dashboard.sh`
 * `bootstrap.sh`
@@ -764,67 +763,67 @@ Se encontraron referencias en:
 * `tmp/sync-f2b-are.sh`
 * `config.conf`
 
-También se detectaron referencias antiguas en `policy/env.sh` y `policy/policy.sh`.
+Old references were also detected in `policy/env.sh` and `policy/policy.sh`.
 
-### Exclusiones
+### Exclusions
 
-Inicialmente se excluyeron:
+Initially excluded:
 
 * `docs/`
-* archivos `.save`
-* ejemplos históricos;
-* archivos temporales no utilizados en producción.
+* `.save` files
+* historical examples;
+* temporary files not used in production.
 
-Los directorios `testing/` y `tmp/` quedaron fuera del runtime de producción.
+The `testing/` and `tmp/` directories were left out of the production runtime.
 
-### Implementación
+### Implementation
 
-* Variables oficiales definidas en `config.conf`.
-* `f2b-ipset.sh` localiza dinámicamente su configuración mediante `BASH_SOURCE`.
-* `bootstrap.sh` utiliza `ARE_HOME` y `ARE_POLICY_CONFIG`.
-* Módulos de producción consumen variables oficiales.
-* Sensor Fail2Ban resuelve dinámicamente la ubicación del proyecto.
-* Se eliminaron dependencias operativas de rutas fijas externas a la configuración.
+* Official variables defined in `config.conf`.
+* `f2b-ipset.sh` dynamically locates its configuration via `BASH_SOURCE`.
+* `bootstrap.sh` uses `ARE_HOME` and `ARE_POLICY_CONFIG`.
+* Production modules consume official variables.
+* The Fail2Ban Sensor dynamically resolves the project location.
+* Operational dependencies on fixed paths external to the configuration were removed.
 
-**Nota (2026-08-17):** se detectó una excepción no cubierta por esta tarea:
-`sensors/fail2ban.sh` sigue teniendo `LOG_FILE="/var/log/fail2ban.log"`
-hardcodeado, fuera de `config.conf`. Ver TASK-016.
+**Note (2026-08-17):** an exception not covered by this task was detected:
+`sensors/fail2ban.sh` still has `LOG_FILE="/var/log/fail2ban.log"`
+hardcoded, outside `config.conf`. See TASK-016.
 
-### Validación
+### Validation
 
-* Sensor obtiene su ubicación mediante `BASH_SOURCE`.
-* Usa `ARE_BIN` y `ARE_DATA`.
-* No depende de rutas estáticas en `/opt` ni `/var/lib`.
-* Validado mediante `are-fail2ban-found.service`.
-* Flujo `FOUND → Reputation → Policy → Apply` operativo.
-* Validado mediante `stats`.
-* Validado mediante servicio del sensor Fail2Ban.
+* The sensor obtains its location via `BASH_SOURCE`.
+* Uses `ARE_BIN` and `ARE_DATA`.
+* Does not depend on static paths in `/opt` or `/var/lib`.
+* Validated via `are-fail2ban-found.service`.
+* `FOUND → Reputation → Policy → Apply` flow operational.
+* Validated via `stats`.
+* Validated via the Fail2Ban sensor service.
 
 ---
 
 ## TASK-013
 
-**Título:** Consolidación y limpieza de documentación técnica
+**Title:** Consolidation and cleanup of technical documentation
 
-**Estado:** ✔ Resuelta
+**Status:** ✔ Resolved
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Objetivo**
+**Objective**
 
-Revisar y normalizar la documentación oficial de ARE para garantizar que refleje el estado real del proyecto y conserve la trazabilidad técnica de su evolución.
+Review and normalize ARE's official documentation to ensure it reflects the real state of the project and preserves the technical traceability of its evolution.
 
-**Alcance**
+**Scope**
 
-* corregir estados históricos;
-* eliminar contradicciones entre documentos;
-* conservar decisiones y validaciones relevantes;
-* sincronizar versiones;
-* separar trabajo histórico de trabajo pendiente;
-* mantener la documentación técnica de las fases de implementación;
-* evitar pérdida de información durante futuras reorganizaciones documentales.
+* fix historical statuses;
+* remove contradictions between documents;
+* preserve relevant decisions and validations;
+* synchronize versions;
+* separate historical work from pending work;
+* keep the technical documentation of the implementation phases;
+* avoid information loss during future documentation reorganizations.
 
-**Documentos relacionados**
+**Related documents**
 
 * `docs/PHILOSOPHY.md`
 * `docs/PROJECT.md`
@@ -833,78 +832,77 @@ Revisar y normalizar la documentación oficial de ARE para garantizar que reflej
 * `docs/TODO.md`
 * `docs/CHANGELOG.md`
 
-**Progreso registrado (sesión IDEA-007, v2.2)**
+**Progress recorded (IDEA-007 session, v2.2)**
 
-Avance concreto sobre el alcance "sincronizar versiones" y "separar
-trabajo histórico de trabajo pendiente" de este TASK:
+Concrete progress on the "synchronize versions" and "separate
+historical from pending work" scope of this TASK:
 
-* `VERSION`, `config/config.conf::VERSION` y
-  `manifest/product.sh::PRODUCT_VERSION` estaban desincronizados
-  (`2.1.0` en los dos primeros, `2.2.0` en el manifiesto desde
-  RFC-016) — alineados los tres a la versión real de desarrollo.
-* `RFC-013` documentaba dos pendientes ya resueltos en el mismo
-  commit que los implementó — actualizada su sección Pendiente con
-  el detalle real.
-* `BUG-014` corregido de encabezado (`#` → `##`) y reubicado a su
-  posición cronológica, en vez de aparecer fuera de secuencia al
-  final del historial.
-* `BUG-002` (observación abierta desde v1.x) cerrado con evidencia
-  real acumulada, movido de la sección de bugs activos al historial
-  resuelto.
+* `VERSION`, `config/config.conf::VERSION`, and
+  `manifest/product.sh::PRODUCT_VERSION` were out of sync
+  (`2.1.0` in the first two, `2.2.0` in the manifest since
+  RFC-016) — the three aligned to the real development version.
+* `RFC-013` documented two pending items already resolved in the same
+  commit that implemented them — its Pending section updated with
+  the real detail.
+* `BUG-014` fixed in its heading (`#` → `##`) and relocated to its
+  chronological position, instead of appearing out of sequence at the
+  end of the history.
+* `BUG-002` (an observation open since v1.x) closed with real
+  accumulated evidence, moved from the active-bugs section to the
+  resolved history.
 
-**Progreso registrado (sesión v2.4-dev)**
+**Progress recorded (v2.4-dev session)**
 
-Avance sobre "corregir estados históricos" y "eliminar
-contradicciones entre documentos":
+Progress on "fix historical statuses" and "remove
+contradictions between documents":
 
-* `PHILOSOPHY.md` y `PROJECT.md` mantenían dos listas de
-  "principios" del proyecto completamente distintas, sin apenas
-  superposición — corregido: `PHILOSOPHY.md` como fuente única,
-  `PROJECT.md` la referencia en vez de duplicarla.
-* Auditoría completa de la sección `# RFC` — 4 entradas
-  (`RFC-001`, `RFC-003`, `RFC-004`, `RFC-006`) seguían marcadas
-  `Draft` pese a estar efectivamente resueltas; dos de ellas
-  (`RFC-004`, `RFC-006`) habían sido absorbidas por la implementación
-  de `RFC-009` sin que este último las referenciara de vuelta al
-  cerrarse. Corregidas con el resultado real y la evidencia de
-  cuándo/cómo se completaron. El resto de la sección (`RFC-002`,
-  `RFC-005`, `RFC-007` a `RFC-010`, `RFC-016`, `RFC-017`) se revisó y
-  se confirmó consistente con su estado real.
+* `PHILOSOPHY.md` and `PROJECT.md` kept two completely
+  different lists of project "principles", with barely any
+  overlap — fixed: `PHILOSOPHY.md` as the single source,
+  `PROJECT.md` references it instead of duplicating it.
+* Full audit of the `# RFC` section — 4 entries
+  (`RFC-001`, `RFC-003`, `RFC-004`, `RFC-006`) were still marked
+  `Draft` despite being effectively resolved; two of them
+  (`RFC-004`, `RFC-006`) had been absorbed by the implementation
+  of `RFC-009` without the latter referencing them back when it
+  closed. Fixed with the real result and the evidence of
+  when/how they were completed. The rest of the section (`RFC-002`,
+  `RFC-005`, `RFC-007` to `RFC-010`, `RFC-016`, `RFC-017`) was reviewed and
+  confirmed consistent with its real state.
 
-**Cierre**
+**Closure**
 
-Alcance completo cubierto de forma acumulativa a lo largo de las
-sesiones documentadas arriba — corrección de estados históricos,
-eliminación de contradicciones entre documentos, sincronización de
-versiones, y separación de trabajo histórico/pendiente, todo con
-evidencia verificable en cada paso. Cerrada como resuelta.
+Full scope covered cumulatively across the sessions documented
+above — fixing historical statuses, removing contradictions between
+documents, synchronizing versions, and separating historical/pending
+work, all with verifiable evidence at each step. Closed as resolved.
 
 ---
 
 ## TASK-014
 
-**Título:** Crear instalador modular de ARE
+**Title:** Create a modular ARE installer
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Objetivo**
+**Objective**
 
-Crear un Installer Engine que implemente el procedimiento definido en `docs/INSTALL.md`.
+Create an Installer Engine that implements the procedure defined in `docs/INSTALL.md`.
 
-**Principios**
+**Principles**
 
-* Una responsabilidad por función.
-* No sobrescribir configuraciones existentes.
-* No eliminar datos persistentes.
-* No modificar automáticamente Fail2Ban, ModSecurity o Apache.
-* Detener la instalación ante errores críticos.
-* Verificar cada etapa antes de continuar.
+* One responsibility per function.
+* Do not overwrite existing configurations.
+* Do not remove persistent data.
+* Do not automatically modify Fail2Ban, ModSecurity, or Apache.
+* Stop the installation on critical errors.
+* Verify each stage before continuing.
 
-**Funciones**
+**Functions**
 
 * `install_verify_root`
 * `install_verify_dependencies`
@@ -918,30 +916,30 @@ Crear un Installer Engine que implemente el procedimiento definido en `docs/INST
 * `install_validate`
 * `install_finish`
 
-### Upgrade desde paquete externo
+### Upgrade from an external package
 
-✔ Validado.
+✔ Validated.
 
-* Installer Engine detecta instalación existente.
-* Copia únicamente `PRODUCT_DIRS` y `PRODUCT_FILES`.
-* Conserva configuración y datos persistentes.
-* Actualiza enlaces oficiales.
-* Actualiza unidades systemd.
-* Validación integral satisfactoria.
+* The Installer Engine detects an existing installation.
+* Copies only `PRODUCT_DIRS` and `PRODUCT_FILES`.
+* Preserves configuration and persistent data.
+* Updates the official links.
+* Updates the systemd units.
+* Comprehensive validation successful.
 
-### Instalación segura de configuración
+### Safe configuration installation
 
-✔ Validada.
+✔ Validated.
 
-Se creó:
+Created:
 
 ```text
 templates/config/
 ```
 
-como origen oficial de configuración.
+as the official configuration source.
 
-Los archivos administrados se obtienen mediante:
+The managed files are obtained via:
 
 ```text
 PRODUCT_CONFIG_FILES
@@ -949,43 +947,43 @@ PRODUCT_CONFIG_FILES
 
 `install_install_configs()`:
 
-* crea enlaces únicamente cuando el destino no existe;
-* conserva archivos físicos personalizados;
-* reconoce enlaces correctos;
-* conserva e informa enlaces rotos;
-* conserva e informa enlaces válidos con destino diferente;
-* detiene la instalación cuando falta una plantilla obligatoria.
+* creates links only when the destination does not exist;
+* preserves custom physical files;
+* recognizes correct links;
+* preserves and reports broken links;
+* preserves and reports valid links with a different destination;
+* stops the installation when a mandatory template is missing.
 
-La implementación fue validada en laboratorio aislado y la instalación activa de producción no fue modificada durante esa validación.
+The implementation was validated in an isolated lab and the active production installation was not modified during that validation.
 
 ---
 
 ## TASK-015
 
-**Título:** Eliminar duplicación de `db_get_sanction()` en `database.sh`
+**Title:** Remove the duplication of `db_get_sanction()` in `database.sh`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Prioridad:** Baja
+**Priority:** Low
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Descripción**
+**Description**
 
-`db_get_sanction()` estaba definida dos veces en `database.sh`, con
-contenido idéntico. No generaba comportamiento incorrecto (la segunda
-definición sobrescribía a la primera sin cambiar el resultado), pero
-era ruido que dificultaba la lectura y mantenimiento del archivo.
+`db_get_sanction()` was defined twice in `database.sh`, with
+identical content. It did not cause incorrect behavior (the second
+definition overwrote the first without changing the result), but
+it was noise that hindered the file's readability and maintenance.
 
-**Corrección**
+**Fix**
 
-Confirmado con `grep -n "^db_get_sanction()" database.sh` que la
-función aparece una única vez — la duplicación fue eliminada como
-parte de alguna de las reorganizaciones de `database.sh` realizadas
-durante RFC-007/RFC-008, sin haber quedado registrada explícitamente
-en su momento como resolución de esta tarea puntual.
+Confirmed with `grep -n "^db_get_sanction()" database.sh` that the
+function appears a single time — the duplication was removed as
+part of one of the `database.sh` reorganizations carried out
+during RFC-007/RFC-008, without having been explicitly recorded
+at the time as the resolution of this specific task.
 
-**Archivos relacionados**
+**Related files**
 
 * `database.sh`
 
@@ -993,62 +991,62 @@ en su momento como resolución de esta tarea puntual.
 
 ## TASK-016
 
-**Título:** Centralizar `LOG_FILE` del sensor Fail2Ban en `config.conf`, y reemplazar el filtro de jails fijo por consulta dinámica a `jail_profile`
+**Title:** Centralize the Fail2Ban sensor's `LOG_FILE` in `config.conf`, and replace the fixed jail filter with a dynamic query to `jail_profile`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Prioridad:** Media
+**Priority:** Medium
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Descripción**
+**Description**
 
-`sensors/fail2ban.sh` definía `LOG_FILE="/var/log/fail2ban.log"` como
-valor fijo dentro del script, en lugar de tomarlo de
-`config/config.conf`. Inconsistente con el principio de centralización
-de rutas ya aplicado en TASK-012 para el resto de las variables
-operativas.
+`sensors/fail2ban.sh` defined `LOG_FILE="/var/log/fail2ban.log"` as a
+fixed value inside the script, instead of taking it from
+`config/config.conf`. Inconsistent with the path-centralization
+principle already applied in TASK-012 for the rest of the operational
+variables.
 
-**Hallazgo adicional durante la resolución**
+**Additional finding during the fix**
 
-El mismo archivo tenía un segundo problema del mismo tipo, más
-relevante: un filtro fijo de jails permitidos
-(`modsec-*|recidive|sshd|telnet`) que determinaba qué eventos `FOUND`
-procesar en el camino de polling. Esta lista quedó desactualizada tras
-la implementación de RFC-007 (CRUD de `jail_profile`): los perfiles
-creados desde entonces (`dovecot`, `postfix-sasl`, `mysqld-auth`,
-`apache-badbots`, `mod_evasive`) no estaban en la lista, por lo que sus
-eventos `FOUND` se descartaban silenciosamente en el camino de
-polling — sin log de error, sin aviso — aunque el jail ya tuviera
-perfil administrado en ARE ADMIN.
+The same file had a second problem of the same type, more
+relevant: a fixed filter of allowed jails
+(`modsec-*|recidive|sshd|telnet`) that determined which `FOUND` events
+to process on the polling path. This list became outdated after
+the implementation of RFC-007 (`jail_profile` CRUD): the profiles
+created since then (`dovecot`, `postfix-sasl`, `mysqld-auth`,
+`apache-badbots`, `mod_evasive`) were not in the list, so their
+`FOUND` events were silently discarded on the polling
+path — with no error log, no warning — even if the jail already had
+a managed profile in ARE ADMIN.
 
-**Corrección**
+**Fix**
 
-* `LOG_FILE` ahora se lee de `FAIL2BAN_LOG_FILE` en `config.conf`, con
-  default de compatibilidad (`/var/log/fail2ban.log`) si la variable
-  no está definida.
-* El filtro fijo de jails fue reemplazado por una consulta dinámica
-  contra `jail_profile` (`SELECT COUNT(*) FROM jail_profile WHERE
-  name='$JAIL'`) — cualquier jail con perfil administrado se procesa
-  automáticamente, sin necesidad de mantener ni actualizar una lista
-  en el código cada vez que se crea un perfil nuevo desde el admin.
-* Se agregó verificación de existencia del archivo de log antes de
-  arrancar, con mensaje de error explícito en vez de fallar
-  silenciosamente en el `wc -l`.
+* `LOG_FILE` is now read from `FAIL2BAN_LOG_FILE` in `config.conf`, with
+  a compatibility default (`/var/log/fail2ban.log`) if the variable
+  is not defined.
+* The fixed jail filter was replaced with a dynamic query
+  against `jail_profile` (`SELECT COUNT(*) FROM jail_profile WHERE
+  name='$JAIL'`) — any jail with a managed profile is processed
+  automatically, without needing to maintain or update a list
+  in the code each time a new profile is created from the admin.
+* Verification of the log file's existence was added before
+  starting, with an explicit error message instead of failing
+  silently in the `wc -l`.
 
-**Validación**
+**Validation**
 
-Probado en producción con `sqlite3` de referencia (entorno de
-desarrollo, sin `sqlite3` instalado directamente): confirmado que
-jails ya existentes (`sshd`, `modsec-rce`, `recidive`) siguen
-procesándose, jails nuevos que antes se descartaban (`dovecot`,
-`postfix-sasl`, `mod_evasive`, `apache-badbots`) ahora se aceptan, y
-un jail inventado sin perfil real se sigue descartando correctamente.
-Confirmado en el servidor real: `./sensors/fail2ban.sh --dry-run`
-corre sin error, y el timer (`are-fail2ban-found.timer`) sigue
-procesando eventos reales con normalidad tras el cambio.
+Tested in production with a reference `sqlite3` (development
+environment, without `sqlite3` installed directly): confirmed that
+already-existing jails (`sshd`, `modsec-rce`, `recidive`) are still
+processed, new jails that were previously discarded (`dovecot`,
+`postfix-sasl`, `mod_evasive`, `apache-badbots`) are now accepted, and
+a made-up jail with no real profile is still discarded correctly.
+Confirmed on the real server: `./sensors/fail2ban.sh --dry-run`
+runs without error, and the timer (`are-fail2ban-found.timer`) keeps
+processing real events normally after the change.
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/fail2ban.sh`
 * `config/config.conf`
@@ -1057,42 +1055,42 @@ procesando eventos reales con normalidad tras el cambio.
 
 ## TASK-017
 
-**Título:** Sincronizar umbrales documentados en `ARCHITECTURE.md` con los valores reales de `policy.conf`
+**Title:** Synchronize the thresholds documented in `ARCHITECTURE.md` with the real values in `policy.conf`
 
-**Estado:** ✔ Resuelta — de forma incidental, no por acción directa
+**Status:** ✔ Resolved — incidentally, not by direct action
 
-**Prioridad:** Media
+**Priority:** Medium
 
-**Descripción original**
+**Original description**
 
-`docs/ARCHITECTURE.md` documentaba los umbrales efectivos de política
-como una tabla fija (`Score ≥ 200 → TEMP_BAN`...), mientras que
-`config/policy.conf` define umbrales por variable
+`docs/ARCHITECTURE.md` documented the effective policy thresholds
+as a fixed table (`Score ≥ 200 → TEMP_BAN`...), while
+`config/policy.conf` defines thresholds per variable
 (`WATCH_SCORE=20`, `TEMP_BAN_SCORE=60`, `PERMANENT_BAN_SCORE=100`) —
-dos escalas distintas, documentación que no coincidía con la
-configuración activa. En su momento se agregó además la sospecha
-(sin confirmar entonces) de que el motor real ni siquiera leía esos
-valores de `policy.conf`, sino que usaba umbrales hardcodeados
-(`80`/`50`/`20`) — un tercer esquema, distinto a los otros dos.
+two different scales, documentation that did not match the active
+configuration. At the time, the suspicion was also added
+(unconfirmed then) that the real engine did not even read those
+values from `policy.conf`, but used hardcoded thresholds
+(`80`/`50`/`20`) — a third scheme, different from the other two.
 
-**Resolución**
+**Resolution**
 
-Verificado en esta sesión, con el código real delante:
-`policy/decision_engine.sh` sí lee `WATCH_SCORE`, `TEMP_BAN_SCORE` y
-`PERMANENT_BAN_SCORE` de `policy.conf` — no hay ningún `80/50/20`
-hardcodeado. La sospecha de un tercer esquema quedó descartada.
+Verified in this session, with the real code in front:
+`policy/decision_engine.sh` does read `WATCH_SCORE`, `TEMP_BAN_SCORE`, and
+`PERMANENT_BAN_SCORE` from `policy.conf` — there is no `80/50/20`
+hardcoded. The suspicion of a third scheme was ruled out.
 
-Y sobre el problema original: `docs/ARCHITECTURE.md`, sección
-"Policy Engine", **ya no contiene** la tabla de umbrales fijos que
-esta tarea reportaba — describe correctamente la evaluación por
-categoría, con umbrales configurables en `policy.conf` por regla
-(`policy/rules/<categoria>.sh`). El documento fue corregido en algún
-punto posterior a cuando se escribió esta tarea (probablemente junto
-con la reescritura del motor a evaluación por categoría, `RFC-009`),
-pero nadie volvió a cerrar esta entrada para reflejarlo — quedó
-pendiente en el papel mucho después de estar resuelta en los hechos.
+And on the original problem: `docs/ARCHITECTURE.md`, "Policy Engine"
+section, **no longer contains** the fixed-threshold table that
+this task reported — it correctly describes per-category
+evaluation, with configurable thresholds in `policy.conf` per rule
+(`policy/rules/<category>.sh`). The document was fixed at some
+point after this task was written (probably together
+with the rewrite of the engine to per-category evaluation, `RFC-009`),
+but no one went back to close this entry to reflect it — it
+remained pending on paper long after being resolved in fact.
 
-**Archivos relacionados**
+**Related files**
 
 * `docs/ARCHITECTURE.md`
 * `config/policy.conf`
@@ -1102,67 +1100,67 @@ pendiente en el papel mucho después de estar resuelta en los hechos.
 
 ## TASK-018
 
-**Título:** Completar catálogo de categorías y umbrales faltantes en `policy.conf`
+**Title:** Complete the category catalog and the missing thresholds in `policy.conf`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Prioridad:** Media
+**Priority:** Medium
 
-**Descripción**
+**Description**
 
-`config/policy.conf` define umbrales de categoría (`*_THRESHOLD`) para
-las 9 categorías del catálogo (`RECON`, `EXPLOIT`, `CREDENTIAL`,
+`config/policy.conf` defines category thresholds (`*_THRESHOLD`) for
+the 9 categories of the catalog (`RECON`, `EXPLOIT`, `CREDENTIAL`,
 `PROTOCOL`, `BOT`, `ANOMALY`, `DOS`, `MALWARE`, `SOCIAL`).
 
-Como parte de la implementación de ARE ADMIN (ver FEAT-005), se incorporó
-la variable `REPUTATION_CATEGORIES` a `policy.conf` como catálogo
-explícito y única fuente de verdad de las categorías soportadas, consumida
-por `admin/categories.sh`.
+As part of the ARE ADMIN implementation (see FEAT-005), the
+`REPUTATION_CATEGORIES` variable was added to `policy.conf` as an
+explicit catalog and the single source of truth of the supported categories, consumed
+by `admin/categories.sh`.
 
-**Umbrales calibrados**
+**Calibrated thresholds**
 
-* `ANOMALY_THRESHOLD=40` — señal heurística blanda (ModSecurity generic
-  anomaly), calibrada entre `RECON`(80) y `PROTOCOL`(20): necesita
-  acumulación sostenida, pero menos que un simple escaneo.
-* `DOS_THRESHOLD=30` — amenaza confirmada (umbral determinístico de
-  `mod_evasive`, no heurística), calibrada al mismo nivel que
-  `CREDENTIAL`(30): pocos eventos bastan para disparar.
-* `SOCIAL_THRESHOLD=40` (v2.2, RFC-016) — mismo nivel que `ANOMALY`:
-  heurística de spam vía SpamAssassin, con el mismo riesgo de falso
-  positivo (mensaje legítimo mal puntuado) que un heurístico de
-  ModSecurity. Calibrado con sensor real (`sensors/spamassassin.sh`)
-  ya reportando en producción.
-* `MALWARE_THRESHOLD=30` — mismo nivel que `CREDENTIAL`/`DOS`,
-  calibrado **sin sensor local reportando todavía** (excepción
-  deliberada al criterio general de "no definir umbrales
-  especulativos sin evidencia"): este servidor no tiene superficie
-  real de malware (tráfico de e-commerce, sin ClamAV/escaneo de
-  archivos activo — ver IDEA sobre recolección de perfiles de
-  colegas), pero dejar el umbral indefinido resolvería únicamente el
-  problema de este servidor puntual, no el de ARE como motor
-  genérico. Un colega que sume un sensor real de malware (ClamAV,
-  Imunify360, maldet) encuentra el umbral ya funcionando via
-  `jail_profile`, sin tener que definirlo él mismo. Pendiente de
-  validación con datos reales el día que exista un sensor, propio o
-  de un tercero.
+* `ANOMALY_THRESHOLD=40` — a soft heuristic signal (ModSecurity generic
+  anomaly), calibrated between `RECON`(80) and `PROTOCOL`(20): it needs
+  sustained accumulation, but less than a simple scan.
+* `DOS_THRESHOLD=30` — a confirmed threat (deterministic threshold of
+  `mod_evasive`, not a heuristic), calibrated at the same level as
+  `CREDENTIAL`(30): few events are enough to trigger.
+* `SOCIAL_THRESHOLD=40` (v2.2, RFC-016) — same level as `ANOMALY`:
+  spam heuristic via SpamAssassin, with the same false-positive
+  risk (a legitimate message mis-scored) as a ModSecurity
+  heuristic. Calibrated with a real sensor (`sensors/spamassassin.sh`)
+  already reporting in production.
+* `MALWARE_THRESHOLD=30` — same level as `CREDENTIAL`/`DOS`,
+  calibrated **with no local sensor reporting yet** (a deliberate
+  exception to the general criterion of "do not define speculative
+  thresholds without evidence"): this server has no real malware
+  surface (e-commerce traffic, with no ClamAV / active file scanning
+  — see the IDEA about collecting colleagues' profiles),
+  but leaving the threshold undefined would only solve the
+  problem of this specific server, not that of ARE as a
+  generic engine. A colleague who adds a real malware sensor (ClamAV,
+  Imunify360, maldet) finds the threshold already working via
+  `jail_profile`, without having to define it themselves. Pending
+  validation with real data the day a sensor exists, whether their own
+  or a third party's.
 
-Calibración basada en `weight × confidence` de los jails reales
-asignados a cada categoría y en el número de eventos que ese cálculo
-implica para cruzar el umbral, siguiendo el mismo criterio ya aplicado
-consistentemente en las 9 categorías.
+Calibration based on `weight × confidence` of the real jails
+assigned to each category and on the number of events that this calculation
+implies to cross the threshold, following the same criterion already applied
+consistently across the 9 categories.
 
-**Alcance**
+**Scope**
 
-* ✔ Agregar `REPUTATION_CATEGORIES` a `policy.conf`.
-* ✔ `admin/categories.sh` (`categories_list`, `categories_scores`) lee el
-  catálogo y los umbrales dinámicamente; muestra `N/D` cuando el umbral no
-  está definido.
-* ✔ `ANOMALY_THRESHOLD` y `DOS_THRESHOLD` definidos y calibrados.
-* ✔ `SOCIAL_THRESHOLD` definido y calibrado con sensor real (RFC-016).
-* ✔ `MALWARE_THRESHOLD` definido y calibrado, sin sensor local — ver
-  justificación arriba.
+* ✔ Add `REPUTATION_CATEGORIES` to `policy.conf`.
+* ✔ `admin/categories.sh` (`categories_list`, `categories_scores`) reads the
+  catalog and the thresholds dynamically; shows `N/D` when the threshold is
+  not defined.
+* ✔ `ANOMALY_THRESHOLD` and `DOS_THRESHOLD` defined and calibrated.
+* ✔ `SOCIAL_THRESHOLD` defined and calibrated with a real sensor (RFC-016).
+* ✔ `MALWARE_THRESHOLD` defined and calibrated, with no local sensor — see
+  the justification above.
 
-**Archivos relacionados**
+**Related files**
 
 * `config/policy.conf`
 * `admin/categories.sh`
@@ -1171,37 +1169,37 @@ consistentemente en las 9 categorías.
 
 ## TASK-019
 
-**Título:** Higiene de repositorio previa a IDEA-007 (empaquetado)
+**Title:** Repository hygiene prior to IDEA-007 (packaging)
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Prioridad:** Baja
+**Priority:** Low
 
-**Versión:** v2.2 (en desarrollo)
+**Version:** v2.2 (in development)
 
-**Descripción**
+**Description**
 
-Dos limpiezas menores de repositorio, encontradas al inspeccionar el
-contenido real del primer `.tar.gz` generado por
-`scripts/build-package.sh` (IDEA-007) — ninguna afectaba el
-funcionamiento de ARE, ambas afectaban la calidad de lo distribuido a
-un colega nuevo.
+Two minor repository cleanups, found when inspecting the real
+content of the first `.tar.gz` generated by
+`scripts/build-package.sh` (IDEA-007) — neither affected ARE's
+operation, both affected the quality of what was distributed to
+a new colleague.
 
-**Alcance**
+**Scope**
 
-* `.gitignore` — `*.tar.gz`/`*.tar.gz.sha256` no estaban ignorados;
-  cada build local ensuciaba `git status` con un binario nuevo.
-* Eliminados 5 archivos placeholder vacíos (0 bytes) en `sensors/`
+* `.gitignore` — `*.tar.gz`/`*.tar.gz.sha256` were not ignored;
+  each local build cluttered `git status` with a new binary.
+* Removed 5 empty placeholder files (0 bytes) in `sensors/`
   (`apache.sh`, `crowdsec.sh`, `modsecurity.sh`, `suricata.sh`,
-  `zeek.sh`), dejados como recordatorio de intención futura —
-  viajaban en el paquete distribuible sin ninguna distinción visual
-  respecto a los sensores reales y funcionales. La intención que
-  representaban ya está documentada en `ROADMAP.md`, sección
-  "Próximas líneas de trabajo"; mantenerlos hubiera obligado a
-  excluirlos a mano del empaquetado cada vez que se agregara un
-  placeholder nuevo.
+  `zeek.sh`), left as a reminder of future intent —
+  they traveled in the distributable package with no visual distinction
+  from the real, functional sensors. The intent they
+  represented is already documented in `ROADMAP.md`, "Upcoming
+  lines of work" section; keeping them would have forced
+  excluding them by hand from packaging each time a new
+  placeholder was added.
 
-**Archivos relacionados**
+**Related files**
 
 * `.gitignore`
 * `sensors/`
@@ -1210,61 +1208,61 @@ un colega nuevo.
 
 ## TASK-020
 
-**Título:** Auto-instalación de dependencias faltantes en `are-installer`
+**Title:** Auto-installation of missing dependencies in `are-installer`
 
-**Estado:** ✔ Implementada — pendiente de validación en entorno limpio
+**Status:** ✔ Implemented — pending validation in a clean environment
 
-**Prioridad:** Media
+**Priority:** Medium
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Descripción**
+**Description**
 
-Surge al probar `scripts/install.sh` en una VM Kali limpia por primera
-vez: `install_verify_dependencies()` frenaba con `"Dependencia no
-encontrada: ipset"`, correcto pero sin ofrecer ningún camino de
-resolución automática — comportamiento coherente con proyectos que
-asumen un entorno ya preparado, pero poco amistoso para alguien
-instalando desde cero por primera vez.
+Arose when testing `scripts/install.sh` on a clean Kali VM for the first
+time: `install_verify_dependencies()` stopped with `"Dependency not
+found: ipset"`, correct but offering no path to automatic
+resolution — behavior consistent with projects that
+assume an already-prepared environment, but not very friendly for someone
+installing from scratch for the first time.
 
-**Decisión de diseño**
+**Design decision**
 
-Automático completo, sin preguntar — coherente con el propio
-`scripts/install.sh` (`curl | bash`, sin interacción), y con la
-expectativa de otros instaladores de un solo comando ya conocidos.
-Dos exclusiones deliberadas, no automatizadas:
+Fully automatic, without asking — consistent with
+`scripts/install.sh` itself (`curl | bash`, no interaction), and with the
+expectation of other already-known one-command installers.
+Two deliberate exclusions, not automated:
 
-* `bash` y `systemctl` quedan fuera del auto-instalador — su
-  ausencia implicaría un sistema roto a un nivel donde instalar a
-  ciegas es más riesgoso que útil. Siguen fallando con el mensaje
-  claro de siempre si faltan.
-* `ip6tables` se resuelve instalando el paquete `iptables` — no
-  existe un paquete `ip6tables` independiente en ninguna distro
-  común, mapeo 1 a 1 hubiera fallado.
+* `bash` and `systemctl` are left out of the auto-installer — their
+  absence would imply a system broken at a level where installing
+  blindly is riskier than useful. They still fail with the
+  same clear message as always if they are missing.
+* `ip6tables` is resolved by installing the `iptables` package — there is no
+  independent `ip6tables` package in any common
+  distro, a 1-to-1 mapping would have failed.
 
-**Implementación**
+**Implementation**
 
-`install_auto_install_dependencies()` en `are-installer`, invocada
-antes de `install_verify_dependencies()` en los tres flujos que ya la
-usaban (`install`, `upgrade`, `repair`) — la verificación existente
-queda intacta como red de seguridad final, sin ocultar ningún fallo
-real si el auto-instalador no puede resolver algo. Detecta
-`apt-get`/`dnf`/`yum` en ese orden y usa el primero disponible.
+`install_auto_install_dependencies()` in `are-installer`, invoked
+before `install_verify_dependencies()` in the three flows that already
+used it (`install`, `upgrade`, `repair`) — the existing verification
+remains intact as a final safety net, without hiding any real
+failure if the auto-installer cannot resolve something. It detects
+`apt-get`/`dnf`/`yum` in that order and uses the first available.
 
-**Pendiente de validar**
+**Pending validation**
 
-Escrito y verificado en sintaxis, sin probar todavía en un entorno
-real limpio — la VM Kali disponible para pruebas ya tiene el paquete
-`v2.2.0` extraído (sin este fix, que todavía no está taggeado);
-pisar el `are-installer` a mano ahí sería una prueba menos
-representativa que el camino real (`curl | bash` bajando la próxima
-release ya con este cambio incluido). Queda pendiente de validación
-real cuando exista un tag nuevo — la rama `dnf`/`yum` (AlmaLinux/RHEL)
-tampoco tiene entorno limpio disponible todavía para probarse
-(el servidor de producción ya tiene todas las dependencias, y no hay
-una AlmaLinux limpia aparte disponible por ahora).
+Written and syntax-checked, not yet tested in a
+clean real environment — the Kali VM available for tests already has the
+`v2.2.0` package extracted (without this fix, which is not yet tagged);
+overwriting `are-installer` by hand there would be a less
+representative test than the real path (`curl | bash` downloading the next
+release with this change already included). It remains pending real
+validation when a new tag exists — the `dnf`/`yum` branch (AlmaLinux/RHEL)
+also has no clean environment available yet to be tested
+(the production server already has all the dependencies, and there is no
+separate clean AlmaLinux available for now).
 
-**Archivos relacionados**
+**Related files**
 
 * `are-installer`
 
@@ -1272,52 +1270,52 @@ una AlmaLinux limpia aparte disponible por ahora).
 
 ## TASK-021
 
-**Título:** Detectar jails de Fail2Ban activos sin `jail_profile` administrado
+**Title:** Detect active Fail2Ban jails without a managed `jail_profile`
 
-**Estado:** ✔ Implementada y validada en producción — encontró un caso real
+**Status:** ✔ Implemented and validated in production — found a real case
 
-**Prioridad:** Media
+**Priority:** Medium
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Descripción**
+**Description**
 
-Hoy, un jail de Fail2Ban activo pero sin perfil en ARE se descarta en
-silencio (`db_get_jail_profile()` vacío, `handle_found` lo ignora) —
-sin ningún aviso al administrador. Solo se descubre revisando logs a
-mano.
+Today, an active Fail2Ban jail without a profile in ARE is silently
+discarded (`db_get_jail_profile()` empty, `handle_found` ignores it) —
+with no warning to the administrator. It is only discovered by reviewing logs by
+hand.
 
-**Decisión de diseño**
+**Design decision**
 
-Solo lectura, sin auto-creación — coherente con el principio ya
-establecido de no inventar categoría/peso/confianza por cuenta
-propia. Compara **actividad real** (jails que efectivamente aparecen
-en `fail2ban.log`), no la configuración teórica de Fail2Ban — un jail
-definido pero nunca disparado no es información útil para esta lista,
-solo generaría ruido.
+Read-only, no auto-creation — consistent with the already-established
+principle of not inventing category/weight/confidence on its
+own. It compares **real activity** (jails that actually appear
+in `fail2ban.log`), not Fail2Ban's theoretical configuration — a jail
+defined but never triggered is not useful information for this list,
+it would only generate noise.
 
-**Implementación**
+**Implementation**
 
-`sensors_detect_unmanaged_jails()` en `admin/sensors_menu.sh`, opción
-`4) Jails sin perfil` en el menú de Sensores. Extrae jails reales del
-log con `grep -oP '(?:INFO|NOTICE)\s+\K\[[a-zA-Z0-9_-]+\]'`
-(cuidado deliberado: cada línea del log tiene dos corchetes — el PID
-del proceso y el nombre del jail; el patrón apunta específicamente al
-segundo, inmediatamente después de `INFO`/`NOTICE`), compara contra
-`db_jail_profile_exists()` (ya existente).
+`sensors_detect_unmanaged_jails()` in `admin/sensors_menu.sh`, option
+`4) Jails without profile` in the Sensors menu. It extracts real jails from the
+log with `grep -oP '(?:INFO|NOTICE)\s+\K\[[a-zA-Z0-9_-]+\]'`
+(a deliberate care: each log line has two brackets — the process
+PID and the jail name; the pattern specifically targets the
+second, immediately after `INFO`/`NOTICE`), compares against
+`db_jail_profile_exists()` (already existing).
 
-**Validación**
+**Validation**
 
-Encontró un caso real en la primera prueba: el jail `modsecurity`
-(sin sufijo) generando bans reales en producción
-(`148.66.142.9` baneado el 22 de agosto), sin perfil administrado —
-descartándose en silencio. Investigado: resultó ser un jail
-renombrado en una migración anterior (reemplazado por
-`modsecurity-apache`, que sí tiene perfil), nunca desactivado en la
-configuración de Fail2Ban — corrección aplicada del lado de Fail2Ban
-(fuera del alcance de ARE), no del lado de ARE.
+It found a real case on the first test: the `modsecurity` jail
+(with no suffix) generating real bans in production
+(`148.66.142.9` banned on August 22), with no managed profile —
+being silently discarded. Investigated: it turned out to be a jail
+renamed in an earlier migration (replaced by
+`modsecurity-apache`, which does have a profile), never disabled in the
+Fail2Ban configuration — a fix was applied on the Fail2Ban side
+(outside ARE's scope), not on the ARE side.
 
-**Archivos relacionados**
+**Related files**
 
 * `admin/sensors_menu.sh`
 
@@ -1325,35 +1323,35 @@ configuración de Fail2Ban — corrección aplicada del lado de Fail2Ban
 
 ## TASK-022
 
-**Título:** `uninstall` elimina todo (Core, datos, logs), sin conservar nada
+**Title:** `uninstall` removes everything (Core, data, logs), keeping nothing
 
-**Estado:** ✔ Implementada y validada en Fedora
+**Status:** ✔ Implemented and validated on Fedora
 
-**Versión:** v2.4 (en desarrollo)
+**Version:** v2.4 (in development)
 
-**Descripción**
+**Description**
 
-`installer_uninstall()` conservaba `/var/lib/are` (incluida
-`are.db`) y `/var/log/are` a propósito, por precaución ante
-contingencias. Se evaluó primero renombrar la base con timestamp en
-vez de conservarla con el mismo nombre (evitando que una
-reinstalación futura heredara en silencio datos de la instalación
-anterior — problema real encontrado durante las pruebas de
-`BUG-031`), pero se decidió una alternativa más simple: quien quiera
-preservar información antes de desinstalar, lo hace por su cuenta.
+`installer_uninstall()` deliberately kept `/var/lib/are` (including
+`are.db`) and `/var/log/are`, as a precaution against
+contingencies. Renaming the database with a timestamp was evaluated first
+instead of keeping it with the same name (avoiding a
+future reinstall silently inheriting data from the previous
+installation — a real problem found during the
+`BUG-031` tests), but a simpler alternative was decided: whoever wants
+to preserve information before uninstalling does so on their own.
 
-**Corrección**
+**Fix**
 
-`rm -rf` sobre `$INSTALL_HOME`, `$INSTALL_DATA` y `$INSTALL_LOG`, los
-tres — antes solo se borraba el primero.
+`rm -rf` over `$INSTALL_HOME`, `$INSTALL_DATA`, and `$INSTALL_LOG`, all
+three — before, only the first was deleted.
 
-**Validación**
+**Validation**
 
-Instalación real en Fedora, `uninstall`, confirmado con `ls` directo
-que los tres directorios (`/opt/are`, `/var/lib/are`, `/var/log/are`)
-dejaron de existir.
+Real installation on Fedora, `uninstall`, confirmed with a direct `ls`
+that the three directories (`/opt/are`, `/var/lib/are`, `/var/log/are`)
+ceased to exist.
 
-**Archivos relacionados**
+**Related files**
 
 * `are-installer`
 
@@ -1361,106 +1359,106 @@ dejaron de existir.
 
 ## TASK-023
 
-**Título:** Sensor MALWARE: detección de antivirus en correo entrante (mail-antivirus)
+**Title:** MALWARE sensor: antivirus detection on incoming mail (mail-antivirus)
 
-**Estado:** ✔ Implementada y validada en producción (v2.8.0)
+**Status:** ✔ Implemented and validated in production (v2.8.0)
 
-**Versión:** v2.8.0
+**Version:** v2.8.0
 
-**Contexto**
+**Context**
 
-Se instaló ClamAV for cPanel (plugin WHM, habilitado en la
-configuración de Exim) para escanear correo entrante. No existía
-sensor ni jail para la categoría `MALWARE` — el perfil estaba
-calibrado de antemano (ver RFC/TASK-018) pero sin fuente de eventos
-real.
+ClamAV for cPanel was installed (WHM plugin, enabled in the Exim
+configuration) to scan incoming mail. There was no
+sensor or jail for the `MALWARE` category — the profile was
+calibrated beforehand (see RFC/TASK-018) but with no real
+event source.
 
-**Evidencia real obtenida**
+**Real evidence obtained**
 
-Se confirmó, con pruebas controladas usando el archivo de prueba
-estándar EICAR, que:
+It was confirmed, with controlled tests using the standard EICAR
+test file, that:
 
-* Un mensaje generado localmente en el servidor (`mail`/`sendmail`,
-  transporte `P=local`) **no** activa el escaneo antivirus de Exim.
-* Una conexión SMTP externa genuina sí lo activa. Probado con
-  `swaks` desde una VM externa (Fedora) contra el MX real del
-  dominio, adjuntando el EICAR sin comprimir (los intentos previos
-  vía Gmail fueron bloqueados por el propio filtro de contenido de
-  Gmail, incluso dentro de un zip con contraseña — no es un problema
-  de ARE/ClamAV).
-* El rechazo real quedó registrado en `exim_mainlog`:
+* A message generated locally on the server (`mail`/`sendmail`,
+  `P=local` transport) does **not** trigger Exim's antivirus scan.
+* A genuine external SMTP connection does trigger it. Tested with
+  `swaks` from an external VM (Fedora) against the domain's real
+  MX, attaching the uncompressed EICAR (previous attempts
+  via Gmail were blocked by Gmail's own content filter,
+  even inside a password-protected zip — it is not an ARE/ClamAV
+  problem).
+* The real rejection was recorded in `exim_mainlog`:
 
 ```text
 rejected after DATA: This message contains a virus or other
 harmful content (Eicar-Test-Signature)
 ```
 
-  con la IP de origen disponible en el mismo bloque de conexión
-  (`H=... [IP]:puerto`).
+  with the source IP available in the same connection block
+  (`H=... [IP]:port`).
 
-**Diseño**
+**Design**
 
-El mensaje de rechazo es genérico de la ACL `av_scanner` de Exim, no
-específico de ClamAV — el sensor funciona igual si el motor backend
-cambia en el futuro. Por eso el jail se nombra `mail-antivirus` y no
+The rejection message is generic to Exim's `av_scanner` ACL, not
+specific to ClamAV — the sensor works the same if the backend engine
+changes in the future. That is why the jail is named `mail-antivirus` and not
 `clamav-*`.
 
-* Sensor: `sensors/mail_antivirus.sh` (polling, offset persistente,
-  mismo patrón que `sensors/syslog.sh`/`sensors/spamassassin.sh`).
-  Filtra por `rejected after DATA:.*(virus|harmful content)` y
-  extrae la IP desde `H=...[IP]:puerto`.
-* Jail/perfil: `mail-antivirus`, categoría `MALWARE`, `weight=20`,
-  `confidence=0.97`, `decay=0.95` (creado en producción vía ARE
-  ADMIN). Confianza alta por ser una firma binaria confirmada (no
-  heurística); peso por debajo de `modsec-rce` (no compromete el
-  servidor directamente) y por encima de `modsec-sqli`.
-* Unidades systemd: `are-mail-antivirus.service`/`.timer`,
-  `After=exim.service` (sin `Requires=`, ver BUG-029).
-* Config: `MAIL_ANTIVIRUS_LOG_FILE`, `MAIL_ANTIVIRUS_JAIL` en
+* Sensor: `sensors/mail_antivirus.sh` (polling, persistent offset,
+  same pattern as `sensors/syslog.sh`/`sensors/spamassassin.sh`).
+  It filters by `rejected after DATA:.*(virus|harmful content)` and
+  extracts the IP from `H=...[IP]:port`.
+* Jail/profile: `mail-antivirus`, category `MALWARE`, `weight=20`,
+  `confidence=0.97`, `decay=0.95` (created in production via ARE
+  ADMIN). High confidence because it is a confirmed binary signature (not a
+  heuristic); weight below `modsec-rce` (it does not compromise the
+  server directly) and above `modsec-sqli`.
+* systemd units: `are-mail-antivirus.service`/`.timer`,
+  `After=exim.service` (no `Requires=`, see BUG-029).
+* Config: `MAIL_ANTIVIRUS_LOG_FILE`, `MAIL_ANTIVIRUS_JAIL` in
   `config/config.conf`.
-* Manifest: agregado a `PRODUCT_EXECUTABLE_FILES` y
+* Manifest: added to `PRODUCT_EXECUTABLE_FILES` and
   `PRODUCT_SYSTEMD_UNITS`.
 
-**Validación en producción**
+**Production validation**
 
-Se decidió no simular tráfico de correo en las VMs de Fedora/Kali —
-esas VMs no tienen Exim/ClamAV reales, y montar un servicio ficticio
-para "probar" no aporta evidencia genuina. La validación se hizo
-directa en `main`, en dos pasos sin riesgo:
+It was decided not to simulate mail traffic on the Fedora/Kali VMs —
+those VMs have no real Exim/ClamAV, and setting up a fake service
+to "test" provides no genuine evidence. Validation was done
+directly on `main`, in two risk-free steps:
 
-* `./sensors/mail_antivirus.sh --dry-run` contra el `exim_mainlog`
-  real de producción, sin reportar nada — confirmó `FOUND detected:
-  IP=186.49.81.31 JAIL=mail-antivirus`, con la misma línea de rechazo
-  real (`Eicar-Test-Signature`) usada durante el diseño.
-* Tras mergear `v2.8-dev` a `main` y taggear `v2.8.0`, activación real
-  con systemd (`daemon-reload` + `enable --now
-  are-mail-antivirus.timer`) en vez de con `are-installer upgrade` —
-  en `main`, `/opt/are` es a la vez el checkout de git de este
-  entorno de trabajo (que es el propio servidor de producción, no un
-  laboratorio aparte), así que origen y destino del instalador
-  coinciden y el instalador rechaza la operación por diseño
-  (`[ERROR] El paquete fuente y la instalación activa son el mismo
-  directorio.`). Esto es una particularidad de cómo se trabaja en
-  este entorno, no una limitación de ARE: un cliente que instala
-  desde el paquete de release nunca tiene este problema, porque su
-  directorio de instalación no es un checkout de git.
+* `./sensors/mail_antivirus.sh --dry-run` against the real production
+  `exim_mainlog`, reporting nothing — it confirmed `FOUND detected:
+  IP=186.49.81.31 JAIL=mail-antivirus`, with the same real rejection
+  line (`Eicar-Test-Signature`) used during the design.
+* After merging `v2.8-dev` into `main` and tagging `v2.8.0`, real activation
+  with systemd (`daemon-reload` + `enable --now
+  are-mail-antivirus.timer`) instead of with `are-installer upgrade` —
+  in `main`, `/opt/are` is at the same time the git checkout of this
+  work environment (which is the production server itself, not a
+  separate lab), so the installer's source and destination
+  coincide and the installer rejects the operation by design
+  (`[ERROR] The source package and the active installation are the same
+  directory.`). This is a particularity of how work is done in
+  this environment, not an ARE limitation: a client who installs
+  from the release package never has this problem, because their
+  installation directory is not a git checkout.
 
-**Confirmado con evidencia real de journalctl**, pipeline completo de
-punta a punta:
+**Confirmed with real journalctl evidence**, the complete end-to-end
+pipeline:
 
 ```text
-FOUND recibido: 186.49.81.31 desde mail-antivirus
-Score FOUND aplicado: 5 a 186.49.81.31
+FOUND received: 186.49.81.31 from mail-antivirus
+FOUND score applied: 5 to 186.49.81.31
 [POLICY] CATEGORY_RISK=0 RAW_TOTAL=5 EFFECTIVE=5
 Policy decision: WATCH (MINIMAL_RISK)
 [APPLY] ACTION: WATCH (no blocking)
 [APPLY] ACTION COMPLETED SUCCESSFULLY
 ```
 
-Timer confirmado activo y disparando cada minuto
+Timer confirmed active and firing every minute
 (`systemctl list-timers`).
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/mail_antivirus.sh`
 * `systemd/are-mail-antivirus.service`
@@ -1472,43 +1470,43 @@ Timer confirmado activo y disparando cada minuto
 
 ## TASK-024
 
-**Título:** `are-installer upgrade`/`repair` reconocen cuando la instalación activa es a la vez el checkout de git (fix de fondo, ver nota de TASK-023)
+**Title:** `are-installer upgrade`/`repair` recognize when the active installation is at the same time the git checkout (root fix, see the TASK-023 note)
 
-**Estado:** ✔ Implementada y validada en producción (v2.8.1)
+**Status:** ✔ Implemented and validated in production (v2.8.1)
 
-**Versión:** v2.8.1
+**Version:** v2.8.1
 
-**Contexto**
+**Context**
 
-Durante la validación de `TASK-023` (sensor `mail-antivirus`), `are-installer upgrade` rechazó la operación en `main` con `[ERROR] El paquete fuente y la instalación activa son el mismo directorio.` — en este entorno de trabajo, `/opt/are` en `main` es a la vez el checkout de git (así se viene trabajando desde antes, ver `metodologia_trabajo.md`), no una copia separada de un paquete. Se mitigó en ese momento activando a mano las piezas systemd faltantes, sin tocar el Installer. Esto no es una limitación de ARE de cara a un cliente — quien instala desde el paquete de release nunca tiene su directorio de instalación como checkout de git — pero sí es una limitación real del Installer para cualquiera que trabaje como este entorno lo hace, y quedaba sin corrección de fondo.
+During the validation of `TASK-023` (the `mail-antivirus` sensor), `are-installer upgrade` rejected the operation on `main` with `[ERROR] The source package and the active installation are the same directory.` — in this work environment, `/opt/are` on `main` is at the same time the git checkout (that is how work has been done from the start, see `metodologia_trabajo.md`), not a separate copy of a package. It was mitigated at the time by manually activating the missing systemd pieces, without touching the Installer. This is not an ARE limitation from a client's perspective — whoever installs from the release package never has their installation directory as a git checkout — but it is a real Installer limitation for anyone who works the way this environment does, and it was left without a root fix.
 
-**Corrección**
+**Fix**
 
-`install_copy_files()` detectaba origen=destino y abortaba con `install_error` — correcto como salvaguarda (evita que `cp -a` de un directorio sobre sí mismo rompa bajo `set -o errexit`), pero excesivo: cuando origen y destino son el mismo directorio, no hay nada que copiar — el contenido ya está en su lugar por el propio mecanismo que lo puso ahí (`git merge`/`checkout`). Cambiado para reconocer el caso y omitir la copia con un mensaje informativo, en vez de abortar toda la operación. El resto de `installer_upgrade()`/`installer_repair()` sigue corriendo sin cambios: `install_install_configs`, `install_create_links`, `install_permissions`, `install_database`, `install_ipsets`, `install_systemd`, `install_logrotate`, `install_validate` — exactamente las piezas que antes había que sincronizar a mano.
+`install_copy_files()` detected source=destination and aborted with `install_error` — correct as a safeguard (it prevents a `cp -a` of a directory onto itself from breaking under `set -o errexit`), but excessive: when source and destination are the same directory, there is nothing to copy — the content is already in place by the very mechanism that put it there (`git merge`/`checkout`). Changed to recognize the case and skip the copy with an informative message, instead of aborting the entire operation. The rest of `installer_upgrade()`/`installer_repair()` keeps running unchanged: `install_install_configs`, `install_create_links`, `install_permissions`, `install_database`, `install_ipsets`, `install_systemd`, `install_logrotate`, `install_validate` — exactly the pieces that previously had to be synchronized by hand.
 
-**Hallazgo adicional durante el mismo chequeo**
+**Additional finding during the same check**
 
-Al revisar por qué `PRODUCT_VERSION` seguía en `2.7.1` pese a `v2.8.0` ya taggeado y en producción: el bump de versión nunca se aplicó, ni en el commit del sensor ni en ninguno posterior — mismo patrón que `BUG-033` (versión no sincronizada al momento de taggear). Corregido junto con este fix, sincronizando `VERSION`, `config/config.conf::VERSION`, `templates/config/config.conf::VERSION` y `manifest/product.sh::PRODUCT_VERSION` a `2.8.1` (versión de este patch).
+When reviewing why `PRODUCT_VERSION` was still at `2.7.1` despite `v2.8.0` already being tagged and in production: the version bump was never applied, neither in the sensor commit nor in any later one — the same pattern as `BUG-033` (version not synchronized at tag time). Fixed together with this fix, synchronizing `VERSION`, `config/config.conf::VERSION`, `templates/config/config.conf::VERSION`, and `manifest/product.sh::PRODUCT_VERSION` to `2.8.1` (this patch's version).
 
-**Hallazgo adicional — rama `main` de GitHub desincronizada**
+**Additional finding — GitHub `main` branch out of sync**
 
-`origin/main` (GitHub) no incluye el commit del sensor `mail-antivirus` — el tag `v2.8.0` se pusheó correctamente, pero el avance de `main` que lo contiene nunca llegó al remoto (`git push origin main` no se corrió después de ese commit, o se corrió antes). Confirmado comparando `git log` de la rama `main` remota contra el commit al que apunta el tag `v2.8.0`: la rama está un commit detrás. Cualquiera que clone `main` hoy no recibe el sensor. Pendiente de que se corrija con un `git push origin main` desde producción — no requiere cambio de código, solo sincronizar el remoto.
+`origin/main` (GitHub) does not include the `mail-antivirus` sensor commit — the `v2.8.0` tag was pushed correctly, but the advance of `main` that contains it never reached the remote (`git push origin main` was not run after that commit, or was run before). Confirmed by comparing the `git log` of the remote `main` branch against the commit the `v2.8.0` tag points to: the branch is one commit behind. Anyone who clones `main` today does not receive the sensor. Pending a fix with a `git push origin main` from production — it requires no code change, only synchronizing the remote.
 
-**Hallazgo adicional durante la validación — pérdida real de configuración en `upgrade`**
+**Additional finding during validation — real loss of configuration on `upgrade`**
 
-Al correr `./are-installer upgrade` para validar este mismo patch, se descubrió un problema más grave y no relacionado con el objetivo original: `install_install_configs()` sobrescribía incondicionalmente `config.conf`/`whitelist.conf` en modo `upgrade` (rama `if [ "${1:-install}" = "upgrade" ]; then install -m 0644 "$source" "$target"`), copiando la plantilla (`templates/config/<file>`) encima del archivo en vivo sin fusionar. Como la plantilla nunca se había mantenido sincronizada con la configuración real, el `upgrade` borró de `config.conf` las variables `WEB_CORRELATION_LOG_FILE`, `WHITELIST_SYNC_URL_V4`, `WHITELIST_SYNC_URL_V6`, `WHITELIST_SYNC_MARKER`, `MAIL_ANTIVIRUS_LOG_FILE` y `MAIL_ANTIVIRUS_JAIL`, y de `whitelist.conf` las IPs de oficina y todo el bloque Cloudflare Auto-Sync (`IDEA-012`). Revertido de inmediato con `git checkout -- config/config.conf config/whitelist.conf`, sin pérdida real (los sensores no llegaron a correr con la config incompleta).
+When running `./are-installer upgrade` to validate this same patch, a more serious problem, unrelated to the original objective, was discovered: `install_install_configs()` unconditionally overwrote `config.conf`/`whitelist.conf` in `upgrade` mode (the `if [ "${1:-install}" = "upgrade" ]; then install -m 0644 "$source" "$target"` branch), copying the template (`templates/config/<file>`) over the live file without merging. Since the template had never been kept in sync with the real configuration, the `upgrade` erased from `config.conf` the variables `WEB_CORRELATION_LOG_FILE`, `WHITELIST_SYNC_URL_V4`, `WHITELIST_SYNC_URL_V6`, `WHITELIST_SYNC_MARKER`, `MAIL_ANTIVIRUS_LOG_FILE`, and `MAIL_ANTIVIRUS_JAIL`, and from `whitelist.conf` the office IPs and the entire Cloudflare Auto-Sync block (`IDEA-012`). Reverted immediately with `git checkout -- config/config.conf config/whitelist.conf`, with no real loss (the sensors never ran with the incomplete config).
 
-Corrección de fondo: eliminada la rama especial de `upgrade` en `install_install_configs()` — ahora se comporta igual que `install`: si el archivo de configuración ya existe, se conserva siempre, sin excepción. `templates/config/config.conf` completado con las 5 líneas de Whitelist Auto-Sync/mail-antivirus que le faltaban (así una instalación nueva las recibe igual).
+Root fix: removed the special `upgrade` branch in `install_install_configs()` — it now behaves the same as `install`: if the configuration file already exists, it is always kept, with no exception. `templates/config/config.conf` completed with the 5 Whitelist Auto-Sync/mail-antivirus lines it was missing (so a new installation receives them too).
 
-**Hallazgo adicional durante la misma validación — permisos de ejecución perdidos en cada `install`/`upgrade`/`repair`**
+**Additional finding during the same validation — execute permissions lost on every `install`/`upgrade`/`repair`**
 
-Mismo patrón que `BUG-023`/`BUG-033`: `install_permissions()` resetea todos los archivos a `0644` y solo restaura `0755` sobre lo declarado en `PRODUCT_EXECUTABLE_FILES`. `admin.sh`, `database.sh`, `manifest/product.sh` e `infrastructure/restore_ipsets.sh` no estaban en esa lista, así que perdían el permiso de ejecución en cada operación del Installer. Agregados a `PRODUCT_EXECUTABLE_FILES`.
+Same pattern as `BUG-023`/`BUG-033`: `install_permissions()` resets all files to `0644` and only restores `0755` on what is declared in `PRODUCT_EXECUTABLE_FILES`. `admin.sh`, `database.sh`, `manifest/product.sh`, and `infrastructure/restore_ipsets.sh` were not in that list, so they lost their execute permission on every Installer operation. Added to `PRODUCT_EXECUTABLE_FILES`.
 
-**Validación final**
+**Final validation**
 
-`./are-installer upgrade` corrido de nuevo en producción con ambos fixes aplicados: los 4 archivos de configuración se conservaron (`Configuración existente conservada`), las unidades de mail-antivirus se instalaron y habilitaron correctamente, y `git status` quedó limpio (sin ningún diff de permisos ni de contenido) al finalizar. Mergeado a `main`, publicado como tag `v2.8.1`.
+`./are-installer upgrade` run again in production with both fixes applied: the 4 configuration files were kept (`Existing configuration kept`), the mail-antivirus units were installed and enabled correctly, and `git status` was left clean (no permission or content diff) at the end. Merged to `main`, published as tag `v2.8.1`.
 
-**Archivos relacionados**
+**Related files**
 
 * `are-installer`
 * `VERSION`
@@ -1521,29 +1519,29 @@ Mismo patrón que `BUG-023`/`BUG-033`: `install_permissions()` resetea todos los
 
 ## TASK-025
 
-**Título:** `install_install_configs()` fusiona variables nuevas del template en un config existente, sin sobrescribir nada
+**Title:** `install_install_configs()` merges new template variables into an existing config, without overwriting anything
 
-**Estado:** ✔ Implementada y validada en producción
+**Status:** ✔ Implemented and validated in production
 
-**Versión:** v2.8.2
+**Version:** v2.8.2
 
-**Contexto**
+**Context**
 
-Consecuencia directa de `TASK-024`: una vez que `upgrade` dejó de sobrescribir un archivo de configuración existente (para no repetir la pérdida de datos real documentada ahí), quedó un caso nuevo sin resolver — si una versión futura agrega una variable a `templates/config/<archivo>` (como pasó con `MAIL_ANTIVIRUS_*` en `v2.8.0`), un servidor ya instalado nunca la recibe: queda indefinida hasta que alguien la agregue a mano, con riesgo de falla silenciosa en el sensor que la use.
+A direct consequence of `TASK-024`: once `upgrade` stopped overwriting an existing configuration file (so as not to repeat the real data loss documented there), a new unresolved case remained — if a future version adds a variable to `templates/config/<file>` (as happened with `MAIL_ANTIVIRUS_*` in `v2.8.0`), an already-installed server never receives it: it stays undefined until someone adds it by hand, with a risk of silent failure in the sensor that uses it.
 
-**Corrección**
+**Fix**
 
-Nueva función `install_config_merge()`, invocada desde `install_install_configs()` cuando el archivo de configuración ya existe (antes de esta tarea, esa rama no hacía nada más que conservar el archivo tal cual). Compara variable por variable (`KEY="valor"`) entre la plantilla y el archivo existente, y agrega al final del archivo solo las que falten — nunca toca ni sobrescribe una que ya esté presente, sin importar su valor actual.
+New function `install_config_merge()`, invoked from `install_install_configs()` when the configuration file already exists (before this task, that branch did nothing more than keep the file as-is). It compares variable by variable (`KEY="value"`) between the template and the existing file, and appends to the end of the file only those that are missing — it never touches or overwrites one that is already present, regardless of its current value.
 
-**Salvaguarda de formato**
+**Format safeguard**
 
-Antes de tocar nada, la función verifica que el template sea enteramente `KEY=valor` (ignorando comentarios y líneas vacías). Si encuentra una sola línea que no matchea ese formato — como pasa con `whitelist.conf` (lista de IPs) o `jail_scale.conf` (formato `CATEGORIA|NIVEL|PESO|CONFIANZA`) — no toca el archivo en absoluto, se comporta exactamente igual que antes de esta tarea.
+Before touching anything, the function verifies that the template is entirely `KEY=value` (ignoring comments and empty lines). If it finds a single line that does not match that format — as happens with `whitelist.conf` (a list of IPs) or `jail_scale.conf` (format `CATEGORY|LEVEL|WEIGHT|CONFIDENCE`) — it does not touch the file at all, behaving exactly as before this task.
 
-**Validación**
+**Validation**
 
-Probado en aislamiento con archivos de prueba en `/tmp` (sin tocar `/opt/are`): un `config.conf` simulado con una variable nueva en el template la recibió correctamente sin alterar las existentes; un `whitelist.conf` simulado con una línea agregada en el template no se tocó en absoluto. Confirmado además en producción real con `./are-installer upgrade` (ningún archivo de configuración real tenía variables faltantes en este momento, por lo que no se agregó nada — comportamiento esperado, sin errores) y `./are-installer verify` (10/10 OK).
+Tested in isolation with test files in `/tmp` (without touching `/opt/are`): a simulated `config.conf` with a new variable in the template received it correctly without altering the existing ones; a simulated `whitelist.conf` with an added line in the template was not touched at all. Also confirmed in real production with `./are-installer upgrade` (no real configuration file had missing variables at this time, so nothing was added — expected behavior, no errors) and `./are-installer verify` (10/10 OK).
 
-**Archivos relacionados**
+**Related files**
 
 * `are-installer`
 * `VERSION`
@@ -1555,25 +1553,25 @@ Probado en aislamiento con archivos de prueba en `/tmp` (sin tocar `/opt/are`): 
 
 ## TASK-026
 
-**Título:** Documentación en inglés como idioma canónico, con los originales en español conservados como `.es.md`
+**Title:** English documentation as the canonical language, with the Spanish originals kept as `.es.md`
 
-**Estado:** ✔ Implementada
+**Status:** ✔ Implemented
 
-**Versión:** v2.8.3
+**Version:** v2.8.3
 
-**Contexto**
+**Context**
 
-El proyecto se presenta como trabajo de ciberseguridad y su documentación estaba solo en español. Quien instala con `scripts/install.sh` (que descarga `releases/latest`) recibía únicamente esa documentación.
+The project presents itself as cybersecurity work and its documentation was only in Spanish. Whoever installs with `scripts/install.sh` (which downloads `releases/latest`) received only that documentation.
 
-**Corrección**
+**Fix**
 
-`README.md` y los 13 documentos de `docs/` (todos salvo `TODO.md`, que permanece en español como registro interno de trabajo) se tradujeron al inglés; los originales en español se conservan sin cambios como `README.es.md` y `docs/*.es.md` (`README.es.md` agrega un selector de idioma). El `README.md` en inglés es una portada concisa, no una traducción literal: el README completo anterior vive en `README.es.md`. Publicado en `main` como `e45b354`. Este patch sincroniza las versiones (`VERSION`, `config/config.conf`, `templates/config/config.conf`, `manifest/product.sh`) a `2.8.3` y taggea, para que el paquete de release incluya la documentación en inglés (el paquete `v2.8.2` conserva la documentación en español).
+`README.md` and the 13 documents in `docs/` (all except `TODO.md`, which remains in Spanish as an internal work record) were translated into English; the Spanish originals are kept unchanged as `README.es.md` and `docs/*.es.md` (`README.es.md` adds a language selector). The English `README.md` is a concise cover page, not a literal translation: the previous full README lives in `README.es.md`. Published on `main` as `e45b354`. This patch synchronizes the versions (`VERSION`, `config/config.conf`, `templates/config/config.conf`, `manifest/product.sh`) to `2.8.3` and tags, so the release package includes the English documentation (the `v2.8.2` package keeps the Spanish documentation).
 
-**Validación**
+**Validation**
 
-Cada `.es.md` comparado byte a byte contra la versión anterior de su documento (`git show HEAD:<archivo> | cmp`): idénticos, salvo `README.es.md`, que solo agrega el selector de idioma. Encabezados y bloques de código verificados par a par, sin residuo de español en los `.md` en inglés. Hallazgos: el original de `PROJECT.md` tenía un bloque de código sin cerrar (línea 146) que hacía renderizar como código todo el resto del documento — la versión en inglés lo corrige, el `.es.md` conserva el defecto por ser copia fiel; y `docs/BAN_LIFECYCLE.md` no tenía formato Markdown en el original — la versión en inglés lo agrega.
+Each `.es.md` compared byte by byte against the previous version of its document (`git show HEAD:<file> | cmp`): identical, except for `README.es.md`, which only adds the language selector. Headings and code blocks verified pair by pair, with no Spanish residue in the English `.md` files. Findings: the original `PROJECT.md` had an unclosed code block (line 146) that made the entire rest of the document render as code — the English version fixes it, the `.es.md` keeps the defect as a faithful copy; and `docs/BAN_LIFECYCLE.md` had no Markdown formatting in the original — the English version adds it.
 
-**Archivos relacionados**
+**Related files**
 
 * `README.md`, `README.es.md`
 * `docs/*.md`, `docs/*.es.md`
@@ -1588,230 +1586,230 @@ Cada `.es.md` comparado byte a byte contra la versión anterior de su documento 
 
 ## RFC-001
 
-**Título:** Renombrar CLI oficial a `are`
+**Title:** Rename the official CLI to `are`
 
-**Estado:** ✔ Resuelto (encontrado sin cerrar durante auditoría de `TASK-013`)
+**Status:** ✔ Resolved (found unclosed during the `TASK-013` audit)
 
-**Objetivo original**
+**Original objective**
 
-Establecer `are` como CLI oficial del proyecto, contemplando
-compatibilidad con el nombre histórico utilizado por las
-instalaciones existentes.
+Establish `are` as the project's official CLI, considering
+compatibility with the historical name used by the
+existing installations.
 
-**Resultado real**
+**Real result**
 
-`are` es el comando oficial desde v2.0 (`PRODUCT_EXECUTABLE_LINKS`,
-`/usr/local/sbin/are -> are.sh`) — confirmado en uso constante en
-producción real durante toda esta sesión y las anteriores. Nadie
-había vuelto a marcar esta entrada como resuelta pese a que el
-objetivo se cumplió hace varias versiones.
+`are` has been the official command since v2.0 (`PRODUCT_EXECUTABLE_LINKS`,
+`/usr/local/sbin/are -> are.sh`) — confirmed in constant use in
+real production throughout this session and the previous ones. No one
+had gone back to mark this entry as resolved even though the
+objective was met several versions ago.
 
 ---
 
 ## RFC-002
 
-**Título:** Sensor Framework
+**Title:** Sensor Framework
 
-**Estado:** Accepted
+**Status:** Accepted
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Descripción**
+**Description**
 
-ARE incorpora una capa de sensores encargada de transformar eventos externos en eventos internos procesables por el motor de reputación.
+ARE adds a sensor layer responsible for transforming external events into internal events processable by the reputation engine.
 
-El primer sensor oficial corresponde a Fail2Ban.
+The first official sensor corresponds to Fail2Ban.
 
-**Resultado**
+**Result**
 
-El Sensor Framework quedó incorporado en v1.1 y el sensor Fail2Ban constituye su primera implementación oficial.
+The Sensor Framework was added in v1.1 and the Fail2Ban sensor constitutes its first official implementation.
 
 ---
 
 ## RFC-003
 
-**Título:** Identity Migration
+**Title:** Identity Migration
 
-**Estado:** ✔ Resuelto (encontrado sin cerrar durante auditoría de `TASK-013`)
+**Status:** ✔ Resolved (found unclosed during the `TASK-013` audit)
 
-**Descripción original**
+**Original description**
 
-Evaluar la transición desde la identidad histórica `f2b-ipset` hacia
-el nombre oficial del proyecto (ARE — Abuse Reputation Engine),
-alineando comandos, rutas, servicios, configuración, documentación e
-identidad del paquete.
+Evaluate the transition from the historical `f2b-ipset` identity toward
+the project's official name (ARE — Abuse Reputation Engine),
+aligning commands, paths, services, configuration, documentation, and
+package identity.
 
-**Resultado real**
+**Real result**
 
-Completado desde v2.0: `/opt/are` como Core oficial, `/var/lib/are`
-como datos persistentes, CLI `are` oficial, identidad ARE en toda la
-documentación y el manifiesto del producto
-(`manifest/product.sh::PRODUCT_NAME="ARE"`). No queda ningún rastro
-funcional de `f2b-ipset` en el sistema actual — la migración
-gradual planteada en el alcance original se completó del todo hace
-varias versiones, sin que nadie volviera a marcar esta entrada.
+Completed since v2.0: `/opt/are` as the official Core, `/var/lib/are`
+as persistent data, the official `are` CLI, ARE identity across all the
+documentation and the product manifest
+(`manifest/product.sh::PRODUCT_NAME="ARE"`). No functional trace
+of `f2b-ipset` remains in the current system — the gradual
+migration proposed in the original scope was completed entirely
+several versions ago, without anyone going back to mark this entry.
 
 ---
 
 ## RFC-004
 
-**Título:** ARE como autoridad principal de decisión
+**Title:** ARE as the main decision authority
 
-**Estado:** ✔ Resuelto — absorbida por `RFC-009` (encontrado sin cerrar durante auditoría de `TASK-013`)
+**Status:** ✔ Resolved — absorbed by `RFC-009` (found unclosed during the `TASK-013` audit)
 
-**Descripción original**
+**Original description**
 
-Evaluar la transición del modelo actual hacia uno donde Fail2Ban
-actúe principalmente como fuente de eventos y ARE asuma la autoridad
-sobre las decisiones de bloqueo, filtrado, liberación y escalado,
-usando reputación, score, historial, reincidencia, estado y política
-configurada — evitando que una acción externa de Fail2Ban contradiga
-una decisión de ARE.
+Evaluate the transition from the current model toward one where Fail2Ban
+acts mainly as an event source and ARE takes authority
+over the blocking, filtering, release, and escalation decisions,
+using reputation, score, history, recidivism, state, and configured
+policy — preventing an external Fail2Ban action from contradicting
+an ARE decision.
 
-**Resultado real**
+**Real result**
 
-Exactamente este objetivo quedó implementado como parte de
-`RFC-009` (motor de decisión único por categoría): Fail2Ban reporta
-eventos `FOUND`/`EXTERNAL_UNBAN` puros, sin autoridad de decisión
-propia; `are.sh` evalúa siempre vía `policy_evaluate()` y aplica la
-acción resultante. `RFC-009` nunca referenció explícitamente que
-absorbía este objetivo, así que esta entrada quedó sin cerrar pese
-a estar cumplida.
+Exactly this objective was implemented as part of
+`RFC-009` (single per-category decision engine): Fail2Ban reports
+pure `FOUND`/`EXTERNAL_UNBAN` events, with no decision authority
+of its own; `are.sh` always evaluates via `policy_evaluate()` and applies the
+resulting action. `RFC-009` never explicitly referenced that it
+absorbed this objective, so this entry was left unclosed despite
+being fulfilled.
 
 ---
 
 ## RFC-005
 
-**Título:** Ciclo autónomo de recuperación y sanción
+**Title:** Autonomous recovery and sanction cycle
 
-**Estado:** Draft
+**Status:** Draft
 
-**Descripción**
+**Description**
 
-Definir la evolución futura del ciclo completo de una IP cuando ARE controle de forma autónoma la relación entre reputación, estado, sanciones y recuperación.
+Define the future evolution of the complete cycle of an IP when ARE autonomously controls the relationship between reputation, state, sanctions, and recovery.
 
-La parte correspondiente al cálculo básico de Reputation Decay ya fue implementada en v1.1 y no debe considerarse pendiente dentro de esta RFC.
+The part corresponding to the basic Reputation Decay calculation was already implemented in v1.1 and should not be considered pending within this RFC.
 
-**Objetivo futuro**
+**Future objective**
 
-Evaluar un ciclo compuesto por:
+Evaluate a cycle composed of:
 
 ```text
-observación
+observation
     ↓
-reputación
+reputation
     ↓
-decisión
+decision
     ↓
-sanción
+sanction
     ↓
-escalado
+escalation
     ↓
-recuperación
+recovery
     ↓
-reevaluación
+re-evaluation
     ↓
-liberación
+release
 ```
 
-**Principios**
+**Principles**
 
-* Una IP deja de ser peligrosa gradualmente.
-* La reputación no se elimina de golpe.
-* La liberación debe ser consecuencia de una decisión de ARE.
-* Fail2Ban actúa como fuente de información.
-* Los límites de escalado deben ser configurables.
+* An IP stops being dangerous gradually.
+* Reputation is not removed all at once.
+* The release must be a consequence of an ARE decision.
+* Fail2Ban acts as an information source.
+* The escalation limits must be configurable.
 
-**Puntos pendientes de definición**
+**Points pending definition**
 
-* Frecuencia definitiva del Decay Engine.
-* Fórmula definitiva de recuperación.
-* Umbral de liberación.
-* Relación entre score y estado de sanción.
-* Condiciones para liberar un `TEMP_BAN`.
-* Condiciones para conservar un bloqueo aunque el score disminuya.
-* Relación entre reincidencia y Ban Lifecycle.
-* Condición definitiva para `BAN` permanente.
-* Tratamiento de `EXTERNAL_UNBAN`.
+* The definitive frequency of the Decay Engine.
+* The definitive recovery formula.
+* The release threshold.
+* The relationship between score and sanction state.
+* The conditions for releasing a `TEMP_BAN`.
+* The conditions for keeping a block even if the score decreases.
+* The relationship between recidivism and the Ban Lifecycle.
+* The definitive condition for a permanent `BAN`.
+* The handling of `EXTERNAL_UNBAN`.
 
-**Nota (2026-08-17):** se verificó en producción que la liberación por
-score decreciente **sí funciona correctamente** para el `status` general
-(`reputation.status`, vía `state_update()` + `policy_decide()`) — no es un
-punto pendiente. Lo que permanece efectivamente sin resolver dentro de
-esta RFC es específicamente la ausencia de mecanismo de reconsideración
-para `sanction_state.permanent = 1`, que es un flag independiente del
-`status` y no es evaluado por el flujo de Decay actual. Ver también
-RFC-008 para la relación con el modelo de categorías.
+**Note (2026-08-17):** it was verified in production that release by
+decreasing score **does work correctly** for the general `status`
+(`reputation.status`, via `state_update()` + `policy_decide()`) — it is not a
+pending point. What effectively remains unresolved within
+this RFC is specifically the absence of a reconsideration mechanism
+for `sanction_state.permanent = 1`, which is a flag independent of the
+`status` and is not evaluated by the current Decay flow. See also
+RFC-008 for the relationship with the category model.
 
 ---
 
 ## RFC-006
 
-**Título:** Reglas de política activas para MALWARE, DOS y SOCIAL
+**Title:** Active policy rules for MALWARE, DOS, and SOCIAL
 
-**Estado:** ✔ Resuelto — absorbida por `RFC-009` (encontrado sin cerrar durante auditoría de `TASK-013`)
+**Status:** ✔ Resolved — absorbed by `RFC-009` (found unclosed during the `TASK-013` audit)
 
-**Descripción original**
+**Original description**
 
-Las categorías `MALWARE`, `DOS` y `SOCIAL` existían como columnas en
-la tabla `reputation` desde `TASK-005`/`BUG-006`, pero no contaban
-con un archivo `policy/rules/*.sh` que las evaluara.
+The `MALWARE`, `DOS`, and `SOCIAL` categories existed as columns in
+the `reputation` table since `TASK-005`/`BUG-006`, but had no
+`policy/rules/*.sh` file evaluating them.
 
-**Resultado real**
+**Real result**
 
-Las 9 reglas de categoría creadas como parte de `RFC-009`
+The 9 category rules created as part of `RFC-009`
 (`exploit`, `bot`, `recon`, `protocol`, `bruteforce`, `anomaly`,
-`malware`, `dos`, `social`) incluyen exactamente las tres que esta
-RFC pedía — el mismo motivo que `RFC-004`: `RFC-009` nunca
-referenció explícitamente que absorbía este pendiente.
+`malware`, `dos`, `social`) include exactly the three this
+RFC requested — the same reason as `RFC-004`: `RFC-009` never
+explicitly referenced that it absorbed this pending item.
 
 ---
 
 ## RFC-007
 
-**Título:** Administración genérica de perfiles de jail (CRUD sobre `jail_profile`)
+**Title:** Generic administration of jail profiles (CRUD over `jail_profile`)
 
-**Estado:** ✔ Implementada
+**Status:** ✔ Implemented
 
-**Versión:** v2.0 (en desarrollo)
+**Version:** v2.0 (in development)
 
-**Descripción original**
+**Original description**
 
-El esquema actual de `jail_profile` fue definido para un conjunto acotado
-de jails. La necesidad original planteada era poder incorporar perfiles
-adicionales (por ejemplo, un jail de SMTP) a partir de reportes o
-configuración existente en Fail2Ban, sin duplicar trabajo manual jail por
+The current `jail_profile` schema was defined for a limited set
+of jails. The original need raised was to be able to add
+additional profiles (for example, an SMTP jail) from reports or
+existing Fail2Ban configuration, without duplicating manual work jail by
 jail.
 
-**Redefinición del alcance durante el diseño**
+**Scope redefinition during design**
 
-Al auditar `handle_ban()`/`handle_found()` en `are.sh`, se confirmó que
-el motor de decisión **ya es agnóstico del origen del reporte**: cualquier
-`<ip> <jail>` que llegue con un perfil existente en `jail_profile` se
-procesa igual, sin importar si proviene de Fail2Ban, o en el futuro de
-Suricata, CrowdSec, ModSecurity u otro sensor (ver Sensor Framework,
-`docs/DESIGN.md` Sección 8). No había, entonces, nada que "migrar" desde
-Fail2Ban específicamente — los 9 jails activos en producción ya tenían
-perfil.
+When auditing `handle_ban()`/`handle_found()` in `are.sh`, it was confirmed that
+the decision engine **is already agnostic to the report's origin**: any
+`<ip> <jail>` that arrives with an existing profile in `jail_profile` is
+processed the same, regardless of whether it comes from Fail2Ban, or in the future from
+Suricata, CrowdSec, ModSecurity, or another sensor (see Sensor Framework,
+`docs/DESIGN.md` Section 8). There was, then, nothing to "migrate" from
+Fail2Ban specifically — the 9 active jails in production already had
+a profile.
 
-El problema real era la **ausencia de administración genérica**: crear,
-modificar o eliminar un perfil requería edición manual de SQL. La RFC se
-redefinió en consecuencia: no es una migración de datos, es un CRUD
-administrable desde ARE ADMIN, que habilita agregar cualquier jail nuevo
-—de cualquier sensor presente o futuro— sin tocar código ni base de
-datos a mano.
+The real problem was the **absence of generic administration**: creating,
+modifying, or removing a profile required manual SQL editing. The RFC was
+redefined accordingly: it is not a data migration, it is a CRUD
+manageable from ARE ADMIN, which enables adding any new jail
+—from any present or future sensor— without touching code or
+database by hand.
 
-**Principio de diseño resultante (para incorporar a `DESIGN.md`)**
+**Resulting design principle (to be added to `DESIGN.md`)**
 
-> Cualquier sensor que ARE incorpore, presente o futuro, entrega un
-> reporte `<ip> <jail>`. La existencia y las propiedades de riesgo de
-> ese `jail` (categoría, peso, confianza) viven exclusivamente en
-> `jail_profile`, administrable vía ARE ADMIN — nunca hardcodeadas
-> dentro del código de un sensor particular.
+> Any sensor that ARE adds, present or future, delivers a
+> `<ip> <jail>` report. The existence and risk properties of
+> that `jail` (category, weight, confidence) live exclusively in
+> `jail_profile`, manageable via ARE ADMIN — never hardcoded
+> inside the code of a particular sensor.
 
-**Implementación**
+**Implementation**
 
-CRUD completo en `admin/jails.sh`, con funciones de soporte nuevas en
+Full CRUD in `admin/jails.sh`, with new support functions in
 `database.sh`:
 
 * `db_list_jail_profiles()`
@@ -1821,305 +1819,305 @@ CRUD completo en `admin/jails.sh`, con funciones de soporte nuevas en
 * `db_update_jail_profile()`
 * `db_delete_jail_profile()`
 * `db_validate_jail_profiles()`
-* `db_category_weight_stats()` — referencia estadística (min/máx/promedio)
-  calculada de perfiles reales existentes en la categoría, para asistir
-  al administrador sin inventar valores de riesgo.
+* `db_category_weight_stats()` — a statistical reference (min/max/average)
+  computed from real existing profiles in the category, to assist
+  the administrator without inventing risk values.
 
-**Escalas de referencia curadas por categoría**
+**Curated reference scales per category**
 
-Se incorporó `config/jail_scale.conf` (nuevo archivo de configuración
-desacoplada, variable `ARE_JAIL_SCALE_CONFIG` en `config.conf`) para
-categorías donde el administrador define niveles de riesgo explícitos en
-vez de depender solo del promedio histórico. Formato:
-`CATEGORIA|NIVEL|PESO|CONFIANZA`. Cargada inicialmente solo para `BOT`,
-con 5 niveles (leve → malicioso). Extensible por categoría sin tocar
-código — cada categoría nueva es una línea agregada al archivo.
+`config/jail_scale.conf` was added (a new decoupled configuration
+file, variable `ARE_JAIL_SCALE_CONFIG` in `config.conf`) for
+categories where the administrator defines explicit risk levels instead
+of relying only on the historical average. Format:
+`CATEGORY|LEVEL|WEIGHT|CONFIDENCE`. Loaded initially only for `BOT`,
+with 5 levels (mild → malicious). Extensible per category without touching
+code — each new category is a line added to the file.
 
-**Selección de categoría restringida**
+**Restricted category selection**
 
-La categoría se elige de una lista numerada contra `REPUTATION_CATEGORIES`
-(TASK-018), nunca por texto libre — elimina el riesgo de typos que
-generarían categorías fantasma no reconocidas por el resto del sistema.
+The category is chosen from a numbered list against `REPUTATION_CATEGORIES`
+(TASK-018), never by free text — it eliminates the risk of typos that
+would generate phantom categories not recognized by the rest of the system.
 
-**Salvaguardas de UX/seguridad**
+**UX/safety safeguards**
 
-* `Crear` rechaza nombres duplicados, sugiere `Modificar`.
-* `Modificar` selecciona el jail por lista numerada (no texto libre) y
-  ofrece "mantener valor actual" en cada campo, incluida la opción de
-  volver a elegir un nivel de escala en vez de escribir un número al
-  azar.
-* `Eliminar` selecciona por lista numerada y exige escribir el nombre
-  exacto del jail como confirmación (no solo `s/N`) — única operación
-  destructiva del CRUD.
-* `Validar` detecta perfiles con categoría fuera de `REPUTATION_CATEGORIES`,
-  peso ≤ 0, o confianza fuera de 0.0-1.0.
+* `Create` rejects duplicate names, suggests `Modify`.
+* `Modify` selects the jail from a numbered list (not free text) and
+  offers "keep current value" on each field, including the option to
+  re-choose a scale level instead of writing a random
+  number.
+* `Delete` selects from a numbered list and requires typing the exact
+  name of the jail as confirmation (not just `y/N`) — the only
+  destructive operation of the CRUD.
+* `Validate` detects profiles with a category outside `REPUTATION_CATEGORIES`,
+  weight ≤ 0, or confidence outside 0.0-1.0.
 
-**Validación**
+**Validation**
 
-Probado en producción real, sesión 2026-08-18:
+Tested in real production, session 2026-08-18:
 
-* Creación de `apache-badbots` (categoría `BOT`, escala curada, nivel 2).
-* Modificación del mismo jail a nivel 4 (peso 3.0→7.0, confianza 0.6→0.8),
-  incluyendo prueba de "mantener actual" y de cancelación con `N`.
-* Eliminación de un jail de prueba (`apache-auth`), incluyendo caso de
-  confirmación con nombre incorrecto (correctamente rechazado, sin
-  borrar) y caso de confirmación correcta.
-* `Validar` sobre los 13 perfiles reales resultantes: `TODOS LOS
-  PERFILES SON VÁLIDOS`.
+* Creation of `apache-badbots` (category `BOT`, curated scale, level 2).
+* Modification of the same jail to level 4 (weight 3.0→7.0, confidence 0.6→0.8),
+  including a test of "keep current" and of cancellation with `N`.
+* Deletion of a test jail (`apache-auth`), including the case of
+  confirmation with an incorrect name (correctly rejected, without
+  deleting) and the case of correct confirmation.
+* `Validate` over the 13 resulting real profiles: `ALL
+  PROFILES ARE VALID`.
 
-**Relación con ARE ADMIN**
+**Relationship with ARE ADMIN**
 
-La rama "1. Jails / Perfiles" del menú (ver FEAT-005), previamente
-pausada, queda **implementada y confirmada en producción**.
+The "1. Jails / Profiles" menu branch (see FEAT-005), previously
+paused, is now **implemented and confirmed in production**.
 
 ---
 
 ## RFC-008
 
-**Título:** Modelo de categorías extensible (columnas fijas → esquema normalizado)
+**Title:** Extensible category model (fixed columns → normalized schema)
 
-**Estado:** Fases 1-4 completas — código validado en entorno con SQLite moderno; migración de datos reales de producción pendiente por limitación de SQLite en AlmaLinux 8. Ver también BUG-019 (decay proporcional).
+**Status:** Phases 1-4 complete — code validated in an environment with modern SQLite; migration of real production data pending due to an SQLite limitation on AlmaLinux 8. See also BUG-019 (proportional decay).
 
-**Versión:** v2.1 (Fases 1-3), v2.4 (Fase 4)
+**Version:** v2.1 (Phases 1-3), v2.4 (Phase 4)
 
-**Descripción**
+**Description**
 
-El modelo actual de reputación almacena cada categoría como una columna
-fija en la tabla `reputation` (`recon_score`, `exploit_score`, etc.).
-Agregar una categoría nueva requiere modificar el esquema (`ALTER TABLE`)
-y actualizar múltiples funciones que enumeran las columnas explícitamente
+The current reputation model stores each category as a fixed column
+in the `reputation` table (`recon_score`, `exploit_score`, etc.).
+Adding a new category requires modifying the schema (`ALTER TABLE`)
+and updating multiple functions that enumerate the columns explicitly
 (`db_get_reputation()`, `db_sum_categories()`, `db_top_attackers()`,
 `dashboard/score.sh`).
 
-**Objetivo**
+**Objective**
 
-Migrar hacia un esquema normalizado, `reputation_scores(ip, category,
-score)`, donde agregar una categoría nueva sea una operación de datos
-(`INSERT`) y no una migración de estructura. Consistente con el
-principio ya documentado en `docs/DESIGN.md` Sección 3.2 de no
-convertir jails en columnas independientes — el mismo criterio ahora
-aplicado también a las categorías.
+Migrate toward a normalized schema, `reputation_scores(ip, category,
+score)`, where adding a new category is a data operation
+(`INSERT`) and not a structure migration. Consistent with the
+principle already documented in `docs/DESIGN.md` Section 3.2 of not
+turning jails into independent columns — the same criterion now
+applied to the categories as well.
 
-**Decisión de diseño confirmada:** `total_score` deja de ser un campo
-independiente almacenado y pasa a derivarse siempre como `SUM(score)`
-sobre `reputation_scores`. Esto no es solo normalización — es la
-corrección estructural definitiva de BUG-017 (ver más abajo): al no
-existir dos números que puedan desincronizarse, la deriva de
-truncamiento deja de ser posible por diseño, no por parche.
+**Confirmed design decision:** `total_score` stops being an
+independent stored field and is instead always derived as `SUM(score)`
+over `reputation_scores`. This is not only normalization — it is the
+definitive structural fix of BUG-017 (see below): with no
+two numbers that can get out of sync, the truncation
+drift becomes impossible by design, not by patch.
 
-**Plan de migración en fases**
+**Phased migration plan**
 
-1. ✔ **Fase 1 — Completa.** Crear `reputation_scores` junto a la tabla
-   existente (aditivo, sin tocar `reputation`), migrar los datos
-   existentes, y verificar la migración comparando `SUM(score)` contra
-   `total_score` IP por IP.
-2. ✔ **Fase 2 — Completa.** `db_get_reputation`, `db_sum_categories`,
-   `db_top_attackers` reescritas para leer de `reputation_scores` (vía
-   `MAX(CASE WHEN category=...)` como pivote manual, SQLite no tiene
-   `PIVOT` nativo). Validado en producción: `./are.sh score`,
-   `./are.sh stats`, `./are.sh top` devuelven exactamente los mismos
-   valores que antes de la migración, para las mismas IPs.
-3. ✔ **Fase 3 — Completa.** `db_add_score` reescrita como
-   `INSERT ... ON CONFLICT DO UPDATE` genérico (reemplaza el `case` de
-   9 ramas por categoría) y `db_recalculate_total` como `SUM()` sobre
-   `reputation_scores` — esta última corrige BUG-017 en el momento de
-   escritura, no solo en la migración histórica.
+1. ✔ **Phase 1 — Complete.** Create `reputation_scores` alongside the existing
+   table (additive, without touching `reputation`), migrate the existing
+   data, and verify the migration by comparing `SUM(score)` against
+   `total_score` IP by IP.
+2. ✔ **Phase 2 — Complete.** `db_get_reputation`, `db_sum_categories`,
+   `db_top_attackers` rewritten to read from `reputation_scores` (via
+   `MAX(CASE WHEN category=...)` as a manual pivot, SQLite has no
+   native `PIVOT`). Validated in production: `./are.sh score`,
+   `./are.sh stats`, `./are.sh top` return exactly the same
+   values as before the migration, for the same IPs.
+3. ✔ **Phase 3 — Complete.** `db_add_score` rewritten as
+   `INSERT ... ON CONFLICT DO UPDATE` generic (replaces the 9-branch
+   per-category `case`) and `db_recalculate_total` as `SUM()` over
+   `reputation_scores` — the latter fixes BUG-017 at write
+   time, not only in the historical migration.
 
-   Dos bugs propios de la implementación de esta fase, encontrados y
-   corregidos durante la validación manual (no en producción real, que
-   nunca los sufrió — ver detalle):
+   Two bugs specific to this phase's implementation, found and
+   fixed during manual validation (not in real production, which
+   never suffered them — see detail):
 
-   * `db_add_score()` no garantizaba la existencia previa de la fila
-     en `reputation` antes de hacer `UPDATE ... WHERE ip=...`; un
-     `UPDATE` sobre una fila inexistente no falla ni crea nada,
-     simplemente no afecta filas. En producción esto nunca se
-     manifestó porque `handle_found()`/`handle_ban()` siempre llaman
-     `db_init_reputation()` antes de `db_add_score()` — se manifestó
-     únicamente en pruebas manuales que invocaban la función de forma
-     aislada. Corregido con `INSERT OR IGNORE INTO reputation (ip,
-     updated) VALUES (...)` al inicio de la función, como garantía
-     adicional.
-   * `db_get_reputation()` propagaba `NULL` a toda la cadena de salida
-     cuando la subconsulta de `updated` no encontraba fila en
-     `reputation` (concatenación con `NULL` en SQL da `NULL`
-     completo). Corregido envolviendo esa subconsulta en `COALESCE(...,
+   * `db_add_score()` did not guarantee the prior existence of the row
+     in `reputation` before doing `UPDATE ... WHERE ip=...`; an
+     `UPDATE` over a nonexistent row does not fail or create anything,
+     it simply affects no rows. In production this never
+     manifested because `handle_found()`/`handle_ban()` always call
+     `db_init_reputation()` before `db_add_score()` — it manifested
+     only in manual tests that invoked the function in an
+     isolated way. Fixed with `INSERT OR IGNORE INTO reputation (ip,
+     updated) VALUES (...)` at the start of the function, as an additional
+     guarantee.
+   * `db_get_reputation()` propagated `NULL` to the entire output chain
+     when the `updated` subquery found no row in
+     `reputation` (concatenation with `NULL` in SQL gives a complete
+     `NULL`). Fixed by wrapping that subquery in `COALESCE(...,
      0)`.
 
-4. **Fase 4 — Código completo y validado; migración de datos reales en producción sigue pendiente.**
+4. **Phase 4 — Code complete and validated; migration of real production data still pending.**
 
-   Hallazgo clave que reabrió esta fase: `CREATE TABLE ... DROP
-   COLUMN` requiere SQLite 3.35+, pero **simplificar el
-   `CREATE TABLE` para instalaciones nuevas no lo requiere** — es
-   sintaxis básica, válida en cualquier versión. Eso permitió avanzar
-   sin esperar a AlmaLinux:
+   The key finding that reopened this phase: `CREATE TABLE ... DROP
+   COLUMN` requires SQLite 3.35+, but **simplifying the
+   `CREATE TABLE` for new installations does not require it** — it is
+   basic syntax, valid in any version. That allowed progress
+   without waiting for AlmaLinux:
 
-   * `database.sh::db_init()` — `CREATE TABLE reputation` reducido de
-     14 columnas a 4 (`ip`, `last_decay`, `status`, `updated`); las 9
-     de categoría y `total_score` ya no se crean en ninguna
-     instalación nueva, sin importar la versión de SQLite del
-     servidor.
-   * 6 funciones reescritas para calcular sobre `reputation_scores`
-     en vez de leer la columna eliminada: `db_get_score()`,
+   * `database.sh::db_init()` — `CREATE TABLE reputation` reduced from
+     14 columns to 4 (`ip`, `last_decay`, `status`, `updated`); the 9
+     category ones and `total_score` are no longer created in any
+     new installation, regardless of the server's SQLite
+     version.
+   * 6 functions rewritten to compute over `reputation_scores`
+     instead of reading the removed column: `db_get_score()`,
      `db_count_active_ips()`, `db_count_banned_ips()`,
      `db_avg_score()`, `db_count_decay_candidates()`.
-     `db_recalculate_total()` se conserva como no-op (evita modificar
-     cada punto de `are.sh` que la invoca tras cada evento).
-     `db_avg_score()` requirió cuidado especial: una primera reescritura
-     promediaba solo sobre IPs con actividad, cambiando el resultado
-     real respecto al original (que promediaba sobre *todas* las IPs
-     conocidas, incluidas las de score 0) — corregido con `LEFT JOIN`
-     antes de aplicar en ningún entorno real.
-   * Validado de punta a punta en un entorno con SQLite 3.51.2
-     (Fedora): `ALTER TABLE ... DROP COLUMN` real ejecutado sobre las
-     9 columnas de categoría y sobre `total_score`, en dos pasos
-     separados — el segundo solo después de confirmar que las 6
-     funciones corregidas ya no dependían de la columna. Flujo
-     completo probado tras cada paso (`found`, `score`, `stats`,
-     eventos múltiples acumulando sobre la misma IP) sin ninguna
-     regresión.
+     `db_recalculate_total()` is kept as a no-op (avoids modifying
+     every point in `are.sh` that invokes it after each event).
+     `db_avg_score()` required special care: a first rewrite
+     averaged only over IPs with activity, changing the real
+     result compared to the original (which averaged over *all* known
+     IPs, including those with score 0) — fixed with a `LEFT JOIN`
+     before applying it in any real environment.
+   * Validated end to end in an environment with SQLite 3.51.2
+     (Fedora): a real `ALTER TABLE ... DROP COLUMN` executed over the
+     9 category columns and over `total_score`, in two separate
+     steps — the second only after confirming that the 6
+     fixed functions no longer depended on the column. The complete
+     flow tested after each step (`found`, `score`, `stats`,
+     multiple events accumulating on the same IP) with no
+     regression.
 
-   **Lo que sigue bloqueado:** la migración de los datos reales del
-   servidor de producción (más de 2200 IPs en AlmaLinux 8, SQLite
-   3.26.0) — ese `ALTER TABLE ... DROP COLUMN` específico sigue sin
-   poder ejecutarse ahí hasta que el sistema operativo o SQLite se
-   actualice. Diferencia importante respecto al estado anterior: el
-   código de ARE ya no depende de esas columnas en absoluto (ni para
-   instalaciones nuevas ni para las funciones de lectura/escritura),
-   así que cuando SQLite se actualice en producción, la migración
-   real va a ser un `ALTER TABLE` directo sin ningún cambio de código
-   adicional que preparar — el trabajo de código ya está terminado y
-   validado, solo falta el entorno para aplicarlo sobre los datos
-   reales existentes.
+   **What remains blocked:** the migration of the real data from the
+   production server (more than 2200 IPs on AlmaLinux 8, SQLite
+   3.26.0) — that specific `ALTER TABLE ... DROP COLUMN` still cannot
+   be executed there until the operating system or SQLite is
+   updated. Important difference from the previous state: ARE's
+   code no longer depends on those columns at all (neither for
+   new installations nor for the read/write functions),
+   so when SQLite is updated in production, the real
+   migration will be a direct `ALTER TABLE` with no additional code
+   change to prepare — the code work is already finished and
+   validated, only the environment to apply it over the real
+   existing data is missing.
 
-**Hallazgo real durante la Fase 1: BUG-018**
+**Real finding during Phase 1: BUG-018**
 
-La primera corrida de `db_verify_reputation_scores_migration()` sobre
-la base real de producción (2366 IPs) no mostró discrepancias
-esperables de redondeo — mostró **145 IPs completamente ausentes** de
-la comparación esperada, con un patrón que resultó ser un bug de
-datos independiente de la migración. Ver BUG-018 en el historial de
-resueltos.
+The first run of `db_verify_reputation_scores_migration()` over
+the real production database (2366 IPs) did not show discrepancies
+expected from rounding — it showed **145 IPs completely absent** from
+the expected comparison, with a pattern that turned out to be a data
+bug independent of the migration. See BUG-018 in the resolved
+history.
 
-**Hallazgo real durante la Fase 1: BUG-017**
+**Real finding during Phase 1: BUG-017**
 
-Tras resolver BUG-018, la verificación repetida mostró una segunda
-categoría de discrepancia, sistemática y de menor magnitud, en la
-gran mayoría de las 2366 IPs: `total_score` (columna almacenada)
-consistentemente mayor que `SUM(score)` real de sus categorías. Causa
-identificada: `reputation_decay_apply()` trunca (`CAST ... AS
-INTEGER`) cada columna de categoría de forma independiente, y también
-trunca `total_score` por separado — 9 truncamientos independientes
-pierden fracciones más rápido que 1 solo truncamiento sobre el total
-agregado, y el error se acumula con cada corrida diaria del Decay
-Engine. No se corrige como parche aparte: la Fase 2/3 de esta misma
-RFC lo resuelve de raíz al eliminar `total_score` como campo
-almacenado.
+After resolving BUG-018, the repeated verification showed a second
+category of discrepancy, systematic and of smaller magnitude, in the
+vast majority of the 2366 IPs: `total_score` (the stored column)
+consistently greater than the real `SUM(score)` of its categories. Cause
+identified: `reputation_decay_apply()` truncates (`CAST ... AS
+INTEGER`) each category column independently, and also
+truncates `total_score` separately — 9 independent truncations
+lose fractions faster than a single truncation over the aggregated
+total, and the error accumulates with each daily run of the Decay
+Engine. It is not fixed as a separate patch: Phase 2/3 of this same
+RFC resolves it at its root by removing `total_score` as a stored
+field.
 
-**Nota de riesgo operativo**
+**Operational risk note**
 
-Dado que el sistema corre en múltiples servidores de producción, cada
-fase debe validarse en el servidor actual antes de replicarse a la
-flota — mismo criterio de servidor canario ya aplicado en RFC-009.
+Since the system runs on multiple production servers, each
+phase must be validated on the current server before being replicated to the
+fleet — the same canary-server criterion already applied in RFC-009.
 
 ---
 
 ## RFC-009
 
-**Título:** Motor de decisión único: evaluación de riesgo por categoría
+**Title:** Single decision engine: per-category risk evaluation
 
-**Estado:** ✔ Implementada y validada en producción (servidor canario)
+**Status:** ✔ Implemented and validated in production (canary server)
 
-**Descripción**
+**Description**
 
-Se investigó cuál de las múltiples definiciones concurrentes del Policy
-Engine (originalmente registrada como BUG-013) gobernaba efectivamente
-las decisiones en producción. La investigación confirmó que
-`policy/decision_engine.sh::policy_decide()` era el único motor real —
-decidiendo exclusivamente por score total, sin distinguir categoría, sin
-leer umbrales de `policy.conf` — mientras que `policy/engine.sh`,
-`policy/policy.sh`, `policy/rules/core.sh` y `policy/decision.sh` eran
-código muerto, sin invocación en ningún punto alcanzable del flujo real.
+An investigation was done into which of the multiple concurrent definitions of the Policy
+Engine (originally recorded as BUG-013) effectively governed
+the decisions in production. The investigation confirmed that
+`policy/decision_engine.sh::policy_decide()` was the only real engine —
+deciding exclusively by total score, without distinguishing category, without
+reading thresholds from `policy.conf` — while `policy/engine.sh`,
+`policy/policy.sh`, `policy/rules/core.sh`, and `policy/decision.sh` were
+dead code, with no invocation at any reachable point of the real flow.
 
-**Objetivo de diseño**
+**Design objective**
 
-Que la categoría que activa un evento module el riesgo asignado — una IP
-clasificada por `ANOMALY` no representa el mismo riesgo que un intento
-de `EXPLOIT` — evaluando cada categoría de forma independiente
-(principio de responsabilidad única: *"un módulo no decide, solo
-califica; un orquestador dirige"*), sin perder la protección de base que
-ya ofrecía el motor por score total.
+That the category triggering an event modulates the assigned risk — an IP
+classified by `ANOMALY` does not represent the same risk as an attempt
+at `EXPLOIT` — evaluating each category independently
+(single-responsibility principle: *"a module does not decide, it only
+qualifies; an orchestrator directs"*), without losing the base protection
+the total-score engine already offered.
 
-**Implementación**
+**Implementation**
 
-* **`policy/context.sh` / `policy/context_api.sh`** — extendidos de
-  `CTX_V1` (5 categorías) a `CTX_V2` (9 categorías completas +
-  eventos 24h).
-* **`policy/risk.sh`** — corregido: el multiplicador de reincidencia
-  (`RISK_MULT_WATCH`, `RISK_MULT_BANNED`) se calculaba pero nunca se
-  aplicaba al total; ahora se aplica realmente, con valores desde
-  `policy.conf` (no hardcodeados). Aritmética migrada a `awk` para
-  soportar decimales.
-* **`policy/decision_engine.sh`** — umbrales (`WATCH_SCORE`,
-  `TEMP_BAN_SCORE`, `PERMANENT_BAN_SCORE`) ahora leídos de
-  `policy.conf`; si un umbral no está definido, ese nivel se salta sin
-  romper, en vez de comparar contra un valor fijo o vacío.
-* **9 reglas nuevas en `policy/rules/`** (`exploit`, `bot`, `recon`,
+* **`policy/context.sh` / `policy/context_api.sh`** — extended from
+  `CTX_V1` (5 categories) to `CTX_V2` (9 complete categories +
+  24h events).
+* **`policy/risk.sh`** — fixed: the recidivism multiplier
+  (`RISK_MULT_WATCH`, `RISK_MULT_BANNED`) was computed but never
+  applied to the total; it is now actually applied, with values from
+  `policy.conf` (not hardcoded). Arithmetic migrated to `awk` to
+  support decimals.
+* **`policy/decision_engine.sh`** — thresholds (`WATCH_SCORE`,
+  `TEMP_BAN_SCORE`, `PERMANENT_BAN_SCORE`) now read from
+  `policy.conf`; if a threshold is not defined, that level is skipped without
+  breaking, instead of comparing against a fixed or empty value.
+* **9 new rules in `policy/rules/`** (`exploit`, `bot`, `recon`,
   `protocol`, `bruteforce`, `anomaly`, `malware`, `dos`, `social`),
-  todas con el mismo contrato único: leen su propio umbral de
-  `policy.conf`, aportan al acumulador de riesgo (`risk_add`) solo si lo
-  superan, y no conocen la existencia de las demás reglas ni de la
-  decisión final. Si una categoría no tiene umbral configurado, su regla
-  no evalúa (comportamiento explícito, no un error silencioso). Corrige
-  además BUG-012 de raíz (`anomaly.sh` reescrita con el nuevo contrato).
-* **`policy/engine.sh`** — reescrito como orquestador único
-  (`policy_evaluate()`), reemplazando a los tres dispatchers muertos.
-  Itera dinámicamente sobre `REPUTATION_CATEGORIES` (no un array
-  hardcodeado), por lo que una categoría nueva con su regla ya empieza a
-  evaluarse sin tocar el orquestador. Incluye:
-  - Chequeo de whitelist al inicio (ausente en el diseño original,
-    causaba errores de `bc` con IPs sin datos, ej. `::1`).
-  - Hard gate de `STATUS=BANNED`, igual que el motor anterior.
-  - **Piso de seguridad**: la decisión final usa
-    `MAX(riesgo_por_categoría, score_total_acumulado)` — el motor por
-    categoría puede ser más estricto que el anterior (detecta señales
-    que el score simple no distingue, como bruteforce), pero nunca
-    menos estricto. Sin este piso, una IP con riesgo repartido entre
-    categorías —cada una por debajo de su propio umbral— podía evadir
-    la detección aunque su score total fuera alto (caso real detectado:
-    `45.33.70.56`, reincidente conocida).
+  all with the same single contract: they read their own threshold from
+  `policy.conf`, contribute to the risk accumulator (`risk_add`) only if they
+  exceed it, and do not know of the existence of the other rules nor of the
+  final decision. If a category has no configured threshold, its rule
+  does not evaluate (explicit behavior, not a silent error). It also
+  fixes BUG-012 at its root (`anomaly.sh` rewritten with the new contract).
+* **`policy/engine.sh`** — rewritten as a single orchestrator
+  (`policy_evaluate()`), replacing the three dead dispatchers.
+  It iterates dynamically over `REPUTATION_CATEGORIES` (not a hardcoded
+  array), so a new category with its rule already starts being
+  evaluated without touching the orchestrator. It includes:
+  - A whitelist check at the start (absent in the original design,
+    it caused `bc` errors with IPs with no data, e.g. `::1`).
+  - A `STATUS=BANNED` hard gate, same as the previous engine.
+  - **Safety floor**: the final decision uses
+    `MAX(per_category_risk, accumulated_total_score)` — the per-category
+    engine can be stricter than the previous one (it detects signals
+    that the simple score does not distinguish, such as bruteforce), but never
+    less strict. Without this floor, an IP with risk spread across
+    categories —each below its own threshold— could evade
+    detection even if its total score was high (real case detected:
+    `45.33.70.56`, a known recidivist).
 
-**Herramienta de validación no invasiva**
+**Non-invasive validation tool**
 
-Se agregó el comando `are.sh policy-compare <IP>`, que ejecuta ambos
-motores (el anterior y el nuevo) sobre la misma IP sin aplicar ninguna
-decisión, mostrando si coinciden o difieren. Usado para validar el
-comportamiento contra datos reales antes del corte a producción.
+The `are.sh policy-compare <IP>` command was added, which runs both
+engines (the previous and the new) over the same IP without applying any
+decision, showing whether they match or differ. Used to validate the
+behavior against real data before the cutover to production.
 
-**Incidentes durante el despliegue (documentados por transparencia)**
+**Incidents during deployment (documented for transparency)**
 
-* Al construir `handle_policy_compare()`, se detectó que
-  `config/whitelist.conf` tenía un espacio final en la línea de la IP
-  real del VPS (`208.109.242.73`), lo que hacía fallar la coincidencia
-  exacta de `grep -Fqx` — la IP no estaba efectivamente protegida por la
-  whitelist en producción. Corregido con `sed 's/[ \t]*$//'` sobre el
-  archivo completo.
-* Durante el corte manual de `handle_found()`, `handle_ban()` y
-  `handle_external_unban()` (reemplazar las llamadas a `policy_decide()`
-  directo por `policy_evaluate()`), una edición a mano en
-  `handle_external_unban()` dejó la variable de resultado declarada en
-  minúscula (`local ... decision ...`) pero asignada en mayúscula
-  (`DECISION=$(policy_evaluate ...)`), causando que `action`/`reason`
-  quedaran vacíos y la acción resultante fuera `UNKNOWN ACTION` sin
-  aplicar nada. Detectado en el primer evento `EXTERNAL_UNBAN` real
-  post-corte, diagnosticado comparando `policy_decide` y
-  `policy_evaluate` de forma aislada (fuera de un subshell de pipe, que
-  había ocultado el error en el primer intento de diagnóstico), y
-  corregido con un cambio de una sola línea.
+* When building `handle_policy_compare()`, it was detected that
+  `config/whitelist.conf` had a trailing space on the line of the VPS's real
+  IP (`208.109.242.73`), which made the exact match of
+  `grep -Fqx` fail — the IP was not effectively protected by the
+  whitelist in production. Fixed with `sed 's/[ \t]*$//'` over the
+  full file.
+* During the manual cutover of `handle_found()`, `handle_ban()`, and
+  `handle_external_unban()` (replacing the direct `policy_decide()`
+  calls with `policy_evaluate()`), a hand edit in
+  `handle_external_unban()` left the result variable declared in
+  lowercase (`local ... decision ...`) but assigned in uppercase
+  (`DECISION=$(policy_evaluate ...)`), causing `action`/`reason`
+  to be empty and the resulting action to be `UNKNOWN ACTION` without
+  applying anything. Detected on the first real `EXTERNAL_UNBAN` event
+  post-cutover, diagnosed by comparing `policy_decide` and
+  `policy_evaluate` in isolation (outside a pipe subshell, which
+  had hidden the error in the first diagnosis attempt), and
+  fixed with a single-line change.
 
-**Validación en producción**
+**Production validation**
 
-Corte realizado en un único servidor (canario), sin replicar a otros
-nodos de la flota. Ventana de monitoreo con tráfico real de Fail2Ban:
+Cutover performed on a single server (canary), without replicating to other
+fleet nodes. Monitoring window with real Fail2Ban traffic:
 
 ```
 [POLICY] CATEGORY_RISK=23 RAW_TOTAL=25 EFFECTIVE=25 → FILTER (LOW_RISK)
@@ -2128,27 +2126,27 @@ nodos de la flota. Ventana de monitoreo con tráfico real de Fail2Ban:
 [POLICY] CATEGORY_RISK=0  RAW_TOTAL=3  EFFECTIVE=3  → WATCH (MINIMAL_RISK)
 ```
 
-En los dos primeros casos, `CATEGORY_RISK < RAW_TOTAL` y el piso de
-seguridad tomó el valor de `RAW_TOTAL` — confirmación en datos reales
-(no solo simulados) de que el mecanismo de seguridad funciona como fue
-diseñado. Cero errores, cero `WARN`, cero `UNKNOWN ACTION` tras la
-corrección del incidente de despliegue.
+In the first two cases, `CATEGORY_RISK < RAW_TOTAL` and the safety floor
+took the `RAW_TOTAL` value — confirmation in real data
+(not only simulated) that the safety mechanism works as
+designed. Zero errors, zero `WARN`, zero `UNKNOWN ACTION` after the
+correction of the deployment incident.
 
-**Pendiente**
+**Pending**
 
-* Monitorear una ventana más amplia (recomendado: 24-48h) antes de
-  replicar el corte al resto de la flota de servidores.
-* ✔ Definido `ANOMALY_THRESHOLD=40`, `DOS_THRESHOLD=30`. Pendiente:
-  `MALWARE_THRESHOLD`, `SOCIAL_THRESHOLD` — sin jail/sensor real
-  todavía reportando a esas categorías (ver RFC-006, TASK-018).
-* ✔ Código muerto eliminado (`policy/policy.sh`, `policy/rules/core.sh`,
-  `policy/decision.sh`), tras confirmación repetida de que ningún
-  archivo los carga ni invoca, y validación funcional completa
-  post-eliminación (`stats`, `score`, `policy-compare`, las 7 ramas de
-  ARE ADMIN). Backup preservado fuera del repositorio.
-* ✔ Rama "4. Política" de ARE ADMIN implementada — ver FEAT-005.
-  Su propia validación detectó y permitió corregir BUG-016
-  (`CREDENTIAL` sin regla asociada).
+* Monitor a wider window (recommended: 24-48h) before
+  replicating the cutover to the rest of the server fleet.
+* ✔ Defined `ANOMALY_THRESHOLD=40`, `DOS_THRESHOLD=30`. Pending:
+  `MALWARE_THRESHOLD`, `SOCIAL_THRESHOLD` — with no real jail/sensor
+  yet reporting to those categories (see RFC-006, TASK-018).
+* ✔ Dead code removed (`policy/policy.sh`, `policy/rules/core.sh`,
+  `policy/decision.sh`), after repeated confirmation that no
+  file loads or invokes them, and complete functional validation
+  post-removal (`stats`, `score`, `policy-compare`, the 7 branches of
+  ARE ADMIN). Backup preserved outside the repository.
+* ✔ "4. Policy" branch of ARE ADMIN implemented — see FEAT-005.
+  Its own validation detected and allowed fixing BUG-016
+  (`CREDENTIAL` with no associated rule).
 
 ---
 
@@ -2156,440 +2154,440 @@ corrección del incidente de despliegue.
 
 ## RFC-010
 
-**Título:** Integrar `mod_evasive` como sensor real de ARE (categoría DOS)
+**Title:** Integrate `mod_evasive` as a real ARE sensor (DOS category)
 
-**Estado:** ✔ Implementada en modo doble escritura, validada con tráfico simulado
+**Status:** ✔ Implemented in double-write mode, validated with simulated traffic
 
-**Descripción**
+**Description**
 
-`mod_evasive` (protección anti-flood a nivel de Apache) operaba
-completamente por fuera de ARE: `/usr/local/bin/ddos_system.sh`
-escribía directo al ipset sin pasar por `database.sh`, sin generar
-reputación, sin registrar eventos, y sin posibilidad de recuperación
-gradual vía Decay. Esta decisión fue intencional en su momento: se
-prefirió no integrar `mod_evasive` a ARE mientras el motor no tenía
-soporte real para la categoría `DOS`. Con RFC-009 completa, la
-integración quedó desbloqueada.
+`mod_evasive` (anti-flood protection at the Apache level) operated
+completely outside ARE: `/usr/local/bin/ddos_system.sh`
+wrote directly to the ipset without going through `database.sh`, without generating
+reputation, without recording events, and with no possibility of gradual
+recovery via Decay. This decision was intentional at the time: it was
+preferred not to integrate `mod_evasive` into ARE while the engine had no
+real support for the `DOS` category. With RFC-009 complete, the
+integration became unblocked.
 
-**Calibración del perfil**
+**Profile calibration**
 
-A diferencia de las categorías de acumulación gradual (`RECON`,
-`PROTOCOL`), `mod_evasive` ya aplica su propio umbral interno
-(`DOSSiteCount`) antes de reportar — cuando reporta, ya es un flood
-confirmado, no una sospecha. El perfil se calibró para reflejar esto:
-`weight=70, confidence=0.95` (score ≈ 66-67 por evento), suficiente
-para que un único reporte cruce `TEMP_BAN_SCORE=60` de inmediato, sin
-esperar acumulación — a diferencia del bloqueo fijo de 4 semanas
-anterior, ahora escala vía Ban Lifecycle (1h → 6h → 1d → ... →
-permanente según reincidencia real).
+Unlike the gradual-accumulation categories (`RECON`,
+`PROTOCOL`), `mod_evasive` already applies its own internal threshold
+(`DOSSiteCount`) before reporting — when it reports, it is already a
+confirmed flood, not a suspicion. The profile was calibrated to reflect this:
+`weight=70, confidence=0.95` (score ≈ 66-67 per event), enough
+for a single report to cross `TEMP_BAN_SCORE=60` immediately, without
+waiting for accumulation — unlike the previous fixed 4-week
+block, it now escalates via the Ban Lifecycle (1h → 6h → 1d → ... →
+permanent according to real recidivism).
 
-**Implementación**
+**Implementation**
 
-* Corrección previa (fuera de ARE, en `ddos_system.sh`): el `ipset add`
-  original no especificaba `timeout`, por lo que el set (`timeout 0`
-  por defecto) dejaba la IP baneada permanentemente pese a que el
-  email notificaba "4 semanas". Corregido con `timeout` explícito
-  (ajustado al máximo válido de `ipset`, `2147483647`, tras un primer
-  intento con `2419200` fuera de rango en la versión instalada).
-* `ddos_system.sh` modificado con **doble escritura**: mantiene el
-  `ipset add` directo (protección inmediata sin downtime) y agrega
-  `are.sh ban "$SOURCEIP" mod_evasive`, registrado en un log separado
-  (`/var/log/are/mod_evasive_report.log`) para monitoreo independiente
-  del resto del script.
-* Logrotate integrado para el log nuevo: plantilla
-  `templates/logrotate/mod_evasive_report` (mismo esquema que
-  `are.log`: diario, 14 rotaciones, comprimido), agregada a
-  `PRODUCT_LOGROTATE_FILES` en `manifest/product.sh`, instalada en
-  `/etc/logrotate.d/` y verificada con `logrotate -d` y
+* Prior fix (outside ARE, in `ddos_system.sh`): the original `ipset add`
+  did not specify a `timeout`, so the set (`timeout 0`
+  by default) left the IP banned permanently despite the
+  email notifying "4 weeks". Fixed with an explicit `timeout`
+  (adjusted to `ipset`'s maximum valid value, `2147483647`, after a first
+  attempt with `2419200` out of range in the installed version).
+* `ddos_system.sh` modified with **double write**: it keeps the
+  direct `ipset add` (immediate protection with no downtime) and adds
+  `are.sh ban "$SOURCEIP" mod_evasive`, recorded in a separate log
+  (`/var/log/are/mod_evasive_report.log`) for monitoring independent
+  of the rest of the script.
+* Logrotate integrated for the new log: template
+  `templates/logrotate/mod_evasive_report` (same scheme as
+  `are.log`: daily, 14 rotations, compressed), added to
+  `PRODUCT_LOGROTATE_FILES` in `manifest/product.sh`, installed in
+  `/etc/logrotate.d/` and verified with `logrotate -d` and
   `are-installer verify`.
 
-**Validación**
+**Validation**
 
-Probado con IPs de prueba (rango `192.0.2.0/24`, reservado para
-documentación, `RFC 5737`):
+Tested with test IPs (`192.0.2.0/24` range, reserved for
+documentation, `RFC 5737`):
 
 ```
-Evento recibido: 192.0.2.99 desde mod_evasive
-Score aplicado: 66
-[POLICY] CATEGORY_RISK=99 RAW_TOTAL=66 EFFECTIVE=99   (multiplicador de reincidencia activo)
+Event received: 192.0.2.99 from mod_evasive
+Score applied: 66
+[POLICY] CATEGORY_RISK=99 RAW_TOTAL=66 EFFECTIVE=99   (recidivism multiplier active)
 Policy decision: TEMP_BAN (MEDIUM_RISK)
 [APPLY] EXECUTE: TEMP BAN (3600 sec)
 [APPLY] SANCTION LEVEL: BAN_LEVEL_1
 ```
 
-Confirmado con `./are.sh score` (Threat Level HIGH, sanción nivel 1,
-vigencia exacta de 1 hora) y con `ban-lifecycle-test` (segundo evento
-escala correctamente a `BAN_LEVEL_2`, 21600 seg / 6h). Prueba de
-integración completa vía `ddos_system.sh 192.0.2.100` confirmó ambos
-caminos (ipset directo + reporte a ARE) funcionando en el mismo
-evento.
+Confirmed with `./are.sh score` (Threat Level HIGH, sanction level 1,
+exact validity of 1 hour) and with `ban-lifecycle-test` (a second event
+escalates correctly to `BAN_LEVEL_2`, 21600 sec / 6h). A complete
+integration test via `ddos_system.sh 192.0.2.100` confirmed both
+paths (direct ipset + report to ARE) working in the same
+event.
 
-**Pendiente**
+**Pending**
 
-* Ventana de monitoreo con tráfico real (no simulado) antes de decidir
-  si se retira el `ipset add` directo y ARE pasa a ser la única vía de
-  bloqueo.
-* Evaluar reducción de la lista `DOSWhitelist` de Cloudflare una vez
-  que el modelo de reputación de ARE demuestre absorber esos falsos
-  positivos en producción real.
-* Replicar el cambio de `ddos_system.sh` y la corrección de timeout a
-  otros servidores de la flota que tengan el mismo script (vive fuera
-  del repositorio de ARE, en `/usr/local/bin/`, sin sincronización
-  automática vía git).
+* A monitoring window with real (not simulated) traffic before deciding
+  whether to remove the direct `ipset add` and ARE becomes the only
+  blocking path.
+* Evaluate reducing Cloudflare's `DOSWhitelist` list once
+  ARE's reputation model demonstrates that it absorbs those false
+  positives in real production.
+* Replicate the `ddos_system.sh` change and the timeout fix to
+  other fleet servers that have the same script (it lives outside
+  the ARE repository, in `/usr/local/bin/`, with no automatic
+  synchronization via git).
 
 ---
 
 ## RFC-011
 
-**Título:** Exportar / Importar `jail_profile`
+**Title:** Export / Import `jail_profile`
 
-**Estado:** ✔ Implementada y validada en producción
+**Status:** ✔ Implemented and validated in production
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Descripción**
+**Description**
 
-Primera funcionalidad de la línea v2.1. Surgida de una recomendación
-hecha durante el diseño original de RFC-007 (propagar cambios de
-perfil entre servidores de forma controlada y auditable), retomada al
-confirmarse que el software ya se está replicando a colegas y otros
-servidores de la flota.
+First feature of the v2.1 line. Arose from a recommendation
+made during the original design of RFC-007 (propagate profile
+changes between servers in a controlled and auditable way), taken up again upon
+confirming that the software is already being replicated to colleagues and other
+fleet servers.
 
-**Objetivo**
+**Objective**
 
-Permitir que un administrador exporte el catálogo completo de
-`jail_profile` de un servidor a un archivo portable, e importe ese
-archivo en otro servidor — evitando recrear manualmente cada perfil
-calibrado (peso, confianza, decay, categoría) jail por jail.
+Allow an administrator to export the complete `jail_profile`
+catalog of a server to a portable file, and import that
+file on another server — avoiding having to manually recreate each
+calibrated profile (weight, confidence, decay, category) jail by jail.
 
-**Implementación**
+**Implementation**
 
-* Nuevas opciones "6) Exportar" y "7) Importar" en la rama
-  Jails/Perfiles de ARE ADMIN.
-* Formato de archivo: texto plano, mismo esquema de campos que ya usa
-  internamente `db_list_jail_profiles()`
-  (`NOMBRE|CATEGORIA|PESO|CONFIANZA|DECAY|DESCRIPCION`), con cabecera
-  de comentarios (fecha, hostname de origen).
-* Ubicación fija: `${ARE_DATA}/backups/jail_profiles/` — dato
-  persistente, no producto, coherente con la separación
-  PRODUCT/CONFIG/DATA ya establecida en `DESIGN.md` Sección 10.
-* Exportar genera nombre de archivo con timestamp automático, sin
-  pedir ruta ni riesgo de sobrescribir un backup anterior.
-* Importar presenta los archivos disponibles como lista numerada (no
-  texto libre), y pregunta una única vez cómo resolver conflictos con
-  perfiles ya existentes (sobrescribir todos / conservar todos —
-  default: conservar), en vez de preguntar jail por jail.
-* Validación por línea durante la importación: categoría reconocida
-  en `REPUTATION_CATEGORIES`, peso y confianza numéricos — líneas
-  inválidas se reportan como error y se omiten, sin abortar el resto
-  de la importación.
-* No se agregó ninguna función nueva a `database.sh`: reutiliza
+* New options "6) Export" and "7) Import" in the
+  Jails/Profiles branch of ARE ADMIN.
+* File format: plain text, same field scheme already used
+  internally by `db_list_jail_profiles()`
+  (`NAME|CATEGORY|WEIGHT|CONFIDENCE|DECAY|DESCRIPTION`), with a header
+  of comments (date, source hostname).
+* Fixed location: `${ARE_DATA}/backups/jail_profiles/` — persistent
+  data, not product, consistent with the
+  PRODUCT/CONFIG/DATA separation already established in `DESIGN.md` Section 10.
+* Export generates a file name with an automatic timestamp, without
+  asking for a path or risking overwriting a previous backup.
+* Import presents the available files as a numbered list (not
+  free text), and asks a single time how to resolve conflicts with
+  already-existing profiles (overwrite all / keep all —
+  default: keep), instead of asking jail by jail.
+* Per-line validation during import: category recognized
+  in `REPUTATION_CATEGORIES`, numeric weight and confidence — invalid
+  lines are reported as an error and skipped, without aborting the rest
+  of the import.
+* No new function was added to `database.sh`: it reuses
   `db_list_jail_profiles()`, `db_jail_profile_exists()`,
-  `db_create_jail_profile()`, `db_update_jail_profile()`, ya
-  existentes desde RFC-007.
-* Ambas operaciones quedan registradas en el log de auditoría
+  `db_create_jail_profile()`, `db_update_jail_profile()`, already
+  existing since RFC-007.
+* Both operations are recorded in the audit log
   (`admin_audit.log`).
 
-**Validación**
+**Validation**
 
-Probado en producción real: exportación de los 17 perfiles reales del
-servidor (incluyendo los calibrados en la misma sesión: `dovecot`,
-`postfix-sasl`, `mysqld-auth`, `mod_evasive`), seguida de importación
-del mismo archivo con modo "conservar" — resultado `Creados: 0,
-Actualizados: 0, Omitidos: 17, Errores: 0`, confirmando que la
-detección de perfiles existentes funciona correctamente sin riesgo de
-sobrescritura accidental.
+Tested in real production: export of the 17 real profiles of the
+server (including those calibrated in the same session: `dovecot`,
+`postfix-sasl`, `mysqld-auth`, `mod_evasive`), followed by import
+of the same file in "keep" mode — result `Created: 0,
+Updated: 0, Skipped: 17, Errors: 0`, confirming that the
+detection of existing profiles works correctly with no risk of
+accidental overwriting.
 
 ---
 
 ## RFC-012
 
-**Título:** Formalizar `apache_evasive.sh` como sensor oficial (patrón callback)
+**Title:** Formalize `apache_evasive.sh` as an official sensor (callback pattern)
 
-**Estado:** ✔ Implementada
+**Status:** ✔ Implemented
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Descripción**
+**Description**
 
-El script que reportaba eventos de `mod_evasive` a ARE
-(`ddos_system.sh`, ver RFC-010) vivía fuera del repositorio, en
-`/usr/local/bin/`, sin versionar y sin manifiesto — un colega que
-instalara ARE desde cero no lo recibía. Se formaliza como
-`sensors/apache_evasive.sh`, parte oficial del Sensor Framework.
+The script that reported `mod_evasive` events to ARE
+(`ddos_system.sh`, see RFC-010) lived outside the repository, in
+`/usr/local/bin/`, unversioned and without a manifest — a colleague who
+installed ARE from scratch did not receive it. It is formalized as
+`sensors/apache_evasive.sh`, an official part of the Sensor Framework.
 
-**Segundo patrón de sensor documentado**
+**Second documented sensor pattern**
 
-El Sensor Framework (`docs/DESIGN.md` Sección 8) solo documentaba el
-patrón de *polling* (`sensors/fail2ban.sh`, systemd timer que lee un
-log periódicamente). `apache_evasive.sh` es estructuralmente distinto:
-Apache lo invoca **directo y síncrono** en el instante que
-`mod_evasive` confirma un flood (patrón *callback*). Se documenta como
-segundo patrón válido dentro del mismo framework, no como excepción.
+The Sensor Framework (`docs/DESIGN.md` Section 8) only documented the
+*polling* pattern (`sensors/fail2ban.sh`, a systemd timer that reads a
+log periodically). `apache_evasive.sh` is structurally different:
+Apache invokes it **directly and synchronously** at the instant
+`mod_evasive` confirms a flood (*callback* pattern). It is documented as
+a second valid pattern within the same framework, not as an exception.
 
-**Implementación**
+**Implementation**
 
-* Movido a `sensors/apache_evasive.sh`, ya cubierto por `PRODUCT_DIRS`
-  en el manifiesto (el directorio `sensors/` completo ya se instalaba
-  como unidad).
-* `300-mod_evasive.conf` (`DOSSystemCommand`) actualizado a la ruta
-  nueva.
-* Entrada de `sudoers` actualizada para apuntar a la ruta dentro del
-  repositorio.
-* Eliminadas las llamadas a `/usr/local/bin/firewall_snapshot.sh`
-  (mecanismo de backup de reglas `iptables` para sobrevivir reinicios,
-  obsoleto desde la migración a `ipset`, que persiste sus reglas de
-  forma nativa).
+* Moved to `sensors/apache_evasive.sh`, already covered by `PRODUCT_DIRS`
+  in the manifest (the entire `sensors/` directory was already installed
+  as a unit).
+* `300-mod_evasive.conf` (`DOSSystemCommand`) updated to the new
+  path.
+* `sudoers` entry updated to point to the path inside the
+  repository.
+* Removed the calls to `/usr/local/bin/firewall_snapshot.sh`
+  (an `iptables` rules backup mechanism to survive reboots,
+  obsolete since the migration to `ipset`, which persists its rules
+  natively).
 
-**Hallazgo de seguridad detectado y corregido en el proceso**
+**Security finding detected and fixed in the process**
 
-Al confirmar que `firewall_snapshot.sh` ya no se ejecutaba, se
-encontró en `/etc/sudoers` un permiso sin restricción de argumentos
-para el usuario bajo el que corre Apache (`nobody`):
-`nobody ALL=NOPASSWD: /sbin/iptables *`. Este permiso ya no tenía
-ningún consumidor real — su único propósito histórico era
-`firewall_snapshot.sh`. Eliminado, reduciendo la superficie de ataque:
-si el proceso de Apache llegara a comprometerse, ya no tendría control
-irrestricto sobre el firewall vía `sudo iptables`. Confirmado con
-`sudo -l -U nobody` que el permiso desapareció sin afectar los
-comandos que sí siguen en uso (`at`, `apache_evasive.sh`).
+Upon confirming that `firewall_snapshot.sh` no longer ran, it was
+found in `/etc/sudoers` that there was an argument-unrestricted permission
+for the user Apache runs under (`nobody`):
+`nobody ALL=NOPASSWD: /sbin/iptables *`. This permission no longer had
+any real consumer — its only historical purpose was
+`firewall_snapshot.sh`. Removed, reducing the attack surface:
+if the Apache process were to be compromised, it would no longer have
+unrestricted control over the firewall via `sudo iptables`. Confirmed with
+`sudo -l -U nobody` that the permission disappeared without affecting the
+commands still in use (`at`, `apache_evasive.sh`).
 
-**Observación post-implementación (2026-08-19)**
+**Post-implementation observation (2026-08-19)**
 
-Revisión de `mod_evasive_report.log`, `reputation_scores` (categoría
-`DOS`) e `ipset are-blacklist` una jornada después del cutover: sin
-eventos reales registrados desde la integración, solo las IPs de
-prueba usadas durante el desarrollo (`192.0.2.99`, `192.0.2.100`).
-Explicado por medidas de mitigación tomadas por el administrador el
-mismo día del pico detectado en RFC-013 (2026-08-15): cierre temporal
-del acceso a la tienda sin registro (principal blanco de los
-escaneos) y activación de Cloudflare "Under Attack Mode", ambas
-filtrando tráfico antes de que llegue a Apache/`mod_evasive`.
+Review of `mod_evasive_report.log`, `reputation_scores` (category
+`DOS`), and `ipset are-blacklist` a day after the cutover: no
+real events recorded since the integration, only the test IPs
+used during development (`192.0.2.99`, `192.0.2.100`).
+Explained by mitigation measures taken by the administrator on the
+same day as the spike detected in RFC-013 (2026-08-15): temporary
+closure of access to the registration-free store (the main target of
+the scans) and activation of Cloudflare "Under Attack Mode", both
+filtering traffic before it reaches Apache/`mod_evasive`.
 
-**Intento deliberado de validación (2026-08-19, más tarde)**
+**Deliberate validation attempt (2026-08-19, later)**
 
-Se desactivó temporalmente "Under Attack Mode" para intentar destapar
-tráfico real que ejercitara el sensor. Confirmado con historial de
-`/var/log/apache2/mod_evasive/*.filtered` que `mod_evasive` sí tiene
-actividad de detección real y reciente (eventos entre el 5 y el 15 de
-agosto, previos a la integración con ARE) — el mecanismo de detección
-en sí funciona; lo que falta es que un evento nuevo coincida con la
-ventana de observación post-integración. Sin resultado en la primera
-hora de monitoreo tras desactivar el modo de Cloudflare.
+"Under Attack Mode" was temporarily disabled to try to surface
+real traffic that would exercise the sensor. Confirmed with the history of
+`/var/log/apache2/mod_evasive/*.filtered` that `mod_evasive` does have
+real and recent detection activity (events between August 5 and 15,
+prior to the integration with ARE) — the detection mechanism
+itself works; what is missing is a new event coinciding with the
+post-integration observation window. No result in the first
+hour of monitoring after disabling Cloudflare's mode.
 
-**Decisión**: se mantiene "Under Attack Mode" desactivado de forma
-indefinida (no se reactiva de inmediato), a la espera de que ocurra
-un evento real que ejercite el sensor de forma genuina, sin bloquear
-el resto del trabajo de la sesión mientras tanto. La integración
-queda técnicamente validada (con tráfico de prueba); su primera
-validación con tráfico real de flood permanece pendiente.
+**Decision**: "Under Attack Mode" is kept disabled
+indefinitely (it is not reactivated immediately), awaiting a real
+event that genuinely exercises the sensor, without blocking
+the rest of the session's work in the meantime. The integration
+remains technically validated (with test traffic); its first
+validation with real flood traffic remains pending.
 
 ---
 
 ## RFC-013
 
-**Título:** Visibilidad temporal — tendencias diarias de actividad
+**Title:** Time-based visibility — daily activity trends
 
-**Estado:** ✔ Implementada — pendientes cerrados en v2.2
+**Status:** ✔ Implemented — pending items closed in v2.2
 
-**Versión:** v2.1 (en desarrollo) — cierre de pendientes en v2.2
+**Version:** v2.1 (in development) — pending items closed in v2.2
 
-**Descripción**
+**Description**
 
-Las vistas existentes (`dashboard_stats`, `dashboard_top`,
-`dashboard_score`, `dashboard_status`) muestran una foto del estado
-actual del sistema, pero ninguna permite ver cómo evolucionó la
-actividad a lo largo del tiempo. Con más de 60.000 eventos reales
-acumulados en la tabla `events`, no había forma de responder
-preguntas como "¿esta semana hubo más ataques que la anterior?" o
-"¿qué día tuve el pico de actividad?" sin consultar la base
-manualmente.
+The existing views (`dashboard_stats`, `dashboard_top`,
+`dashboard_score`, `dashboard_status`) show a snapshot of the system's
+current state, but none allow seeing how activity
+evolved over time. With more than 60,000 real events
+accumulated in the `events` table, there was no way to answer
+questions like "did this week have more attacks than the previous one?" or
+"which day did I have the activity peak?" without querying the database
+manually.
 
-**Implementación**
+**Implementation**
 
-* `dashboard/trends.sh` (nuevo módulo) — `dashboard_trends(dias)`:
-  agrupa eventos por día (`date(fecha, 'unixepoch')`), desglosando
-  totales, `FOUND`, `BAN`, `EXTERNAL_UNBAN`, e IPs distintas por día,
-  para una ventana configurable (default 7 días).
-* Nueva opción "5) Tendencias" en la rama Estado/Reputación de ARE
-  ADMIN, sin renumerar las opciones existentes.
-* Sin datos nuevos ni instrumentación adicional: reutiliza
-  exclusivamente la tabla `events` ya existente, poblada por el flujo
-  normal de `handle_found`/`handle_ban`/`handle_external_unban` desde
-  el inicio del proyecto.
+* `dashboard/trends.sh` (new module) — `dashboard_trends(days)`:
+  groups events by day (`date(date, 'unixepoch')`), breaking down
+  totals, `FOUND`, `BAN`, `EXTERNAL_UNBAN`, and distinct IPs per day,
+  for a configurable window (default 7 days).
+* New option "5) Trends" in the Status/Reputation branch of ARE
+  ADMIN, without renumbering the existing options.
+* No new data or additional instrumentation: it reuses
+  exclusively the already-existing `events` table, populated by the normal
+  flow of `handle_found`/`handle_ban`/`handle_external_unban` since
+  the start of the project.
 
-**Validación**
+**Validation**
 
-Probado en producción con los 7 días reales más recientes. Reveló de
-inmediato un pico real no detectado previamente: el 2026-08-15
-registró 5767 eventos (vs. un rango normal de 500-1300 en los demás
-días de la muestra), con un volumen de `EXTERNAL_UNBAN` (1518)
-desproporcionado respecto al resto de la semana — investigado por
-separado durante la sesión de RFC-016: misma causa que un pico
-posterior de `CREDENTIAL`/`EXPLOIT`, ambos coincidentes con ventanas
-sin Cloudflare Under Attack Mode.
+Tested in production with the 7 most recent real days. It immediately
+revealed a real peak not previously detected: 2026-08-15
+recorded 5767 events (vs. a normal range of 500-1300 on the other
+days of the sample), with an `EXTERNAL_UNBAN` volume (1518)
+disproportionate to the rest of the week — investigated
+separately during the RFC-016 session: the same cause as a later
+peak of `CREDENTIAL`/`EXPLOIT`, both coinciding with windows
+without Cloudflare Under Attack Mode.
 
-**Pendientes cerrados en v2.2**
+**Pending items closed in v2.2**
 
-* **Desglose por categoría** — `dashboard_trends_by_category(dias)`:
-  mismo patrón de agrupación por día, con `JOIN` contra
-  `jail_profile` para resolver la categoría de cada evento a partir
-  de su `jail`. El `JOIN` (inner) excluye automáticamente eventos
-  internos sin jail administrado (mismo mecanismo implícito que ya
-  usa `TOP JAILS`), sin necesidad de una lista de exclusión aparte.
-  Opción "6) Tendencias por categoría" en el mismo menú.
-* **Exportación a CSV** — `dashboard_trends_export(dias)`: mismo
-  patrón de archivo con timestamp en `${ARE_DATA}/backups/trends/`
-  ya validado en RFC-011. Opción "7) Exportar tendencias (CSV)".
-* Validación en producción de ambos: el desglose por categoría reveló
-  un segundo pico real (`CREDENTIAL=3332` el 2026-08-20, contra un
-  rango normal de 40-90), confirmando la misma causa raíz que el pico
-  de `EXTERNAL_UNBAN` del 15 de agosto.
+* **Breakdown by category** — `dashboard_trends_by_category(days)`:
+  same per-day grouping pattern, with a `JOIN` against
+  `jail_profile` to resolve the category of each event from
+  its `jail`. The (inner) `JOIN` automatically excludes
+  internal events with no managed jail (the same implicit mechanism already
+  used by `TOP JAILS`), without needing a separate exclusion
+  list. Option "6) Trends by category" in the same menu.
+* **CSV export** — `dashboard_trends_export(days)`: the same
+  timestamped-file pattern in `${ARE_DATA}/backups/trends/`
+  already validated in RFC-011. Option "7) Export trends (CSV)".
+* Production validation of both: the breakdown by category revealed
+  a second real peak (`CREDENTIAL=3332` on 2026-08-20, against a
+  normal range of 40-90), confirming the same root cause as the peak
+  of `EXTERNAL_UNBAN` of August 15.
 
 ---
 
 ## RFC-014
 
-**Título:** Restaurar ipset desde `sanction_state` al arrancar el sistema
+**Title:** Restore ipset from `sanction_state` at system boot
 
-**Estado:** ✔ Implementada
+**Status:** ✔ Implemented
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Descripción**
+**Description**
 
-`ipset` no persiste nativamente entre reinicios del servidor — sus
-sets viven en memoria del kernel. El mecanismo de persistencia nativo
-de AlmaLinux (`ipset.service`) solo restaura los sets con el nombre
-histórico (`blacklist`, `blacklist6`, previos a la identidad `are-*`),
-que hoy están vacíos y sin uso. Los sets reales de ARE (`are-blacklist`,
-`are-filter`, etc.) no tenían ningún mecanismo de restauración
-explícito.
+`ipset` does not natively persist across server reboots — its
+sets live in kernel memory. AlmaLinux's native persistence mechanism
+(`ipset.service`) only restores the sets with the
+historical name (`blacklist`, `blacklist6`, prior to the `are-*` identity),
+which today are empty and unused. ARE's real sets (`are-blacklist`,
+`are-filter`, etc.) had no explicit restoration
+mechanism.
 
-**Contexto que motivó la investigación**
+**Context that motivated the investigation**
 
-Tras una actualización de kernel con reinicio real del servidor, se
-observó que `are-blacklist` volvió a tener contenido pese a la falta
-de mecanismo de persistencia conocido. Investigación con evidencia
-real confirmó que el repoblado ocurría de forma indirecta: el flujo
-normal de eventos (`handle_found`/`handle_ban`) reevalúa cualquier IP
-que vuelve a generar tráfico contra `sanction_state`, y el hard gate
-de `STATUS=BANNED` la re-agrega al ipset. Funcional para IPs
-permanentes que reinciden, pero **insuficiente para sanciones
-temporales**: una IP con `TEMP_BAN` activo (por ejemplo, con 1 hora
-restante de una sanción de 24) se pierde completamente tras un reboot
-si no vuelve a generar tráfico antes de que expire su `ban_until`
-real en la base — el temporizador de la sanción, en la práctica,
-dejaba de cumplirse.
+After a kernel update with a real server reboot, it was
+observed that `are-blacklist` had content again despite the absence
+of a known persistence mechanism. Investigation with real
+evidence confirmed that the repopulation happened indirectly: the
+normal event flow (`handle_found`/`handle_ban`) re-evaluates any IP
+that generates traffic again against `sanction_state`, and the hard gate
+of `STATUS=BANNED` re-adds it to the ipset. Functional for
+permanent IPs that reoffend, but **insufficient for temporary
+sanctions**: an IP with an active `TEMP_BAN` (for example, with 1 hour
+remaining of a 24-hour sanction) is completely lost after a reboot
+if it does not generate traffic again before its real `ban_until`
+expires in the database — the sanction's timer, in practice,
+stopped being honored.
 
-**Implementación**
+**Implementation**
 
-* `infrastructure/restore_ipsets.sh` (nuevo) — script de ejecución
-  única al arrancar: consulta `sanction_state` por IPs con
-  `permanent=1` o `ban_until` en el futuro, y las reincorpora al
-  ipset correspondiente (`BAN_SET4`/`BAN_SET6` según familia),
-  **preservando el tiempo restante exacto** (`ban_until - now`) en
-  vez de reiniciar la sanción a su duración completa original.
-  Excluye IPs whitelisteadas y sanciones ya expiradas.
-* `systemd/are-restore-ipsets.service` (nuevo) — unidad `oneshot` con
-  `After=network.target ipset.service` y `Requires=ipset.service`,
-  disparada una sola vez por boot, no periódica.
-* Agregada a `PRODUCT_SYSTEMD_UNITS` en `manifest/product.sh`.
+* `infrastructure/restore_ipsets.sh` (new) — a single-execution
+  script at boot: it queries `sanction_state` for IPs with
+  `permanent=1` or `ban_until` in the future, and re-adds them to the
+  corresponding ipset (`BAN_SET4`/`BAN_SET6` by family),
+  **preserving the exact remaining time** (`ban_until - now`) instead
+  of resetting the sanction to its original full duration.
+  It excludes whitelisted IPs and already-expired sanctions.
+* `systemd/are-restore-ipsets.service` (new) — a `oneshot` unit with
+  `After=network.target ipset.service` and `Requires=ipset.service`,
+  triggered a single time per boot, not periodic.
+* Added to `PRODUCT_SYSTEMD_UNITS` in `manifest/product.sh`.
 
-**Hallazgo real durante la validación: BUG-020**
+**Real finding during validation: BUG-020**
 
-Al probar la restauración contra datos reales, `ipset add` falló para
-varias IPs con "out of range 0-2147483" — el mismo límite máximo de
-`ipset` en esta versión ya identificado en RFC-010. La causa raíz no
-estaba en el script nuevo: `policy/apply.sh`, en la rama `TEMP_BAN`,
-pasaba `SANCTION_TIME` sin capear a `ipset add`. Como
-`BAN_LEVEL_6_TIME=2592000` (30 días) supera el límite de `ipset`
-(~24.85 días), **cualquier IP real que escalara al nivel 6 del Ban
-Lifecycle quedaba marcada como sancionada en `sanction_state` sin
-que el bloqueo se aplicara efectivamente en el firewall** — el error
-de `ipset` se descartaba silenciosamente (`2>/dev/null`) sin ningún
-chequeo del código de salida, en las 4 líneas de `ipset add`/`ipset
-del` de todo el archivo.
+When testing the restoration against real data, `ipset add` failed for
+several IPs with "out of range 0-2147483" — the same `ipset` maximum
+limit in this version already identified in RFC-010. The root cause was
+not in the new script: `policy/apply.sh`, in the `TEMP_BAN` branch,
+passed `SANCTION_TIME` without capping it to `ipset add`. Since
+`BAN_LEVEL_6_TIME=2592000` (30 days) exceeds `ipset`'s limit
+(~24.85 days), **any real IP that escalated to level 6 of the Ban
+Lifecycle was left marked as sanctioned in `sanction_state` without
+the block being effectively applied in the firewall** — the `ipset`
+error was silently discarded (`2>/dev/null`) with no check
+of the exit code, in all 4 `ipset add`/`ipset del` lines of the whole
+file.
 
-**Corrección de BUG-020**
+**BUG-020 fix**
 
-* Nueva variable `IPSET_MAX_TIMEOUT=2147483` en `config.conf` (real y
-  plantilla), como fuente única del límite — usada tanto en
-  `policy/apply.sh` como en `restore_ipsets.sh`, sin repetir el
-  número en ningún lugar.
-* `policy/apply.sh`: `SANCTION_TIME` se capea a `IPSET_MAX_TIMEOUT`
-  antes de aplicarse, con `WARN` explícito cuando ocurre.
-* Se agregó `-exist` a las 4 llamadas de `ipset add`/`ipset del` en
-  `policy/apply.sh` (ausente en el original, a diferencia de
-  `infrastructure/ipset.sh::banIP()`, que ya lo usaba) — hace la
-  operación idempotente y elimina el motivo original por el que
-  alguien había silenciado los errores.
-* Se eliminó el silenciamiento de errores (`2>/dev/null`) en las 4
-  líneas, reemplazado por chequeo explícito del código de salida y
-  `ERROR` visible en el log cuando `ipset` falla de verdad.
+* New variable `IPSET_MAX_TIMEOUT=2147483` in `config.conf` (real and
+  template), as the single source of the limit — used both in
+  `policy/apply.sh` and in `restore_ipsets.sh`, without repeating the
+  number anywhere.
+* `policy/apply.sh`: `SANCTION_TIME` is capped to `IPSET_MAX_TIMEOUT`
+  before being applied, with an explicit `WARN` when it happens.
+* `-exist` was added to the 4 `ipset add`/`ipset del` calls in
+  `policy/apply.sh` (absent in the original, unlike
+  `infrastructure/ipset.sh::banIP()`, which already used it) — it makes the
+  operation idempotent and removes the original reason why
+  someone had silenced the errors.
+* The error silencing (`2>/dev/null`) was removed in the 4
+  lines, replaced by an explicit check of the exit code and a
+  visible `ERROR` in the log when `ipset` actually fails.
 
-**Validación**
+**Validation**
 
-Reproducido el bug con una IP de prueba forzada a `ban_level=5` en
-`sanction_state` (para que `ban_lifecycle_calculate()` calculara el
-salto a nivel 6): confirmado el `WARN` de capeo y el `ipset add`
-exitoso con `timeout 2147483` (antes: error "out of range", sin
-bloqueo real aplicado). Restauración completa probada simulando un
-reboot (`ipset flush` + `restore_ipsets.sh`): 168 IPs reales
-restauradas sin errores, incluyendo las mismas IPs que antes fallaban
-por rango (`192.42.116.107`, `85.11.167.225`), ahora correctamente
-capeadas. Confirmado que los tiempos restaurados no son valores
-"redondos" del Ban Lifecycle sino tiempos restantes reales
-(`191.242.209.98` con `1829537s`, ~21.2 días, no coincide con ningún
-nivel fijo de la tabla), confirmando que se preserva el tiempo
-restante genuino, no se reinicia la sanción.
+Reproduced the bug with a test IP forced to `ban_level=5` in
+`sanction_state` (so that `ban_lifecycle_calculate()` computed the
+jump to level 6): confirmed the capping `WARN` and the successful `ipset add`
+with `timeout 2147483` (before: "out of range" error, with no
+real block applied). Complete restoration tested simulating a
+reboot (`ipset flush` + `restore_ipsets.sh`): 168 real IPs
+restored with no errors, including the same IPs that previously failed
+by range (`192.42.116.107`, `85.11.167.225`), now correctly
+capped. Confirmed that the restored times are not "round"
+Ban Lifecycle values but real remaining times
+(`191.242.209.98` with `1829537s`, ~21.2 days, does not match any
+fixed level of the table), confirming that the genuine remaining time
+is preserved, the sanction is not reset.
 
-**Validación con reboot real (2026-08-19, extensión posterior)**
+**Validation with a real reboot (2026-08-19, later extension)**
 
-Confirmado con un reinicio genuino del servidor (no simulado):
-`are-restore-ipsets.service` corrió automáticamente al arrancar
-(`journalctl` confirma ejecución sin intervención manual), y
-`are-blacklist` quedó poblado con 146 sanciones activas reales tras
-el boot.
+Confirmed with a genuine (not simulated) server reboot:
+`are-restore-ipsets.service` ran automatically at boot
+(`journalctl` confirms execution with no manual intervention), and
+`are-blacklist` was left populated with 146 real active sanctions after
+the boot.
 
-**Hallazgo adicional durante esta validación: `FILTER_SET` también se
-pierde en cada reinicio, sin ningún mecanismo de restauración**
+**Additional finding during this validation: `FILTER_SET` is also
+lost on every reboot, with no restoration mechanism**
 
-El diseño original de esta RFC solo cubría `BAN_SET`, restaurado desde
-`sanction_state`. El estado `FILTER` (`reputation.status='FILTER'`) es
-un mecanismo distinto — no vive en `sanction_state`, no tiene
-`ban_until` que preservar — y quedó completamente fuera del alcance
-original. Confirmado con evidencia real: tras el reboot, la base de
-datos tenía 178 IPs con `status='FILTER'`, pero el `ipset are-filter`
-solo conservaba 13 (las que habían vuelto a generar tráfico y fueron
-re-agregadas por el flujo normal, igual que ocurre con `BAN` cuando no
-existía este mecanismo).
+The original design of this RFC only covered `BAN_SET`, restored from
+`sanction_state`. The `FILTER` state (`reputation.status='FILTER'`) is
+a different mechanism — it does not live in `sanction_state`, it has no
+`ban_until` to preserve — and it was left completely out of the
+original scope. Confirmed with real evidence: after the reboot, the
+database had 178 IPs with `status='FILTER'`, but the `ipset are-filter`
+only kept 13 (those that had generated traffic again and were
+re-added by the normal flow, the same as happens with `BAN` when
+this mechanism did not exist).
 
-**Corrección**
+**Fix**
 
-`infrastructure/restore_ipsets.sh` extendido: además de restaurar
-`BAN_SET` desde `sanction_state` (con tiempo restante preservado),
-ahora también restaura `FILTER_SET` desde `reputation.status='FILTER'`
-(sin timeout, igual que la creación original en `policy/apply.sh`).
-Misma exclusión de IPs whitelisteadas en ambos casos.
+`infrastructure/restore_ipsets.sh` extended: in addition to restoring
+`BAN_SET` from `sanction_state` (with the remaining time preserved),
+it now also restores `FILTER_SET` from `reputation.status='FILTER'`
+(without a timeout, the same as the original creation in `policy/apply.sh`).
+The same exclusion of whitelisted IPs in both cases.
 
-**Validación de la extensión**
+**Validation of the extension**
 
-Simulado con `ipset flush are-filter` + corrida del script: log
-confirma `FILTER restaurados=178`, coincidiendo con el conteo real de
-`reputation.status='FILTER'` en la base; el `ipset` quedó con 170
-entradas (diferencia esperable por exclusión de whitelist).
+Simulated with `ipset flush are-filter` + a run of the script: the log
+confirms `FILTER restored=178`, matching the real count of
+`reputation.status='FILTER'` in the database; the `ipset` was left with 170
+entries (an expected difference due to whitelist exclusion).
 
-**Pendiente**
+**Pending**
 
-* Evaluar si el mismo problema de timeout fuera de rango puede
-  afectar a `FILTER_SET` en escenarios de muy larga duración (hoy
-  `FILTER` no usa timeout, por lo que no aplica actualmente).
+* Evaluate whether the same out-of-range timeout problem can
+  affect `FILTER_SET` in very-long-duration scenarios (today
+  `FILTER` does not use a timeout, so it does not apply currently).
 
-**Archivos relacionados**
+**Related files**
 
-* `infrastructure/restore_ipsets.sh` (nuevo)
-* `systemd/are-restore-ipsets.service` (nuevo)
+* `infrastructure/restore_ipsets.sh` (new)
+* `systemd/are-restore-ipsets.service` (new)
 * `policy/apply.sh`
 * `config/config.conf`
 * `manifest/product.sh`
@@ -2598,70 +2596,70 @@ entradas (diferencia esperable por exclusión de whitelist).
 
 ## RFC-015
 
-**Título:** Atajo de salida directa en ARE ADMIN (`x) Salir`)
+**Title:** Direct-exit shortcut in ARE ADMIN (`x) Exit`)
 
-**Estado:** ✔ Implementada
+**Status:** ✔ Implemented
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Descripción**
+**Description**
 
-Hasta esta RFC, salir de ARE ADMIN desde cualquier submenú requería
-navegar de vuelta al menú raíz (`0) Volver`, repetido tantas veces
-como niveles de profundidad) antes de poder usar `0) Salir` desde
-ahí. Con 7 ramas y hasta 7 opciones por rama, un administrador que
-solo quería cerrar la sesión debía recorrer el árbol completo hacia
-atrás.
+Until this RFC, exiting ARE ADMIN from any submenu required
+navigating back to the root menu (`0) Back`, repeated as many times
+as levels of depth) before being able to use `0) Exit` from
+there. With 7 branches and up to 7 options per branch, an administrator who
+just wanted to close the session had to traverse the entire tree
+backward.
 
-**Decisión de diseño**
+**Design decision**
 
-Se evaluaron dos alternativas: agregar un número nuevo (ej. `9)
-Salir`) junto a las opciones existentes, o renombrar `0)` de "Volver"
-a "Salir" cambiando su semántica. Se descartaron ambas: la primera
-por no escalar bien si una rama crece más allá de 8-9 opciones
-numéricas (el atajo dejaría de distinguirse visualmente del resto); la
-segunda por reasignar el significado de una tecla ya conocida y muy
-usada (`0`), con riesgo de que alguien cierre el programa pensando
-que solo retrocede un nivel.
+Two alternatives were evaluated: adding a new number (e.g. `9)
+Exit`) alongside the existing options, or renaming `0)` from "Back"
+to "Exit" changing its semantics. Both were discarded: the first
+because it does not scale well if a branch grows beyond 8-9 numeric
+options (the shortcut would stop being visually distinct from the rest); the
+second because it reassigns the meaning of an already-known and heavily
+used key (`0`), with the risk that someone closes the program thinking
+it only goes back one level.
 
-Se optó por una letra (`x`) en lugar de un número: nunca compite con
-el rango de opciones numéricas de ningún submenú, sin importar cuánto
-crezca, y queda visualmente distinguida del resto de las opciones.
+A letter (`x`) was chosen instead of a number: it never competes with
+the numeric option range of any submenu, regardless of how much it
+grows, and is left visually distinguished from the rest of the options.
 
-**Implementación**
+**Implementation**
 
-* `admin_exit()` (nueva, en `admin/core.sh`): función única de
-  salida, invocada desde los 8 puntos donde corresponde (el `0)` del
-  menú raíz y el alias `x|X` en los 7 submenús), evitando duplicar el
-  mensaje de despedida en cada archivo.
-* Cada uno de los 7 submenús (`jails.sh`, `categories.sh`,
+* `admin_exit()` (new, in `admin/core.sh`): a single exit
+  function, invoked from the 8 points where it applies (the `0)` of the
+  root menu and the `x|X` alias in the 7 submenus), avoiding duplicating the
+  farewell message in each file.
+* Each of the 7 submenus (`jails.sh`, `categories.sh`,
   `sensors_menu.sh`, `config_menu.sh`, `policy_menu.sh`,
-  `decay_menu.sh`, `state_menu.sh`) agrega `x) Salir` a su listado de
-  opciones y `x|X) admin_exit ;;` a su `case`, sin modificar ninguna
-  otra opción existente (`0) Volver` conserva su semántica y número
-  originales en todos los niveles).
-* El menú raíz no repite la línea visual `x) Salir` (ya tiene
-  `0) Salir` explícito, que cumple la misma función), pero sí acepta
-  el alias `x|X` por consistencia con el resto de la interfaz.
+  `decay_menu.sh`, `state_menu.sh`) adds `x) Exit` to its list of
+  options and `x|X) admin_exit ;;` to its `case`, without modifying any
+  other existing option (`0) Back` keeps its original semantics and number
+  at all levels).
+* The root menu does not repeat the visual line `x) Exit` (it already has
+  an explicit `0) Exit`, which fulfills the same function), but it does accept
+  the `x|X` alias for consistency with the rest of the interface.
 
-**Hallazgo adicional durante la revisión de `sensors_menu.sh`**
+**Additional finding during the review of `sensors_menu.sh`**
 
-Al tocar ese archivo para agregar la opción `x`, se encontró que
-`sensors_status()` y `sensors_config()` mostraban información
-desactualizada al administrador: `apache_evasive` figuraba como
-sensor "no implementado aún" (implementado desde RFC-012), y
-`sensors_config()` describía el log de Fail2Ban como ruta fija y el
-filtro de jails como lista estática (ambos corregidos desde
-TASK-016). Corregido en el mismo cambio, ya que el archivo se estaba
-modificando de todos modos.
+When touching that file to add the `x` option, it was found that
+`sensors_status()` and `sensors_config()` showed outdated
+information to the administrator: `apache_evasive` appeared as a
+sensor "not yet implemented" (implemented since RFC-012), and
+`sensors_config()` described the Fail2Ban log as a fixed path and the
+jail filter as a static list (both fixed since
+TASK-016). Fixed in the same change, since the file was being
+modified anyway.
 
-**Validación**
+**Validation**
 
-Probado en las 7 ramas: `x` desde cualquier submenú cierra el
-programa completo de inmediato, sin pasar por el menú raíz. `0)
-Volver` sigue funcionando sin cambios en su comportamiento original.
+Tested in the 7 branches: `x` from any submenu closes the
+whole program immediately, without passing through the root menu. `0)
+Back` keeps working with no change in its original behavior.
 
-**Archivos relacionados**
+**Related files**
 
 * `admin/core.sh`
 * `admin/jails.sh`
@@ -2676,303 +2674,303 @@ Volver` sigue funcionando sin cambios en su comportamiento original.
 
 ## RFC-016
 
-**Título:** Sensor SpamAssassin — categoría SOCIAL
+**Title:** SpamAssassin sensor — SOCIAL category
 
-**Estado:** ✔ Implementada y validada en producción
+**Status:** ✔ Implemented and validated in production
 
-**Versión:** v2.2 (en desarrollo)
+**Version:** v2.2 (in development)
 
-**Descripción**
+**Description**
 
-Primera funcionalidad de la línea v2.2. Surge de completar una
-categoría que ya existía en el modelo desde RFC-009
-(`REPUTATION_CATEGORIES`, regla `policy_rule_social()`) pero sin
-ningún sensor real que la alimentara — `SOCIAL_THRESHOLD` estaba
-vacío y la regla, aunque escrita, nunca se ejecutaba.
+First feature of the v2.2 line. It arises from completing a
+category that already existed in the model since RFC-009
+(`REPUTATION_CATEGORIES`, the `policy_rule_social()` rule) but with
+no real sensor feeding it — `SOCIAL_THRESHOLD` was
+empty and the rule, although written, never ran.
 
-Se evaluó primero MALWARE como candidato de la misma naturaleza (sin
-sensor), pero se descartó por falta de superficie real en este
-servidor (tráfico es e-commerce → clientes, sin ClamAV/escaneo de
-malware activo) — queda como IDEA para publicación/comunidad, no como
-tarea de v2.2. SpamAssassin, en cambio, sí tiene tráfico real
-(mensajería de e-commerce saliente vía Exim), y quedó como la
-categoría con datos disponibles para calibrar sin depender de
-terceros.
+MALWARE was evaluated first as a candidate of the same nature (without a
+sensor), but was discarded due to the lack of a real surface on this
+server (the traffic is e-commerce → clients, with no ClamAV / active malware
+scanning) — it remains an IDEA for publication/community, not as a
+v2.2 task. SpamAssassin, on the other hand, does have real traffic
+(outbound e-commerce messaging via Exim), and remained the
+category with available data to calibrate without depending on
+third parties.
 
-**Decisiones de diseño**
+**Design decisions**
 
-* **Bandas en vez de score variable por evento.** Se descartó pasar
-  el score de SpamAssassin como peso variable directo (rompería el
-  contrato de `handle_found()`, que toma weight/confidence fijos del
-  `jail_profile`). En su lugar, tres jails virtuales por rango de
-  score (`spamassassin-low` 5.0–9.99, `spamassassin-med` 10.0–14.99,
-  `spamassassin-high` ≥15.0), cada uno con su propio perfil — cero
-  cambios en `database.sh` ni en `policy/`.
-* **Adaptador por MTA.** El sensor (`sensors/spamassassin.sh`) aísla
-  la extracción de IP+score en una función por MTA
-  (`extract_spam_event_<mta>`, seleccionada por `SPAMASSASSIN_MTA` en
-  `config.conf`). Único adaptador implementado y validado: `exim`.
-  Sumar otro MTA es agregar una función, no reescribir el sensor.
-* **Separación config.conf / policy.conf.** `SPAMASSASSIN_MTA` y
-  `SPAMASSASSIN_LOG_FILE` (infraestructura) quedan en `config.conf`;
-  `SPAMASSASSIN_MIN_SCORE` y los límites de banda (calibración de
-  decisión, mismo tipo de valor que un `*_THRESHOLD`) quedan en
-  `policy.conf`. Diferencia estructural real respecto a
-  `sensors/fail2ban.sh`: ese sensor no necesita leer `policy.conf`
-  porque no clasifica nada, reenvía el evento crudo; este sí clasifica
-  antes de reportar, así que necesita ambos archivos.
-* **`SOCIAL_THRESHOLD=40`**, calibrado por criterio (sin volumen
-  histórico propio para basarse, a diferencia de `ANOMALY`/`DOS`) —
-  mismo nivel que `ANOMALY`, por tratarse de una señal heurística
-  igual de propensa a falsos positivos (spam mal clasificado, SPF
-  roto), no una confirmación binaria como `CREDENTIAL`/`DOS`.
+* **Bands instead of a variable per-event score.** Passing
+  the SpamAssassin score as a direct variable weight was discarded (it would break the
+  contract of `handle_found()`, which takes fixed weight/confidence from the
+  `jail_profile`). Instead, three virtual jails by score
+  range (`spamassassin-low` 5.0–9.99, `spamassassin-med` 10.0–14.99,
+  `spamassassin-high` ≥15.0), each with its own profile — zero
+  changes in `database.sh` or in `policy/`.
+* **Adapter per MTA.** The sensor (`sensors/spamassassin.sh`) isolates
+  the IP+score extraction in a function per MTA
+  (`extract_spam_event_<mta>`, selected by `SPAMASSASSIN_MTA` in
+  `config.conf`). The only adapter implemented and validated: `exim`.
+  Adding another MTA is adding a function, not rewriting the sensor.
+* **config.conf / policy.conf separation.** `SPAMASSASSIN_MTA` and
+  `SPAMASSASSIN_LOG_FILE` (infrastructure) are kept in `config.conf`;
+  `SPAMASSASSIN_MIN_SCORE` and the band limits (decision
+  calibration, the same kind of value as a `*_THRESHOLD`) are kept in
+  `policy.conf`. A real structural difference from
+  `sensors/fail2ban.sh`: that sensor does not need to read `policy.conf`
+  because it classifies nothing, it forwards the raw event; this one does classify
+  before reporting, so it needs both files.
+* **`SOCIAL_THRESHOLD=40`**, calibrated by criterion (with no own
+  historical volume to base on, unlike `ANOMALY`/`DOS`) —
+  the same level as `ANOMALY`, as it is a heuristic signal
+  equally prone to false positives (misclassified spam, broken SPF),
+  not a binary confirmation like `CREDENTIAL`/`DOS`.
 
-**Implementación**
+**Implementation**
 
-* `sensors/spamassassin.sh` — patrón polling (offset por línea,
-  mismo esquema que `sensors/fail2ban.sh`), filtro dinámico contra
-  `jail_profile` (mismo criterio que TASK-016), `$ARE_BIN found`
-  para reportar.
-* 3 `jail_profile` nuevos, categoría `SOCIAL`:
+* `sensors/spamassassin.sh` — polling pattern (per-line offset,
+  same scheme as `sensors/fail2ban.sh`), dynamic filter against
+  `jail_profile` (same criterion as TASK-016), `$ARE_BIN found`
+  to report.
+* 3 new `jail_profile`, category `SOCIAL`:
   `spamassassin-low` (10 / 0.6), `spamassassin-med` (25 / 0.75),
   `spamassassin-high` (50 / 0.9).
-* Automatización: `are-spamassassin.service` + `are-spamassassin.timer`
-  (systemd, cada 1 min, `After=/Requires=exim.service` en vez de
-  `fail2ban.service` — dependencia adaptada a la fuente real de
-  datos). Sin symlink en `PRODUCT_EXECUTABLE_LINKS` (los sensores no
-  se invocan manualmente).
-* Alta en `manifest/product.sh` → `PRODUCT_SYSTEMD_UNITS`.
-* `policy/rules/social.sh` no requirió ningún cambio — ya existía
-  desde RFC-009 con el contrato correcto, esperando que
-  `SOCIAL_THRESHOLD` dejara de estar vacío.
+* Automation: `are-spamassassin.service` + `are-spamassassin.timer`
+  (systemd, every 1 min, `After=/Requires=exim.service` instead of
+  `fail2ban.service` — the dependency adapted to the real source of
+  data). No symlink in `PRODUCT_EXECUTABLE_LINKS` (sensors are not
+  invoked manually).
+* Registration in `manifest/product.sh` → `PRODUCT_SYSTEMD_UNITS`.
+* `policy/rules/social.sh` required no change — it already existed
+  since RFC-009 with the correct contract, waiting for
+  `SOCIAL_THRESHOLD` to stop being empty.
 
-**Bug encontrado y corregido durante la implementación**
+**Bug found and fixed during implementation**
 
-Al crear `spamassassin-high` en ARE ADMIN, quedó con weight=25 en vez
-de 50 (igual al de `spamassassin-med`), sin diferenciar la banda alta
-de la media. Detectado al validar los primeros 7 eventos reales
-contra la fórmula real de `handle_found()`
-(`score = round(weight × confidence × 0.25)`, confirmada leyendo
-`are.sh` en vez de asumida) — los 3 primeros eventos `high` dieron
-score 6, idéntico al esperado para `med`. Corregido en ARE ADMIN antes
-de automatizar con systemd. Los 3 eventos ya aplicados con el weight
-incorrecto no se revirtieron: `SOCIAL_THRESHOLD` todavía no existía
-en ese momento, no afectaron ninguna decisión real.
+When creating `spamassassin-high` in ARE ADMIN, it was left with weight=25 instead
+of 50 (equal to that of `spamassassin-med`), without differentiating the high band
+from the medium one. Detected when validating the first 7 real events
+against the real formula of `handle_found()`
+(`score = round(weight × confidence × 0.25)`, confirmed by reading
+`are.sh` rather than assumed) — the first 3 `high` events gave
+score 6, identical to the expected one for `med`. Fixed in ARE ADMIN before
+automating with systemd. The 3 events already applied with the incorrect
+weight were not reverted: `SOCIAL_THRESHOLD` did not yet exist
+at that moment, they affected no real decision.
 
-**Validación**
+**Validation**
 
-Probado en producción contra el `mainlog` real de Exim:
-* `--dry-run` inicial: 7 eventos reales clasificados correctamente en
-  sus 3 bandas.
-* `--execute` manual: pipeline completo confirmado
-  (`FOUND → Score → POLICY → APPLY`), incluida acumulación correcta
-  entre eventos de la misma IP (`96.127.160.85`: dos hits de
+Tested in production against Exim's real `mainlog`:
+* Initial `--dry-run`: 7 real events classified correctly in
+  their 3 bands.
+* Manual `--execute`: complete pipeline confirmed
+  (`FOUND → Score → POLICY → APPLY`), including correct accumulation
+  between events of the same IP (`96.127.160.85`: two hits of
   `spamassassin-high`, `RAW_TOTAL` 6→12).
-* Automatización con systemd verificada (`systemctl list-timers`,
+* Automation with systemd verified (`systemctl list-timers`,
   `journalctl -u are-spamassassin.service`).
-* `./are.sh admin` → Política → Validar: 9/9 categorías con regla
-  activa (antes de este RFC, `SOCIAL` estaba en la lista pero sin
-  ejercer ningún efecto real).
-* Primer día completo de datos reales (2026-08-20): 1 evento
-  registrado en tendencias por categoría — volumen bajo, coherente
-  con la calibración conservadora elegida.
+* `./are.sh admin` → Policy → Validate: 9/9 categories with an active
+  rule (before this RFC, `SOCIAL` was in the list but without
+  exerting any real effect).
+* First full day of real data (2026-08-20): 1 event
+  recorded in the trends by category — low volume, consistent
+  with the conservative calibration chosen.
 
-**Pendiente**
+**Pending**
 
-* Adaptador para otro MTA (Postfix), sin caso de uso real todavía en
-  la flota.
-* Recalibrar bandas/umbral con más volumen histórico una vez pase
-  más tiempo (igual criterio que `ANOMALY`/`DOS` en su momento).
+* Adapter for another MTA (Postfix), with no real use case yet in
+  the fleet.
+* Recalibrate bands/threshold with more historical volume once
+  more time passes (the same criterion as `ANOMALY`/`DOS` at the time).
 
 ---
 
 ## RFC-017
 
-**Título:** Activar/desactivar sensores desde ARE ADMIN, con registro dinámico
+**Title:** Enable/disable sensors from ARE ADMIN, with dynamic registration
 
-**Estado:** ✔ Implementada y validada en producción (Fase 1 y Fase 2 completas)
+**Status:** ✔ Implemented and validated in production (Phase 1 and Phase 2 complete)
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Descripción**
+**Description**
 
-Surge de una necesidad real: cuando el proyecto tenga varios sensores,
-no todos los colegas que instalen ARE van a querer usarlos todos —
-alguien sin SpamAssassin no debería tener ese sensor consumiendo
-recursos ni generando ruido. Hoy no existe ningún mecanismo para
-activar o desactivar un sensor desde ARE ADMIN; el único control es
-manual, a nivel de systemd (`systemctl disable`) o, en el caso de
-`apache_evasive`, comentando una línea en la configuración de Apache.
+Arises from a real need: when the project has several sensors,
+not all the colleagues who install ARE will want to use them all —
+someone without SpamAssassin should not have that sensor consuming
+resources or generating noise. Today there is no mechanism to
+enable or disable a sensor from ARE ADMIN; the only control is
+manual, at the systemd level (`systemctl disable`) or, in the case of
+`apache_evasive`, by commenting out a line in the Apache configuration.
 
-**Decisiones de diseño**
+**Design decisions**
 
-* **`jail_profile` no se toca.** `RFC-007` estableció explícitamente
-  que ese modelo es agnóstico del sensor de origen — "la existencia y
-  las propiedades de riesgo de un jail viven exclusivamente en
-  `jail_profile`... nunca hardcodeadas dentro del código de un sensor
-  particular". Mezclar el estado de un sensor ahí rompería esa
-  separación intencional.
-* **Registro nuevo, separado: tabla `sensor_registry`.** No una lista
-  fija en el código (mismo motivo que llevó a `jail_profile` a ser
-  dinámico en `TASK-016`) — un sensor nuevo, presente o futuro, se da
-  de alta como fila, no como código nuevo en el menú.
-* **`jail` y `sensor` son conceptos independientes, por diseño.** Un
-  sensor de polling como `fail2ban.sh` alimenta muchos jails a la vez
-  (`sshd`, `dovecot`, `mysqld-auth`, todos los `modsec-*`...) sin
-  relación explícita en la base — la relación vive en el propio script
-  del sensor (qué log lee, qué jails reporta), no en una tabla.
-  Activar/desactivar es a nivel de **sensor**, no de jail individual.
-* **Dos patrones de activación, según el tipo de sensor** (mismos dos
-  patrones que ya distingue el Sensor Framework — polling vs callback):
-  * **Polling** (`fail2ban`, `spamassassin`) — activar/desactivar es
-    `systemctl enable --now` / `systemctl disable --now` sobre el
-    `.timer` correspondiente. Mecanismo que ya existe, se reutiliza sin
-    cambios.
-  * **Callback** (`apache_evasive`) — no hay timer que tocar; Apache lo
-    invoca directo vía `DOSSystemCommand`. Requiere que el propio
-    script chequee un flag de estado al arrancar, y salga sin hacer
-    nada si está desactivado — cambio real dentro del sensor, no solo
-    en ARE ADMIN.
-* **Auto-provisión de perfiles: hook opcional por sensor, no
-  universal.** Solo `spamassassin.sh` necesita crear sus 3 jails
-  (`spamassassin-low/med/high`) al activarse — `fail2ban`/
-  `apache_evasive` no crean nada, sus jails ya se dan de alta a mano
-  por el administrador. Se resuelve con una función opcional que cada
-  sensor puede definir (`<sensor>_on_enable()`), no con lógica genérica
-  en el registro.
+* **`jail_profile` is not touched.** `RFC-007` explicitly established
+  that that model is agnostic to the source sensor — "the existence and
+  the risk properties of a jail live exclusively in
+  `jail_profile`... never hardcoded inside the code of a particular
+  sensor". Mixing a sensor's state there would break that
+  intentional separation.
+* **A new, separate registry: the `sensor_registry` table.** Not a fixed
+  list in the code (the same reason that led `jail_profile` to be
+  dynamic in `TASK-016`) — a new sensor, present or future, is
+  registered as a row, not as new code in the menu.
+* **`jail` and `sensor` are independent concepts, by design.** A
+  polling sensor like `fail2ban.sh` feeds many jails at once
+  (`sshd`, `dovecot`, `mysqld-auth`, all the `modsec-*`...) with no
+  explicit relationship in the database — the relationship lives in the sensor's own
+  script (which log it reads, which jails it reports), not in a table.
+  Enable/disable is at the **sensor** level, not at the individual jail level.
+* **Two activation patterns, by sensor type** (the same two
+  patterns the Sensor Framework already distinguishes — polling vs callback):
+  * **Polling** (`fail2ban`, `spamassassin`) — enabling/disabling is
+    `systemctl enable --now` / `systemctl disable --now` over the
+    corresponding `.timer`. A mechanism that already exists, reused without
+    changes.
+  * **Callback** (`apache_evasive`) — there is no timer to touch; Apache invokes it
+    directly via `DOSSystemCommand`. It requires the script
+    itself to check a status flag at startup, and exit without doing
+    anything if it is disabled — a real change inside the sensor, not only
+    in ARE ADMIN.
+* **Profile auto-provisioning: an optional hook per sensor, not
+  universal.** Only `spamassassin.sh` needs to create its 3 jails
+  (`spamassassin-low/med/high`) when enabled — `fail2ban`/
+  `apache_evasive` create nothing, their jails are already registered by hand
+  by the administrator. It is resolved with an optional function that each
+  sensor can define (`<sensor>_on_enable()`), not with generic logic
+  in the registry.
 
-**Esquema propuesto**
+**Proposed schema**
 
 ```sql
 CREATE TABLE sensor_registry (
     name TEXT PRIMARY KEY,       -- 'fail2ban', 'spamassassin', 'apache_evasive'
     pattern TEXT NOT NULL,       -- 'polling' | 'callback'
     enabled INTEGER NOT NULL DEFAULT 1,
-    systemd_timer TEXT,          -- NULL para sensores callback
+    systemd_timer TEXT,          -- NULL for callback sensors
     description TEXT
 );
 ```
 
-**Fases de implementación**
+**Implementation phases**
 
-* **Fase 1 — Sensores de polling** (`fail2ban`, `spamassassin`):
-  * Tabla `sensor_registry`, poblada al instalar/actualizar con los
-    sensores presentes en `sensors/*.sh`.
-  * `admin/sensors_menu.sh` corregido para leer dinámicamente (hoy
-    tiene texto fijo, sin mención al sensor de SpamAssassin — hallazgo
-    de esta sesión) y agregar opción de activar/desactivar.
-  * Wrapper sobre `systemctl enable/disable --now` del timer
-    correspondiente.
-  * Hook `<sensor>_on_enable()` para SpamAssassin (auto-provisión de
-    los 3 jails).
-* **Fase 2 — Sensor de callback** (`apache_evasive`): flag de estado
-  chequeado por el propio script al arrancar. Más delicado porque toca
-  el sensor en sí, no solo el menú — se aborda por separado, sin
-  bloquear la Fase 1.
+* **Phase 1 — Polling sensors** (`fail2ban`, `spamassassin`):
+  * `sensor_registry` table, populated at install/upgrade with the
+    sensors present in `sensors/*.sh`.
+  * `admin/sensors_menu.sh` fixed to read dynamically (today
+    it has fixed text, with no mention of the SpamAssassin sensor — a finding
+    of this session) and to add an enable/disable option.
+  * A wrapper over `systemctl enable/disable --now` of the corresponding
+    timer.
+  * `<sensor>_on_enable()` hook for SpamAssassin (auto-provisioning of
+    the 3 jails).
+* **Phase 2 — Callback sensor** (`apache_evasive`): a status flag
+  checked by the script itself at startup. More delicate because it touches
+  the sensor itself, not only the menu — it is addressed separately, without
+  blocking Phase 1.
 
-**Pendiente de decidir antes de implementar**
+**Pending to decide before implementing**
 
-**Pregunta de diseño resuelta durante la implementación**
+**Design question resolved during implementation**
 
-Qué pasa con la reputación histórica al desactivar un sensor con
-auto-provisión (SpamAssassin): **no hace falta tocar `jail_profile`
-en absoluto.** El sensor y el jail son independientes por diseño
-(`RFC-007`) — desactivar el sensor solo detiene la generación de
-eventos nuevos (`systemctl disable` del timer); los `jail_profile`
-existentes y toda su reputación histórica quedan intactos, sin
-necesidad de ningún flag adicional. Coherente con `PHILOSOPHY.md`:
-"el conocimiento no desaparece... permanece disponible para futuras
-decisiones". La única condición real es que el hook de
-auto-provisión (todavía no implementado) sea idempotente al
-reactivar — no debe recrear ni resetear jails que ya existan.
+What happens with the historical reputation when disabling a sensor with
+auto-provisioning (SpamAssassin): **`jail_profile` does not need to be touched
+at all.** The sensor and the jail are independent by design
+(`RFC-007`) — disabling the sensor only stops the generation of
+new events (`systemctl disable` of the timer); the existing `jail_profile`
+and all their historical reputation remain intact, with no
+need for any additional flag. Consistent with `PHILOSOPHY.md`:
+"knowledge does not disappear... it remains available for future
+decisions". The only real condition is that the auto-provisioning
+hook (not yet implemented) be idempotent when
+reactivating — it must not recreate or reset jails that already exist.
 
-**Fase 1 — Implementada y validada**
+**Phase 1 — Implemented and validated**
 
-* `database.sh`: tabla `sensor_registry` (`name`, `pattern`,
-  `enabled`, `systemd_timer`, `description`), poblada en `db_init()`
-  con los 3 sensores reales. Funciones de acceso:
+* `database.sh`: `sensor_registry` table (`name`, `pattern`,
+  `enabled`, `systemd_timer`, `description`), populated in `db_init()`
+  with the 3 real sensors. Access functions:
   `db_list_sensor_registry()`, `db_get_sensor()`,
   `db_sensor_exists()`, `db_set_sensor_enabled()`.
-* `admin/sensors_menu.sh`: `sensors_status()` reescrita para leer
-  `sensor_registry` dinámicamente en vez de texto fijo por sensor —
-  un sensor nuevo aparece solo, sin código nuevo en este archivo.
-  Nueva opción `3) Activar/Desactivar`, con `systemctl enable/disable
-  --now` real sobre el timer correspondiente para sensores de
-  polling. Para `apache_evasive` (callback), el toggle solo marca el
-  registro y avisa explícitamente que todavía no tiene efecto real,
-  a la espera de la Fase 2 — no se simula un comportamiento que no
-  existe.
-* `sensors_config()` recibió el bloque de SpamAssassin que le
-  faltaba (hallazgo de esta sesión: nunca se había agregado, pese a
-  existir desde `RFC-016`); queda estático por ahora, hacerlo
-  dinámico del todo excede el alcance decidido en este RFC.
+* `admin/sensors_menu.sh`: `sensors_status()` rewritten to read
+  `sensor_registry` dynamically instead of fixed text per sensor —
+  a new sensor appears on its own, with no new code in this file.
+  New option `3) Enable/Disable`, with a real `systemctl enable/disable
+  --now` over the corresponding timer for polling
+  sensors. For `apache_evasive` (callback), the toggle only marks the
+  registry and explicitly warns that it does not yet have a real effect,
+  awaiting Phase 2 — a behavior that does not exist is not
+  simulated.
+* `sensors_config()` received the SpamAssassin block it was
+  missing (a finding of this session: it had never been added, despite
+  existing since `RFC-016`); it remains static for now, making it
+  fully dynamic exceeds the scope decided in this RFC.
 
-**Fase 2 — Sensor de callback (`apache_evasive`): ✔ Implementada y validada en producción**
+**Phase 2 — Callback sensor (`apache_evasive`): ✔ Implemented and validated in production**
 
-* Flag de estado por **archivo** (`$ARE_DATA/apache_evasive.disabled`),
-  no columna de `sensor_registry` consultada por `sqlite3` — decisión
-  tomada por costo: este script puede invocarse con mucha frecuencia
-  durante un flood real, y una consulta a la base en cada invocación
-  sería cara justo en el peor momento. Mismo criterio que ya aplica
-  el resto del framework (los sensores de polling ya evitan cargar
-  `bootstrap.sh` completo, por la misma razón de liviandad).
-* **Alcance del "desactivado" acotado deliberadamente**: solo se
-  detiene el bloqueo (`ipset add`) y el reporte a ARE (`are.sh ban`).
-  No se toca la configuración de Apache/`mod_evasive` en sí — eso
-  sería entrar en un sistema ajeno al proyecto. En vez de bloquear
-  sin avisar o quedar completamente mudo, se envía igual un email
-  informativo ("actividad detectada, sin acción tomada"), evitando
-  que el correo original mienta sobre un bloqueo que no ocurrió.
-* **Hallazgo de higiene aprovechado en el mismo cambio**: el script
-  nunca había alineado con la convención de `config.conf` que ya usan
-  `fail2ban.sh`/`spamassassin.sh` desde que se movió a `sensors/` en
-  `RFC-012` (cambio mínimo en ese momento, solo ruta). Ahora sourcea
-  `config.conf` y usa `$ARE_DATA`/`$ARE_BIN` en vez de rutas fijas
-  hardcodeadas — sin tocar nada de lo específico del mecanismo de
-  notificación (emails, `BANNEDTIME`, directorio de logs de
-  `mod_evasive`), fuera de alcance de este cambio.
-* `admin/sensors_menu.sh`: el bloque `callback` de `sensors_toggle()`
-  pasó de solo avisar a escribir/borrar el archivo flag real.
+* Status flag by **file** (`$ARE_DATA/apache_evasive.disabled`),
+  not a `sensor_registry` column queried by `sqlite3` — a decision
+  made on cost grounds: this script can be invoked very frequently
+  during a real flood, and a database query on each invocation
+  would be expensive at exactly the worst moment. The same criterion already applied
+  by the rest of the framework (the polling sensors already avoid loading
+  the full `bootstrap.sh`, for the same lightness reason).
+* **The scope of "disabled" deliberately bounded**: only the
+  block (`ipset add`) and the report to ARE (`are.sh ban`) are stopped.
+  The Apache/`mod_evasive` configuration itself is not touched — that
+  would be entering a system foreign to the project. Instead of blocking
+  without notice or going completely silent, an informative email is
+  still sent ("activity detected, no action taken"), avoiding
+  the original email lying about a block that did not happen.
+* **Hygiene finding taken advantage of in the same change**: the script
+  had never aligned with the `config.conf` convention already used by
+  `fail2ban.sh`/`spamassassin.sh` since it was moved to `sensors/` in
+  `RFC-012` (a minimal change at the time, path only). It now sources
+  `config.conf` and uses `$ARE_DATA`/`$ARE_BIN` instead of hardcoded
+  fixed paths — without touching anything specific to the notification
+  mechanism (emails, `BANNEDTIME`, `mod_evasive`'s log
+  directory), out of scope of this change.
+* `admin/sensors_menu.sh`: the `callback` block of `sensors_toggle()`
+  went from only warning to writing/deleting the real flag file.
 
-**Validación**
+**Validation**
 
-Probado de punta a punta con el camino de invocación real de
-producción (`DOSSystemCommand "sudo /opt/are/sensors/apache_evasive.sh
-%s"`, corrido como `nobody` vía `sudo` hacia `root` — confirmado con
-`sudo -l -U nobody`), no con una simulación aproximada:
+Tested end to end with the real production invocation path
+(`DOSSystemCommand "sudo /opt/are/sensors/apache_evasive.sh
+%s"`, run as `nobody` via `sudo` toward `root` — confirmed with
+`sudo -l -U nobody`), not with an approximate simulation:
 
-* Sensor deshabilitado: IP de prueba (rango `RFC 5737`) sin bloqueo
-  en `ipset`, sin reputación registrada (`TOTAL=0`), email informativo
-  correcto generado.
-* Sensor rehabilitado: segunda IP de prueba con ban real aplicado
-  (`ipset` confirma el bloqueo, `DOS=66`, `TEMP_BAN` con sanción
-  vigente nivel 1) — confirma que reactivar no rompió el
-  comportamiento normal.
+* Sensor disabled: a test IP (`RFC 5737` range) with no block
+  in `ipset`, no reputation recorded (`TOTAL=0`), a correct informative
+  email generated.
+* Sensor re-enabled: a second test IP with a real ban applied
+  (`ipset` confirms the block, `DOS=66`, `TEMP_BAN` with an active
+  sanction at level 1) — confirms that re-enabling did not break the
+  normal behavior.
 
-**Auto-provisión de perfiles — ✔ Implementada**
+**Profile auto-provisioning — ✔ Implemented**
 
-`sensors_provision_spamassassin()` en `admin/sensors_menu.sh`, con la
-lista de jails **duplicada** respecto a la semilla de
-`database.sh::db_init()`, en vez de sourcear
-`sensors/spamassassin.sh` para reutilizar una función ahí — esa
-alternativa se evaluó y se descartó, porque el script del sensor no
-está guardado tras un chequeo de ejecución directa (`BASH_SOURCE`
-vs `$0`); sourcearlo ejecutaría por efecto secundario toda su lógica
-de procesamiento (flock, lectura del log completo, offset) solo por
-querer la función de auto-provisión. Reestructurar el sensor para
-soportar ese guard era una opción, pero se descartó por tocar el
-flujo de ejecución de un sensor ya validado en producción sin
-necesidad real — duplicar una lista corta de 3 líneas es más seguro
-que ese riesgo.
+`sensors_provision_spamassassin()` in `admin/sensors_menu.sh`, with the
+jail list **duplicated** with respect to the seed of
+`database.sh::db_init()`, instead of sourcing
+`sensors/spamassassin.sh` to reuse a function there — that
+alternative was evaluated and discarded, because the sensor script is
+not guarded behind a direct-execution check (`BASH_SOURCE`
+vs `$0`); sourcing it would execute, as a side effect, all its processing
+logic (flock, reading the full log, offset) just to
+want the auto-provisioning function. Restructuring the sensor to
+support that guard was an option, but was discarded for touching the
+execution flow of a sensor already validated in production with no
+real need — duplicating a short 3-line list is safer
+than that risk.
 
-Invocada desde el bloque `polling` de `sensors_toggle()`, condicional
-al sensor específico (`spamassassin`), justo antes de reactivar su
-timer. Idempotente (`db_jail_profile_exists` antes de crear).
+Invoked from the `polling` block of `sensors_toggle()`, conditional
+on the specific sensor (`spamassassin`), just before re-enabling its
+timer. Idempotent (`db_jail_profile_exists` before creating).
 
-**Validación:** con los 3 jails ya existentes en producción,
-deshabilitar y volver a habilitar el sensor no imprimió ningún
-"Perfil creado" y no modificó `weight`/`confidence`/`decay` de
-ninguno — confirmado por consulta directa a la base antes y después.
+**Validation:** with the 3 jails already existing in production,
+disabling and re-enabling the sensor printed no
+"Profile created" and did not modify `weight`/`confidence`/`decay` of
+any — confirmed by a direct query to the database before and after.
 
 ---
 
@@ -2982,233 +2980,234 @@ ninguno — confirmado por consulta directa a la base antes y después.
 
 ## IDEA-001
 
-**Título:** Exportación de métricas
+**Title:** Metrics export
 
-Evaluar mecanismos para exportar métricas de ARE hacia sistemas externos.
+Evaluate mechanisms to export ARE metrics to external systems.
 
 ---
 
 ## IDEA-002
 
-**Título:** API REST
+**Title:** REST API
 
-Evaluar una API para consulta e integración externa.
+Evaluate an API for external query and integration.
 
 ---
 
 ## IDEA-003
 
-**Título:** Backend Manager
+**Title:** Backend Manager
 
-Evaluar una capa de administración de múltiples backends de firewall.
+Evaluate an administration layer for multiple firewall backends.
 
 ---
 
 ## IDEA-004
 
-**Título:** Dashboard avanzado
+**Title:** Advanced dashboard
 
-Evaluar ampliaciones del dashboard, incluyendo:
+Evaluate dashboard expansions, including:
 
-* métricas históricas;
-* gráficos;
-* consultas avanzadas;
-* análisis temporal;
-* evolución de reputación.
+* historical metrics;
+* charts;
+* advanced queries;
+* temporal analysis;
+* reputation evolution.
 
 ---
 
 ## IDEA-005
 
-**Título:** Detección de compromiso de cuenta de correo (autenticación exitosa tras fuerza bruta)
+**Title:** Mail account compromise detection (successful authentication after brute force)
 
-Surge del análisis de `SOCIAL`/`CREDENTIAL`: un ataque de fuerza
-bruta que logra autenticarse contra una cuenta de correo (IMAP/POP)
-no genera ninguna señal hoy si el número de intentos fallidos no
-llega a cruzar el umbral del jail de Fail2Ban correspondiente — el
-caso más grave (cuenta comprometida) puede pasar invisible.
+Arises from the analysis of `SOCIAL`/`CREDENTIAL`: a brute-force
+attack that manages to authenticate against a mail account (IMAP/POP)
+generates no signal today if the number of failed attempts does not
+cross the threshold of the corresponding Fail2Ban jail — the
+most serious case (compromised account) can go invisible.
 
-Requeriría un sensor nuevo (no extensión de `dovecot` ni de
-`spamassassin.sh`) que correlacione fallos y éxitos por usuario en
-una ventana corta, parseando el log crudo de dovecot. Sin datos reales
-de ningún caso (ni de compromiso ni de falso positivo por typo
-humano) para calibrar un umbral de intentos — no tiene sentido
-diseñarlo hasta contar con evidencia real.
+It would require a new sensor (not an extension of `dovecot` or of
+`spamassassin.sh`) that correlates failures and successes per user in
+a short window, parsing dovecot's raw log. With no real data
+of any case (neither of compromise nor of a false positive from a human
+typo) to calibrate an attempts threshold — it does not make sense
+to design it until there is real evidence.
 
-Además, el modelo de acción de ARE (WATCH/FILTER/TEMP_BAN/PERMANENT_BAN,
-todo a nivel de IP) no resuelve este escenario: banear la IP atacante
-no revoca el acceso ya obtenido a la cuenta. Requeriría una acción
-nueva (alerta a admin), no solo un sensor nuevo — ARE hoy no tiene
-ningún mecanismo de notificación.
+In addition, ARE's action model (WATCH/FILTER/TEMP_BAN/PERMANENT_BAN,
+all at the IP level) does not solve this scenario: banning the attacking
+IP does not revoke the access already obtained to the account. It would require a
+new action (alert to admin), not only a new sensor — ARE today has no
+notification mechanism of any kind.
 
-Se descartó depender de cpHulk (ya implementado en este servidor
-puntual vía cPanel) como sustituto: ARE no puede asumir capas de
-seguridad específicas de un stack que un colega puede no tener.
-cpHulk queda como IDEA aparte (IDEA-006), fuente opcional, no
-requisito.
+Depending on cpHulk (already implemented on this specific server
+via cPanel) as a substitute was discarded: ARE cannot assume security
+layers specific to a stack that a colleague may not have.
+cpHulk remains a separate IDEA (IDEA-006), an optional source, not a
+requirement.
 
 ---
 
 ## IDEA-006
 
-**Título:** Integrar cpHulk como sensor CREDENTIAL
+**Title:** Integrate cpHulk as a CREDENTIAL sensor
 
-Mismo patrón que `mod_evasive` (RFC-010): una herramienta externa que
-ya defiende por su cuenta (bloqueo de fuerza bruta cross-servicio en
-cPanel/WHM), reportando a ARE para sumar a reputación/decay/ban
-lifecycle en vez de operar aislada. Categoría `CREDENTIAL`. Pendiente
-de identificar dónde loguea cpHulk sus bloqueos (típicamente tabla
-MySQL propia, no archivo plano) antes de poder diseñar el sensor.
+Same pattern as `mod_evasive` (RFC-010): an external tool that
+already defends on its own (cross-service brute-force blocking in
+cPanel/WHM), reporting to ARE to add to reputation/decay/ban
+lifecycle instead of operating in isolation. Category `CREDENTIAL`. Pending
+identifying where cpHulk logs its blocks (typically its own MySQL
+table, not a flat file) before being able to design the sensor.
 
 ---
 
 ## IDEA-007
 
-**Título:** Empaquetado, distribución y auto-actualización del Installer Engine
+**Title:** Packaging, distribution, and self-update of the Installer Engine
 
-**Estado:** ✔ Implementada — las 3 fases completas (encontrado sin encabezado resumen durante auditoría de `TASK-013`; el contenido siempre reflejó el estado real, solo faltaba este resumen para consistencia de formato con el resto del documento)
+**Status:** ✔ Implemented — all 3 phases complete (found with no summary heading during the `TASK-013` audit; the content always reflected the real state, only this summary was missing for format consistency with the rest of the document)
 
-El Installer Engine existe desde v1.1 (`install`/`upgrade`/`repair`/
-`verify`/`uninstall`, completo y probado), pero la propia
-documentación aclaraba explícito: "el mecanismo actual no incorpora
-generación, descarga, extracción ni staging automático de paquetes
-externos". Había motor de instalación, pero no paquete distribuible —
-para instalar ARE en un servidor nuevo hacía falta el árbol fuente ya
-copiado a mano (clonar el repo, o copiar carpeta por carpeta) antes
-de poder correr `are-installer install`.
+The Installer Engine has existed since v1.1 (`install`/`upgrade`/`repair`/
+`verify`/`uninstall`, complete and tested), but the documentation
+itself explicitly clarified: "the current mechanism does not include
+generation, download, extraction, or automatic staging of external
+packages". There was an installation engine, but no distributable package —
+to install ARE on a new server you needed the source tree already
+copied by hand (clone the repo, or copy folder by folder) before
+being able to run `are-installer install`.
 
-Fricción real, no hipotética: el software se está replicando a
-colegas y otros servidores de la flota, y cada vez que eso pasaba,
-alguien clonaba git a mano en vez de bajar un paquete de una release
-y correr un instalador.
+Real, not hypothetical, friction: the software is being replicated to
+colleagues and other fleet servers, and each time that happened,
+someone cloned git by hand instead of downloading a package from a release
+and running an installer.
 
-**Fase 1 — Empaquetado manual: ✔ Implementada**
+**Phase 1 — Manual packaging: ✔ Implemented**
 
-* `scripts/build-package.sh` — genera un `.tar.gz` a partir de
-  `PRODUCT_VERSION` y `PRODUCT_EXCLUDED` del manifiesto (reutilizados,
-  sin duplicar esa lista en un segundo lugar). `VERSION` se sincroniza
-  automáticamente desde `PRODUCT_VERSION` en cada build, en vez de
-  mantenerse a mano — evita el tipo de desincronización encontrada y
-  corregida esta misma sesión (`VERSION`/`config.conf` en 2.1.0
-  mientras `PRODUCT_VERSION` ya estaba en 2.2.0).
-* Probado en producción: `are-v2.2.0.tar.gz` (132K, 121 archivos),
-  confirmado sin rastro de `.git`, `testing`, `tmp`,
+* `scripts/build-package.sh` — generates a `.tar.gz` from
+  `PRODUCT_VERSION` and `PRODUCT_EXCLUDED` of the manifest (reused,
+  without duplicating that list in a second place). `VERSION` is synchronized
+  automatically from `PRODUCT_VERSION` on each build, instead of
+  being maintained by hand — it avoids the kind of desync found and
+  fixed in this same session (`VERSION`/`config.conf` at 2.1.0
+  while `PRODUCT_VERSION` was already at 2.2.0).
+* Tested in production: `are-v2.2.0.tar.gz` (132K, 121 files),
+  confirmed with no trace of `.git`, `testing`, `tmp`,
   `database-test.sh`.
-* Efecto colateral positivo: al inspeccionar el contenido del paquete
-  generado, se encontraron 5 archivos placeholder vacíos en
+* Positive side effect: when inspecting the content of the generated
+  package, 5 empty placeholder files were found in
   `sensors/` (`apache.sh`, `crowdsec.sh`, `modsecurity.sh`,
-  `suricata.sh`, `zeek.sh`) que viajaban sin distinción junto a los
-  sensores reales — eliminados, la intención que representaban ya
-  está documentada en `ROADMAP.md`.
+  `suricata.sh`, `zeek.sh`) that traveled without distinction alongside the real
+  sensors — removed, the intent they represented is already
+  documented in `ROADMAP.md`.
 
-**Fase 2 — Automatización y distribución: ✔ Implementada**
+**Phase 2 — Automation and distribution: ✔ Implemented**
 
-* `.github/workflows/release-package.yml` — disparado por tag
-  (`v*.*.*`), corre `build-package.sh` y publica el `.tar.gz` +
-  `.sha256` como asset de la release, reutilizando el script de
-  Fase 1 tal cual.
-* `scripts/install.sh` — bootstrap de una línea
-  (`curl ... | bash`): descarga el paquete de la última release (o
-  una versión específica vía `ARE_VERSION`), verifica el checksum,
-  extrae, y delega en `are-installer install`.
-* Primera prueba real, con el tag `v2.2.0`: el workflow falló
-  (`release not found`) porque `gh release upload` requiere que la
-  Release ya exista — nunca se había creado una manualmente antes de
-  taggear. Corregido en `BUG-024`: el workflow ahora crea la Release
-  si no existe, en el mismo paso.
+* `.github/workflows/release-package.yml` — triggered by tag
+  (`v*.*.*`), runs `build-package.sh` and publishes the `.tar.gz` +
+  `.sha256` as a release asset, reusing the Phase 1 script
+  as-is.
+* `scripts/install.sh` — a one-line bootstrap
+  (`curl ... | bash`): downloads the latest release's package (or
+  a specific version via `ARE_VERSION`), verifies the checksum,
+  extracts, and delegates to `are-installer install`.
+* First real test, with the `v2.2.0` tag: the workflow failed
+  (`release not found`) because `gh release upload` requires the
+  Release to already exist — one had never been created manually before
+  tagging. Fixed in `BUG-024`: the workflow now creates the Release
+  if it does not exist, in the same step.
 
-**Fase 3 — Auto-actualización estilo repositorio de paquetes**
+**Phase 3 — Package-repository-style self-update**
 
-Inspirado en el patrón de `apt`/`yum`/`dnf`.
+Inspired by the `apt`/`yum`/`dnf` pattern.
 
-* **`are-installer check-updates` — ✔ Implementada.** Solo lectura,
-  sin root: consulta la API de GitHub (`/releases/latest`), compara
-  contra `PRODUCT_VERSION` (leído del propio manifiesto de la
-  instalación activa — no hizo falta ningún mecanismo nuevo de
-  "versión instalada", `PRODUCT_VERSION` ya lo es en el momento en
-  que corre el comando) usando `sort -V` para orden semántico, e
-  informa si hay una versión más reciente sin tocar nada del sistema.
-* **`are-installer upgrade --remote` — ✔ Implementada.** Wrapper
-  delgado en `are-installer` que delega en `scripts/install.sh
-  upgrade` (Fase 2) — sin duplicar la lógica de descarga/checksum/
-  extracción, coherente con "reutilización antes que duplicación".
-  Requirió agregar `scripts` a `PRODUCT_DIRS` en el manifiesto (no
-  estaba, así que `install.sh` nunca se copiaba a una instalación
-  real, solo vivía en el repo fuente). Validado en producción real
-  tras corregir `BUG-025` (`/tmp` con `noexec` rompía la extracción).
-  **Gap conocido, no bloqueante:** el comando no compara versión
-  antes de aplicar — baja o sube el código a lo que sea la última
-  release publicada, sin verificar contra `PRODUCT_VERSION` local
-  (a diferencia de `check-updates`, que sí compara). Corrido en una
-  rama de desarrollo más nueva que la última release, esto downgradea
-  el código sin aviso — comportamiento observado y confirmado durante
-  la validación (ver `BUG-025`). Quedaría como mejora natural
-  encadenar `check-updates` antes de `upgrade --remote` y pedir
-  confirmación si la versión instalada ya es igual o más nueva.
+* **`are-installer check-updates` — ✔ Implemented.** Read-only,
+  without root: queries the GitHub API (`/releases/latest`), compares
+  against `PRODUCT_VERSION` (read from the active installation's own
+  manifest — no new "installed version" mechanism was
+  needed, `PRODUCT_VERSION` already is one at the moment
+  the command runs) using `sort -V` for semantic order, and
+  reports whether a more recent version exists without touching anything of the
+  system.
+* **`are-installer upgrade --remote` — ✔ Implemented.** A thin
+  wrapper in `are-installer` that delegates to `scripts/install.sh
+  upgrade` (Phase 2) — without duplicating the download/checksum/
+  extraction logic, consistent with "reuse before duplication".
+  It required adding `scripts` to `PRODUCT_DIRS` in the manifest (it was
+  not there, so `install.sh` was never copied to a real
+  installation, it only lived in the source repo). Validated in real production
+  after fixing `BUG-025` (`/tmp` with `noexec` broke the extraction).
+  **Known, non-blocking gap:** the command does not compare the version
+  before applying — it downgrades or upgrades the code to whatever the latest
+  published release is, without verifying against the local `PRODUCT_VERSION`
+  (unlike `check-updates`, which does compare). Run on a development
+  branch newer than the latest release, this downgrades
+  the code without notice — behavior observed and confirmed during
+  validation (see `BUG-025`). It would remain a natural improvement
+  to chain `check-updates` before `upgrade --remote` and ask for
+  confirmation if the installed version is already equal or newer.
 
-Coherente con "reutilización antes que duplicación" en las tres
-fases: ningún cambio al núcleo del Installer Engine, solo las piezas
-que faltan para que deje de depender de que alguien clone el repo a
-mano, y eventualmente para que el propio sistema se entere solo de
-que hay una versión nueva.
+Consistent with "reuse before duplication" in the three
+phases: no change to the core of the Installer Engine, only the pieces
+that are missing so that it stops depending on someone cloning the repo by
+hand, and eventually so that the system itself finds out on its own
+that there is a new version.
 
 ---
 
 ## IDEA-008
 
-**Título:** Detección de anomalías en tendencias
+**Title:** Anomaly detection in trends
 
-**Estado:** ✔ Implementada y validada en producción
+**Status:** ✔ Implemented and validated in production
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-Extensión directa de RFC-013 (desglose de tendencias por categoría).
-La noche de implementación de RFC-016 se encontraron dos anomalías
-reales revisando la tabla a mano (`EXPLOIT=1461` el 15 de agosto,
-`CREDENTIAL=3332` el 20 de agosto) — ambas visibles solo porque un
-humano estaba mirando la tabla en ese momento. Sin esa revisión
-activa, ninguna de las dos se hubiera notado.
+A direct extension of RFC-013 (trends breakdown by category).
+The night RFC-016 was implemented, two real anomalies were found
+reviewing the table by hand (`EXPLOIT=1461` on August 15,
+`CREDENTIAL=3332` on August 20) — both visible only because a
+human was looking at the table at that moment. Without that
+active review, neither of the two would have been noticed.
 
-**Implementación**
+**Implementation**
 
-* `dashboard/trends.sh` — `dashboard_trends_anomalies(dias)`: para
-  cada una de las 9 categorías, compara el conteo de eventos de
-  **hoy** contra el promedio de los `dias` días previos (sin incluir
-  hoy). Marca con `⚠` cuando hoy es al menos 3 veces ese promedio,
-  con un piso mínimo (`hoy >= 10`) para no marcar ruido cuando los
-  números son chicos. Mismo patrón de `JOIN` contra `jail_profile`
-  que ya usa `dashboard_trends_by_category()` (RFC-016) — sin
-  instrumentación nueva, reutiliza `events` tal cual.
-* `admin/state_menu.sh` — opción `8) Anomalías en tendencias` en la
-  rama Estado/Reputación, mismo patrón que las opciones 5-7
-  (pedir días, validar, wrapper, `admin_pause`).
+* `dashboard/trends.sh` — `dashboard_trends_anomalies(days)`: for
+  each of the 9 categories, compares **today's** event count
+  against the average of the previous `days` days (not including
+  today). Marks with `⚠` when today is at least 3 times that average,
+  with a minimum floor (`today >= 10`) so as not to mark noise when the
+  numbers are small. The same `JOIN` pattern against `jail_profile`
+  already used by `dashboard_trends_by_category()` (RFC-016) — with no
+  new instrumentation, it reuses `events` as-is.
+* `admin/state_menu.sh` — option `8) Anomalies in trends` in the
+  Status/Reputation branch, the same pattern as options 5-7
+  (ask for days, validate, wrapper, `admin_pause`).
 
-**Por qué encaja con los principios ya establecidos del proyecto**
+**Why it fits with the project's already-established principles**
 
-* No inventa ningún valor de riesgo — es puramente estadístico
-  (promedio sobre datos ya existentes), no toca `policy.conf` ni el
-  modelo de decisión.
-* Reutiliza datos existentes — la tabla `events` y el patrón de
-  consulta ya escrito en `dashboard_trends_by_category()` (RFC-016).
-* Es observabilidad, no automatización de bloqueo — no banea nada,
-  no cambia comportamiento del sistema, solo hace visible algo que
-  ya estaba en los datos.
-* Da una primera forma concreta a `IDEA-004` (Dashboard avanzado),
-  que hoy es solo una intención general.
+* It invents no risk value — it is purely statistical
+  (an average over already-existing data), it does not touch `policy.conf` or the
+  decision model.
+* It reuses existing data — the `events` table and the query
+  pattern already written in `dashboard_trends_by_category()` (RFC-016).
+* It is observability, not block automation — it bans nothing,
+  does not change the system's behavior, it only makes visible something that
+  was already in the data.
+* It gives a first concrete form to `IDEA-004` (Advanced dashboard),
+  which today is only a general intent.
 
-**Validación**
+**Validation**
 
-Corrida en producción el día en que los números estaban dentro de lo
-normal — "sin anomalías detectadas", correcto. Validada por cálculo
-contra el caso histórico conocido: con el pico real de
-`CREDENTIAL=3332` del 2026-08-20 (promedio de los días previos
-visibles ~71), la función lo habría marcado sin dudas de haber
-corrido ese día — más de 46 veces el promedio, muy por encima del
-umbral `3×`. Limitación de diseño reconocida: es un chequeo del día
-actual, no una auditoría retroactiva — no puede señalar anomalías de
-días pasados si se corre después de que ya ocurrieron.
+Run in production on a day when the numbers were within the
+normal range — "no anomalies detected", correct. Validated by calculation
+against the known historical case: with the real peak of
+`CREDENTIAL=3332` of 2026-08-20 (average of the visible previous
+days ~71), the function would have marked it without doubt had it
+run that day — more than 46 times the average, well above the
+`3×` threshold. A recognized design limitation: it is a check of the
+current day, not a retroactive audit — it cannot flag anomalies of
+past days if it is run after they already occurred.
 
-**Archivos relacionados**
+**Related files**
 
 * `dashboard/trends.sh`
 * `admin/state_menu.sh`
@@ -3217,159 +3216,159 @@ días pasados si se corre después de que ya ocurrieron.
 
 ## IDEA-009
 
-**Título:** Patrón de sensor para IDS externos (Suricata, Snort, Zeek, Falco, Wazuh, etc.)
+**Title:** Sensor pattern for external IDS (Suricata, Snort, Zeek, Falco, Wazuh, etc.)
 
-**Estado:** Idea — arquitectura validada, sin sensor implementado
+**Status:** Idea — architecture validated, no sensor implemented
 
-**Descripción**
+**Description**
 
-Extensión natural de "Sensores adicionales" ya prevista en
-`ROADMAP.md`. Principio de diseño confirmado y correcto: un IDS
-externo actúa puramente como observador y emisor de telemetría — "vi
-este patrón en la IP X" — sin tomar decisiones de bloqueo por sí
-mismo. ARE recibe ese reporte crudo, lo cruza con el historial
-acumulado de esa IP, y decide la respuesta proporcional (`WATCH`,
-`FILTER`, `TEMP_BAN`, `BAN`). Mismo principio ya aplicado con
-Fail2Ban y SpamAssassin — nada nuevo, la extensión natural del
-Sensor Framework a una fuente distinta.
+A natural extension of "Additional sensors" already foreseen in
+`ROADMAP.md`. A confirmed and correct design principle: an external
+IDS acts purely as an observer and emitter of telemetry — "I saw
+this pattern on IP X" — without making blocking decisions on its
+own. ARE receives that raw report, crosses it with the accumulated
+history of that IP, and decides the proportional response (`WATCH`,
+`FILTER`, `TEMP_BAN`, `BAN`). The same principle already applied with
+Fail2Ban and SpamAssassin — nothing new, the natural extension of the
+Sensor Framework to a different source.
 
-**Contrato real a seguir (confirmado contra `are.sh`, no inventado)**
+**Real contract to follow (confirmed against `are.sh`, not invented)**
 
-Un sensor nuevo, para cualquier herramienta, debe:
+A new sensor, for any tool, must:
 
-1. Leer el **log real** de la herramienta — no un formato inventado
-   que la herramienta tendría que aprender a hablar (evaluado y
-   descartado antes en esta misma sesión: un "sensor syslog
-   genérico" con contrato propio duplicaría estructuras de logueo
-   que cada herramienta ya tiene).
-2. Extraer IP y algún dato que mapee a un jail existente en
-   `jail_profile` — el peso, confianza y categoría de riesgo viven
-   ahí, no se pasan en el momento del reporte.
-3. Reportar con el único contrato real que expone `are.sh`:
+1. Read the tool's **real log** — not an invented format
+   that the tool would have to learn to speak (evaluated and
+   discarded earlier in this same session: a "generic syslog
+   sensor" with its own contract would duplicate logging structures
+   that each tool already has).
+2. Extract an IP and some data that maps to an existing jail in
+   `jail_profile` — the weight, confidence, and risk category live
+   there, they are not passed at report time.
+3. Report with the only real contract that `are.sh` exposes:
 
    ```bash
    are.sh found <IP> <JAIL>
    ```
 
-   Sin flags de severidad, firma, ni fuente — no existen. Un
-   borrador conceptual de esta sesión proponía `are.sh report-event
-   --source=... --severity=...` y, en un segundo ejemplo, invertía
-   el orden real (`found <JAIL> <IP>`) — ambos corregidos acá para
-   que quede documentado el contrato correcto, no el borrador.
-4. Filtrar contra `jail_profile` antes de reportar (mismo criterio
-   que `TASK-016`) — un jail sin perfil administrado se descarta sin
-   generar evento.
-5. Offset persistente si es un sensor de polling (mismo patrón que
+   With no severity, signature, or source flags — they do not exist. A
+   conceptual draft of this session proposed `are.sh report-event
+   --source=... --severity=...` and, in a second example, inverted
+   the real order (`found <JAIL> <IP>`) — both fixed here so
+   that the correct contract is documented, not the draft.
+4. Filter against `jail_profile` before reporting (the same criterion
+   as `TASK-016`) — a jail with no managed profile is discarded without
+   generating an event.
+5. A persistent offset if it is a polling sensor (the same pattern as
    `fail2ban.sh`/`spamassassin.sh`).
 
-**Por qué no hay sensor implementado todavía**
+**Why there is no sensor implemented yet**
 
-Mismo motivo que bloqueó a los sensores de SpamAssassin y Fail2Ban
-hasta tener datos reales: sin una línea real de log de Suricata,
-Snort, Zeek, Falco o Wazuh delante, cualquier parser sería una
-suposición sobre un formato que puede estar desactualizado o
-simplemente mal — el mismo riesgo que llevó a eliminar 5 archivos
-placeholder vacíos en `TASK-019`. Cuando exista un caso de uso real
-(alguien con una de estas herramientas corriendo, dispuesto a
-compartir logs reales), el sensor se construye siguiendo este mismo
-contrato, validado contra datos genuinos — no antes.
+The same reason that blocked the SpamAssassin and Fail2Ban sensors
+until there was real data: without a real log line from Suricata,
+Snort, Zeek, Falco, or Wazuh in front, any parser would be a
+guess about a format that may be outdated or
+simply wrong — the same risk that led to removing 5 empty
+placeholder files in `TASK-019`. When a real use case exists
+(someone with one of these tools running, willing to
+share real logs), the sensor is built following this same
+contract, validated against genuine data — not before.
 
 ---
 
 ## IDEA-010
 
-**Título:** ARE Web Sensor — correlación de comportamiento sobre `access_log` de Apache, más allá de lo que Fail2Ban puede ver por diseño
+**Title:** ARE Web Sensor — behavior correlation over Apache's `access_log`, beyond what Fail2Ban can see by design
 
-**Estado:** ✔ Implementada y validada en producción — `sensors/web_correlation.sh`
+**Status:** ✔ Implemented and validated in production — `sensors/web_correlation.sh`
 
-**Descripción**
+**Description**
 
-Surge de una investigación real sobre tráfico de scraping distribuido
-contra `/resellerpricing/` en producción. Mitigación inmediata
-aplicada: extensión de `apache-badbots.conf` (Fail2Ban) con patrones
-nuevos — funciona para lo que ese filtro puede ver, pero deja
-expuesto un tipo de amenaza que Fail2Ban no puede detectar por
-diseño, sin importar cuánto se extienda el filtro.
+Arises from a real investigation into distributed scraping traffic
+against `/resellerpricing/` in production. Immediate mitigation
+applied: an extension of `apache-badbots.conf` (Fail2Ban) with new
+patterns — it works for what that filter can see, but leaves
+exposed a kind of threat that Fail2Ban cannot detect by
+design, no matter how much the filter is extended.
 
-**Evidencia real reunida**
+**Real evidence gathered**
 
-* `fail2ban-regex` contra `apache-badbots.conf` confirmó que el
-  filtro actual no matchea nada de este tráfico — solo detecta bots
-  que se identifican por User-Agent explícito (`crusader-worker`,
-  `pimeyes-downloader-api`). El scraping de `/resellerpricing/`, con
-  Chrome real como UA, es invisible para ese filtro.
-* Correlación real confirmada agrupando por minuto exacto: decenas de
-  IPs distintas golpeando `/resellerpricing/` en la misma ventana de
-  60 segundos, cada una con pocos requests — ninguna cruza
-  individualmente ningún umbral de reincidencia.
-* `whois` sobre los rangos de origen confirmó infraestructura de
-  datacenter/proxy, no residencial: `AS4229` (Zenlayer, Hong Kong) y
-  `AS150436` (Byteplus, Singapur) — coherente con una operación
-  coordinada, no tráfico orgánico disperso.
+* `fail2ban-regex` against `apache-badbots.conf` confirmed that the
+  current filter matches nothing of this traffic — it only detects bots
+  that identify themselves by an explicit User-Agent (`crusader-worker`,
+  `pimeyes-downloader-api`). The scraping of `/resellerpricing/`, with
+  real Chrome as its UA, is invisible to that filter.
+* Real correlation confirmed by grouping by the exact minute: dozens of
+  distinct IPs hitting `/resellerpricing/` in the same 60-second
+  window, each with few requests — none crosses
+  any recidivism threshold individually.
+* `whois` over the source ranges confirmed datacenter/proxy
+  infrastructure, not residential: `AS4229` (Zenlayer, Hong Kong) and
+  `AS150436` (Byteplus, Singapore) — consistent with a coordinated
+  operation, not dispersed organic traffic.
 
-**Por qué Fail2Ban no alcanza, aunque se extienda el filtro**
+**Why Fail2Ban is not enough, even if the filter is extended**
 
-Fail2Ban evalúa por IP individual — el umbral de reincidencia se
-mide por línea de log que matchea un patrón, contra el historial de
-esa misma IP. Ninguna extensión de `apache-badbots.conf` puede ver
-que 40 IPs distintas, de la misma infraestructura, atacaron el mismo
-patrón de URL en el mismo minuto — esa correlación cruzada entre
-IPs está fuera del modelo de Fail2Ban por diseño, no es una
-limitación de configuración.
+Fail2Ban evaluates per individual IP — the recidivism threshold is
+measured per log line that matches a pattern, against the history of
+that same IP. No extension of `apache-badbots.conf` can see
+that 40 distinct IPs, from the same infrastructure, attacked the same
+URL pattern in the same minute — that cross-IP
+correlation is outside Fail2Ban's model by design, it is not a
+configuration limitation.
 
-**Decisiones de diseño**
+**Design decisions**
 
-* **Marcador de ruta configurable, no prefijo fijo**: en vez de
-  hardcodear `/resellerpricing/` (específico de un solo negocio), el
-  sensor busca un segmento (`WEB_CORRELATION_PATH_MARKER`, default
-  `cart`) en cualquier parte de la URL — generaliza el sensor a
-  cualquier sitio con catálogo/carrito de e-commerce, no solo el
-  caso puntual que lo originó.
-* **Reporte por IP individual al contrato existente**, no un
-  concepto nuevo de "grupo/campaña" — cada IP del grupo
-  correlacionado se reporta por separado vía `are.sh found <IP>
-  <JAIL>`, mismo jail (`web-correlation`). Evita tocar el modelo de
-  datos o el motor de decisión; toda la complejidad de correlación
-  queda encapsulada dentro del sensor.
-* **Sin verificación de ASN en esta versión** — evaluado el costo de
-  una consulta `whois` por evento (no puede ser sincrónica en
-  producción bajo volumen real) y pospuesto para una segunda
-  iteración; la calibración del `jail_profile` compensa esta
-  ausencia con un peso moderado, no máximo.
-* **Umbral: 10+ IPs distintas en la misma ventana de 1 minuto** —
-  calibrado contra la evidencia real (el ataque confirmado mostraba
-  20+ IPs por minuto), con margen amplio sobre coincidencia orgánica
-  posible en un catálogo con tráfico normal.
-* **Categoría `BOT`, `jail_profile('web-correlation', 'BOT', 8, 0.88,
-  0.95)`** — confianza alta (evidencia multi-factorial: correlación
-  + infraestructura de datacenter confirmada), peso moderado (abuso
-  de recursos/datos, no vector de compromiso directo como
-  exploit/credential), con margen deliberado por no verificar ASN
-  todavía.
-* **Log dedicado** (`/var/log/are/web_correlation.log`), siguiendo el
-  precedente real de `apache_evasive.sh`/`mod_evasive_report.log` —
-  no todos los sensores lo tienen, pero hay precedente establecido
-  para sensores de alto volumen.
-* **Registrado en `sensor_registry`** (`RFC-017`) — activar/desactivar
-  y visibilidad en ARE ADMIN sin código adicional, mismo mecanismo
-  genérico que ya existe para sensores de polling.
+* **A configurable path marker, not a fixed prefix**: instead of
+  hardcoding `/resellerpricing/` (specific to a single business), the
+  sensor looks for a segment (`WEB_CORRELATION_PATH_MARKER`, default
+  `cart`) anywhere in the URL — it generalizes the sensor to
+  any site with an e-commerce catalog/cart, not only the
+  specific case that originated it.
+* **Report per individual IP to the existing contract**, not a
+  new "group/campaign" concept — each IP of the
+  correlated group is reported separately via `are.sh found <IP>
+  <JAIL>`, the same jail (`web-correlation`). It avoids touching the data
+  model or the decision engine; all the correlation complexity
+  is encapsulated inside the sensor.
+* **No ASN verification in this version** — the cost of a
+  `whois` query per event was evaluated (it cannot be synchronous in
+  production under real volume) and postponed to a second
+  iteration; the `jail_profile` calibration compensates for this
+  absence with a moderate, not maximum, weight.
+* **Threshold: 10+ distinct IPs in the same 1-minute window** —
+  calibrated against the real evidence (the confirmed attack showed
+  20+ IPs per minute), with a wide margin over possible organic
+  coincidence in a catalog with normal traffic.
+* **Category `BOT`, `jail_profile('web-correlation', 'BOT', 8, 0.88,
+  0.95)`** — high confidence (multi-factor evidence: correlation
+  + confirmed datacenter infrastructure), moderate weight (abuse
+  of resources/data, not a direct-compromise vector like
+  exploit/credential), with a deliberate margin for not verifying ASN
+  yet.
+* **A dedicated log** (`/var/log/are/web_correlation.log`), following the
+  real precedent of `apache_evasive.sh`/`mod_evasive_report.log` —
+  not all sensors have one, but there is an established precedent
+  for high-volume sensors.
+* **Registered in `sensor_registry`** (`RFC-017`) — enable/disable
+  and visibility in ARE ADMIN with no additional code, the same generic
+  mechanism that already exists for polling sensors.
 
-**Validación**
+**Validation**
 
-* Lógica de correlación probada en aislamiento contra un log
-  sintético construido con IPs reales de la investigación (12 IPs en
-  un minuto real vs. 3 IPs de control en otro) — umbral disparando
-  correctamente, sin falsos positivos.
-* Corrida real contra el `access_log` completo de producción:
-  detectó grupos genuinos de más de 100 IPs distintas por minuto en
-  múltiples ventanas de tiempo, coincidiendo con el ataque real ya
-  conocido.
-* Backlog histórico completo (14,226 IPs únicas) procesado en
-  segundo plano (`nohup`), sin pérdida de progreso.
-* Timer de systemd activo y corriendo cada minuto, confirmado con
+* Correlation logic tested in isolation against a synthetic
+  log built with real IPs from the investigation (12 IPs in
+  one real minute vs. 3 control IPs in another) — the threshold triggering
+  correctly, with no false positives.
+* Real run against the full production `access_log`:
+  it detected genuine groups of more than 100 distinct IPs per minute in
+  multiple time windows, coinciding with the already-known real
+  attack.
+* The complete historical backlog (14,226 unique IPs) processed in
+  the background (`nohup`), with no loss of progress.
+* The systemd timer active and running every minute, confirmed with
   `systemctl status`.
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/web_correlation.sh`
 * `database.sh` (`jail_profile`, `sensor_registry`)
@@ -3381,90 +3380,90 @@ limitación de configuración.
 
 ## IDEA-011
 
-**Título:** Exportar / Importar reputación entre servidores de la flota
+**Title:** Export / Import reputation between fleet servers
 
-**Estado:** ✔ Implementada y validada en producción
+**Status:** ✔ Implemented and validated in production
 
-**Versión:** v2.6 (en desarrollo)
+**Version:** v2.6 (in development)
 
-**Descripción**
+**Description**
 
-Surge directamente de `IDEA-010`: un ataque de scraping distribuido
-confirmado contra un servidor puntual no implica que la misma
-infraestructura maliciosa no ataque a otros servidores de la flota
-por una superficie distinta (SSH, DNS, correo). Hoy cada servidor
-acumula reputación completamente aislada — si una IP ya demostró
-mala conducta en un servidor, otro servidor de la flota no tiene
-ninguna memoria de eso hasta que la vuelva a ver por su cuenta.
+Arises directly from `IDEA-010`: a confirmed distributed scraping
+attack against a specific server does not mean the same
+malicious infrastructure will not attack other fleet servers
+through a different surface (SSH, DNS, mail). Today each server
+accumulates reputation completely in isolation — if an IP already demonstrated
+misconduct on one server, another fleet server has no
+memory of that until it sees it again on its own.
 
-**Diferencia de diseño respecto al precedente (`RFC-011`,
+**Design difference from the precedent (`RFC-011`,
 `jail_profile`)**
 
-`jail_profile` exporta/importa configuración (cada campo tiene un
-único valor válido, por eso tiene sentido "sobrescribir/conservar").
-La reputación, en cambio, ya está diseñada para acumularse — es
-literalmente lo que hace `db_add_score()` en cada evento real. El
-import no pregunta nada de conflictos: simplemente aplica el score
-importado sobre el existente, vía la misma función que usa cualquier
-sensor, sin mecanismo nuevo.
+`jail_profile` exports/imports configuration (each field has a
+single valid value, which is why "overwrite/keep" makes sense).
+Reputation, on the other hand, is already designed to accumulate — it is
+literally what `db_add_score()` does on each real event. The
+import asks nothing about conflicts: it simply applies the imported
+score on top of the existing one, via the same function any
+sensor uses, with no new mechanism.
 
-**Filtro de relevancia por rol del servidor**
+**Relevance filter by server role**
 
-No toda la reputación es igualmente "portable" — una categoría
-atada al rol de un servidor (`SOCIAL`, específica de MTA) no tiene
-sentido compartirla con un servidor que ni siquiera corre correo.
-Resuelto sin necesitar que el administrador defina manualmente qué
-servidor "necesita" qué categoría: al importar, una fila solo se
-aplica si esa categoría **ya tiene presencia en el `jail_profile`
-local** — cada servidor absorbe solo lo que le aplica a su propio
-rol, gratis, sin configuración adicional.
+Not all reputation is equally "portable" — a category
+tied to a server's role (`SOCIAL`, MTA-specific) makes no
+sense sharing with a server that does not even run mail.
+Resolved without needing the administrator to manually define which
+server "needs" which category: on import, a row is only
+applied if that category **already has presence in the local
+`jail_profile`** — each server absorbs only what applies to its own
+role, for free, with no additional configuration.
 
-**Implementación**
+**Implementation**
 
-* Dos funciones nuevas en `database.sh`: `db_export_reputation()`
-  (consulta filtrada por categoría + score mínimo, join con
-  `reputation` para la última actividad) y
-  `db_category_exists_locally()` (el filtro de relevancia).
-* Dos opciones nuevas en la rama "Estado / Reputación" de ARE ADMIN
-  (`admin/state_menu.sh`): `9) Exportar reputación`,
-  `10) Importar reputación` — mismo patrón visual que el resto del
-  menú.
-* Exportar: checklist de categorías (default `BOT RECON EXPLOIT`,
-  las más "portables" — no atadas a un rol de servidor específico) +
-  score mínimo configurable, evitando exportar cada IP con score
-  aislado de un solo evento.
-* Formato de archivo: `IP|CATEGORIA|SCORE|ULTIMA_ACTIVIDAD`, cabecera
-  de comentarios (fecha, hostname, categorías, score mínimo) — mismo
-  esquema visual que `jail_profile`.
-* Ubicación: `${ARE_DATA}/backups/reputation/`, mismo patrón que
+* Two new functions in `database.sh`: `db_export_reputation()`
+  (a query filtered by category + minimum score, joined with
+  `reputation` for the last activity) and
+  `db_category_exists_locally()` (the relevance filter).
+* Two new options in the "Status / Reputation" branch of ARE ADMIN
+  (`admin/state_menu.sh`): `9) Export reputation`,
+  `10) Import reputation` — the same visual pattern as the rest of the
+  menu.
+* Export: a checklist of categories (default `BOT RECON EXPLOIT`,
+  the most "portable" — not tied to a specific server role) +
+  a configurable minimum score, avoiding exporting every IP with an
+  isolated single-event score.
+* File format: `IP|CATEGORY|SCORE|LAST_ACTIVITY`, a header
+  of comments (date, hostname, categories, minimum score) — the same
+  visual scheme as `jail_profile`.
+* Location: `${ARE_DATA}/backups/reputation/`, the same pattern as
   `${ARE_DATA}/backups/jail_profiles/`.
-* Importar: lista numerada de archivos disponibles, validación por
-  línea (categoría reconocida en `REPUTATION_CATEGORIES`, score
-  numérico) — líneas inválidas se reportan como error y se omiten,
-  sin abortar el resto de la importación, mismo criterio que
+* Import: a numbered list of available files, per-line
+  validation (category recognized in `REPUTATION_CATEGORIES`, numeric
+  score) — invalid lines are reported as an error and skipped,
+  without aborting the rest of the import, the same criterion as
   `RFC-011`.
-* Ambas operaciones registradas en `admin_audit.log`
-  (`admin_audit_log`), mismo mecanismo ya existente.
+* Both operations recorded in `admin_audit.log`
+  (`admin_audit_log`), the same already-existing mechanism.
 
-**Validación**
+**Validation**
 
-Probado en producción real, con datos genuinos del ataque detectado
-por `IDEA-010` el mismo día:
+Tested in real production, with genuine data from the attack detected
+by `IDEA-010` the same day:
 
-* Exportación real: 1192 IPs (categoría `BOT`, score ≥10) exportadas
-  correctamente, archivo con cabecera y formato validados.
-* Filtro de relevancia confirmado con las dos rutas reales: una fila
-  `BOT` (categoría con `jail_profile` local) se aplicó; una fila
-  `MALWARE` (sin ningún `jail_profile` local, calibrada solo por
-  umbral desde `TASK-018` pero sin sensor real) se omitió
-  correctamente, sin abortar el resto del archivo —
-  `Aplicadas: 1, Omitidas: 1, Errores: 0`.
-* Confirmado el efecto real en la base: `are score` sobre la IP de
-  prueba mostró `Bot=15, TOTAL=15`, coincidiendo exacto con el score
-  importado — `db_add_score()` acumulando correctamente, mismo
-  camino que un sensor real.
+* Real export: 1192 IPs (category `BOT`, score ≥10) exported
+  correctly, the file's header and format validated.
+* The relevance filter confirmed with both real paths: a `BOT`
+  row (a category with a local `jail_profile`) was applied; a
+  `MALWARE` row (with no local `jail_profile`, calibrated only by
+  a threshold from `TASK-018` but with no real sensor) was skipped
+  correctly, without aborting the rest of the file —
+  `Applied: 1, Skipped: 1, Errors: 0`.
+* The real effect on the database confirmed: `are score` on the test
+  IP showed `Bot=15, TOTAL=15`, matching exactly the imported
+  score — `db_add_score()` accumulating correctly, the same
+  path as a real sensor.
 
-**Archivos relacionados**
+**Related files**
 
 * `database.sh`
 * `admin/state_menu.sh`
@@ -3473,57 +3472,57 @@ por `IDEA-010` el mismo día:
 
 ## IDEA-012
 
-**Título:** Sincronización automática de whitelist contra listas de IPs publicadas por terceros
+**Title:** Automatic whitelist synchronization against IP lists published by third parties
 
-**Estado:** ✔ Implementada y validada en producción
+**Status:** ✔ Implemented and validated in production
 
-**Versión:** v2.6 (en desarrollo)
+**Version:** v2.6 (in development)
 
-**Descripción**
+**Description**
 
-Necesidad real: mantener `config/whitelist.conf` actualizada con los
-rangos de un proxy inverso delante del servidor (Cloudflare, en este
-caso), sin copiar/pegar manualmente cada vez que el proveedor los
-cambia. Se dejó constancia previa del problema en el propio archivo
-(`## Cloudflare (ejemplo, no copiar toda la lista aquí)`), antes de
-resolverlo.
+A real need: keeping `config/whitelist.conf` updated with the
+ranges of a reverse proxy in front of the server (Cloudflare, in this
+case), without copying/pasting manually each time the provider
+changes them. The problem was noted beforehand in the file
+itself (`## Cloudflare (example, do not copy the whole list here)`), before
+resolving it.
 
-**Diseño**
+**Design**
 
-* Genérico, no atado a Cloudflare en el código — la URL de origen
-  (IPv4/IPv6 por separado) se define en `config.conf`
-  (`WHITELIST_SYNC_URL_V4`/`_V6`), sirve para cualquier proveedor que
-  publique sus rangos en texto plano, una línea por CIDR.
-* Bloque delimitado por marcadores (`# BEGIN ... AUTO-SYNC` /
-  `# END ... AUTO-SYNC`) dentro del mismo `whitelist.conf` —
-  reemplaza únicamente ese bloque en cada corrida, sin tocar ninguna
-  entrada manual del administrador (IPs de oficina, IP del propio
-  VPS, etc.).
-* Validación antes de escribir: si la descarga falla o el contenido
-  no tiene forma de CIDR válido, la sincronización se aborta sin
-  modificar el archivo — nunca vacía la whitelist ante un fallo de
-  red o un cambio de formato del proveedor.
-* Sin sincronización automática si las URLs no están configuradas —
-  falla explícito, no en silencio.
-* Timer diario (`OnCalendar=daily`, con `RandomizedDelaySec` para no
-  concentrar la carga siempre a la misma hora exacta) — la
-  frecuencia de rotación real de este tipo de listas no amerita
-  nada más agresivo.
+* Generic, not tied to Cloudflare in the code — the source URL
+  (IPv4/IPv6 separately) is defined in `config.conf`
+  (`WHITELIST_SYNC_URL_V4`/`_V6`), it works for any provider that
+  publishes its ranges in plain text, one line per CIDR.
+* A block delimited by markers (`# BEGIN ... AUTO-SYNC` /
+  `# END ... AUTO-SYNC`) inside `whitelist.conf` itself —
+  it replaces only that block on each run, without touching any
+  manual administrator entry (office IPs, the VPS's own
+  IP, etc.).
+* Validation before writing: if the download fails or the content
+  does not have the form of a valid CIDR, the synchronization is aborted without
+  modifying the file — it never empties the whitelist on a network
+  failure or a change in the provider's format.
+* No automatic synchronization if the URLs are not configured —
+  an explicit failure, not a silent one.
+* A daily timer (`OnCalendar=daily`, with `RandomizedDelaySec` so as not
+  to concentrate the load always at the same exact time) — the
+  real rotation frequency of this kind of list does not warrant
+  anything more aggressive.
 
-**Validación**
+**Validation**
 
-* Lógica de reemplazo de bloque probada en aislamiento (dos
-  sincronizaciones simuladas seguidas) antes de tocar producción —
-  confirmado que preserva entradas manuales y reemplaza el bloque
-  viejo sin duplicar.
-* Ejecución real contra la API pública de Cloudflare: 22 rangos
-  genuinos (15 IPv4 + 7 IPv6) sincronizados correctamente,
-  coincidiendo con los que el propio administrador ya tenía
-  anotados a mano — bloque de ejemplo viejo removido tras confirmar
-  que el mecanismo automático ya lo cubre.
-* Timer activo y confirmado con `systemctl status`.
+* The block-replacement logic tested in isolation (two
+  simulated synchronizations in a row) before touching production —
+  confirmed that it preserves manual entries and replaces the old block
+  without duplicating.
+* Real execution against the public Cloudflare API: 22 ranges
+  genuine (15 IPv4 + 7 IPv6) synchronized correctly,
+  matching the ones the administrator already had
+  noted by hand — the old example block removed after confirming
+  that the automatic mechanism already covers it.
+* The timer active and confirmed with `systemctl status`.
 
-**Archivos relacionados**
+**Related files**
 
 * `scripts/sync_whitelist.sh`
 * `manifest/product.sh`
@@ -3533,65 +3532,65 @@ resolverlo.
 ---
 
 
-# HISTORIAL DE BUGS RESUELTOS
+# HISTORY OF RESOLVED BUGS
 
-Las siguientes incidencias forman parte del historial técnico de ARE y se conservan para trazabilidad.
+The following incidents are part of ARE's technical history and are kept for traceability.
 
 ## BUG-001
 
-**Título:** Implementar `handle_unban()`
+**Title:** Implement `handle_unban()`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.0.1
+**Version:** v1.0.1
 
-**Corrección**
+**Fix**
 
-Se incorporó `handle_unban()` para completar el flujo de liberación de direcciones IP.
+`handle_unban()` was added to complete the IP address release flow.
 
 ---
 
 ## BUG-002
 
-**Título:** Verificar sincronización Backend ↔ Fail2Ban
+**Title:** Verify Backend ↔ Fail2Ban synchronization
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.2 (cierre de una observación abierta desde v1.x)
+**Version:** v2.2 (closing of an observation open since v1.x)
 
-**Descripción original**
+**Original description**
 
-Continuar validando durante la operación en producción que todas las
-acciones generadas por Fail2Ban sean procesadas correctamente por
-ARE — garantizar que la transición entre los eventos generados por
-Fail2Ban y las decisiones ejecutadas por ARE permanezca sincronizada.
+Continue validating during production operation that all the
+actions generated by Fail2Ban are processed correctly by
+ARE — ensure that the transition between the events generated by
+Fail2Ban and the decisions executed by ARE remains synchronized.
 
-**Validación**
+**Validation**
 
-Cerrado con evidencia acumulada de múltiples sesiones de producción,
-confirmada de forma extensiva durante la implementación de RFC-016:
-decenas de eventos reales de distintos jails de Fail2Ban
+Closed with accumulated evidence from multiple production sessions,
+confirmed extensively during the implementation of RFC-016:
+dozens of real events from different Fail2Ban jails
 (`modsec-bruteforce`, `modsec-scanner`, `modsec-bots`, `recidive`,
-`modsec-protocol`, `modsec-anomaly`) procesados correctamente de
-punta a punta (`FOUND → Score → POLICY → APPLY`), incluyendo un caso
-de correlación multi-categoría sobre una misma IP
-(`216.180.246.162`) y acumulación correcta entre eventos repetidos
-(`96.127.160.85`). Sin ningún caso de desincronización detectado en
-ninguna de las revisiones.
+`modsec-protocol`, `modsec-anomaly`) processed correctly end to
+end (`FOUND → Score → POLICY → APPLY`), including a case
+of multi-category correlation over the same IP
+(`216.180.246.162`) and correct accumulation between repeated events
+(`96.127.160.85`). With no case of desync detected in
+any of the reviews.
 
 ---
 
 ## BUG-005
 
-**Título:** Inicialización duplicada del backend
+**Title:** Duplicate backend initialization
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Corrección**
+**Fix**
 
-Se eliminó la doble inicialización de IPSet y Firewall centralizando el proceso en:
+The double initialization of IPSet and Firewall was removed by centralizing the process in:
 
 ```text
 backend/init.sh
@@ -3601,103 +3600,103 @@ backend/init.sh
 
 ## BUG-006
 
-**Título:** La categoría ANOMALY no se refleja en las estadísticas
+**Title:** The ANOMALY category is not reflected in the statistics
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Media
+**Priority:** Medium
 
-**Problema**
+**Problem**
 
-La categoría `ANOMALY` era utilizada por el Policy Engine y los perfiles de jail, pero no formaba parte inicialmente del modelo de reputación persistente.
+The `ANOMALY` category was used by the Policy Engine and the jail profiles, but was not initially part of the persistent reputation model.
 
-**Impacto**
+**Impact**
 
-* Dashboard incompleto.
-* Estadísticas inconsistentes.
-* Categorías del motor y Dashboard no coincidentes.
+* Incomplete dashboard.
+* Inconsistent statistics.
+* Engine and Dashboard categories not matching.
 
-**Corrección**
+**Fix**
 
-Se incorporó `ANOMALY` al modelo persistente junto con:
+`ANOMALY` was added to the persistent model together with:
 
 * `MALWARE`
 * `DOS`
 * `SOCIAL`
 
-**Validación**
+**Validation**
 
-* `stats` muestra `Anomaly`.
-* `score <ip>` muestra `Anomaly`.
-* `FOUND modsec-anomaly` incrementa correctamente el total.
+* `stats` shows `Anomaly`.
+* `score <ip>` shows `Anomaly`.
+* `FOUND modsec-anomaly` correctly increments the total.
 
-**Nota (2026-08-17):** si bien la categoría se refleja correctamente en
-las estadísticas (objetivo original de este bug, sigue resuelto), se
-detectó posteriormente que la regla de política asociada
-(`policy/rules/anomaly.sh`) no se ejecuta en el flujo de decisión. Ver
-BUG-012, que es un problema distinto (visualización vs. evaluación).
+**Note (2026-08-17):** although the category is reflected correctly in
+the statistics (the original objective of this bug, still resolved), it was
+later detected that the associated policy rule
+(`policy/rules/anomaly.sh`) does not run in the decision flow. See
+BUG-012, which is a distinct problem (display vs. evaluation).
 
 ---
 
 ## BUG-007
 
-**Título:** ARE no procesa correctamente eventos BAN/UNBAN provenientes de Fail2Ban
+**Title:** ARE does not correctly process BAN/UNBAN events coming from Fail2Ban
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Problema**
+**Problem**
 
-ARE procesaba eventos `FOUND`, pero determinados eventos `BAN` y `UNBAN` generados por Fail2Ban no quedaban registrados correctamente en el historial.
+ARE processed `FOUND` events, but certain `BAN` and `UNBAN` events generated by Fail2Ban were not recorded correctly in the history.
 
-**Evidencia inicial**
+**Initial evidence**
 
-Fail2Ban registraba eventos `Unban`, pero la consulta:
+Fail2Ban recorded `Unban` events, but the query:
 
 ```text
 events <IP>
 ```
 
-no mostraba la actividad correspondiente.
+did not show the corresponding activity.
 
-**Impacto**
+**Impact**
 
-* El ciclo `FOUND → BAN → UNBAN` podía quedar incompleto.
-* El historial podía no representar la actividad real.
-* ARE dependía parcialmente de la acción directa de Fail2Ban.
+* The `FOUND → BAN → UNBAN` cycle could be left incomplete.
+* The history might not represent the real activity.
+* ARE partially depended on Fail2Ban's direct action.
 
-**Corrección**
+**Fix**
 
-El sensor Fail2Ban unificado incorporó el procesamiento de:
+The unified Fail2Ban sensor added the processing of:
 
 * `FOUND`
 * `UNBAN`
 
-Los eventos externos de liberación se registran como:
+External release events are recorded as:
 
 ```text
 EXTERNAL_UNBAN
 ```
 
-`EXTERNAL_UNBAN` no libera directamente la IP.
+`EXTERNAL_UNBAN` does not directly release the IP.
 
-ARE reevalúa la IP mediante el Policy Engine.
+ARE re-evaluates the IP through the Policy Engine.
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/fail2ban_found.sh`
 * `/etc/fail2ban/action.d/ipset-smart.conf`
 * `f2b-ipset.sh`
 * `database.sh`
 
-**Validación**
+**Validation**
 
-Validado en producción con:
+Validated in production with:
 
 ```text
 103.59.161.151
@@ -3707,149 +3706,149 @@ Validado en producción con:
 
 ## BUG-008
 
-**Título:** Incoherencia entre State Engine y Policy Engine para estado FILTER
+**Title:** Inconsistency between State Engine and Policy Engine for the FILTER state
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Problema**
+**Problem**
 
-Durante la ejecución del Decay Engine se detectaron IPs con:
+During the Decay Engine's execution, IPs were detected with:
 
 ```text
 STATUS=NEW
 ```
 
-mientras el Policy Engine devolvía:
+while the Policy Engine returned:
 
 ```text
 FILTER
 ```
 
-para:
+for:
 
 ```text
 LOW_RISK
 ```
 
-**Evidencia**
+**Evidence**
 
 ```text
 SCORE=23->21 STATUS=NEW POLICY=FILTER REASON=LOW_RISK
 ```
 
-**Corrección**
+**Fix**
 
-Se modificó `state_update()` para reconocer `FILTER`.
+`state_update()` was modified to recognize `FILTER`.
 
-**Validación**
+**Validation**
 
-El Decay Engine dejó de producir la incoherencia:
+The Decay Engine stopped producing the inconsistency:
 
 ```text
 STATUS=NEW POLICY=FILTER
 ```
 
-Validado mediante:
+Validated via:
 
 ```text
 decay-apply
 ```
 
-**Nota (2026-08-17):** se observó un caso similar en apariencia
-(`STATUS=WATCH POLICY=TEMP_BAN` para la IP `45.33.70.56`), pero se
-descartó como reaparición de este bug: la IP tenía historial de
-reincidencia reciente (múltiples `BAN_LEVEL` escalados en 24 horas), por
-lo que la política considera correctamente más que el score puntual. No
-requiere acción.
+**Note (2026-08-17):** a case similar in appearance was observed
+(`STATUS=WATCH POLICY=TEMP_BAN` for the IP `45.33.70.56`), but it was
+discarded as a reappearance of this bug: the IP had a recent recidivism
+history (multiple `BAN_LEVEL` escalations in 24 hours), so
+the policy correctly considers more than the point-in-time score. It does
+not require action.
 
 ---
 
 ## BUG-009
 
-**Título:** `policy/apply.sh` no implementa la acción FILTER
+**Title:** `policy/apply.sh` does not implement the FILTER action
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Problema**
+**Problem**
 
-El Policy Engine devolvía correctamente `FILTER`, pero `policy/apply.sh` no tenía una rama para ejecutar dicha acción.
+The Policy Engine correctly returned `FILTER`, but `policy/apply.sh` had no branch to execute that action.
 
-**Evidencia**
+**Evidence**
 
 ```text
 Policy decision: FILTER (LOW_RISK)
 [APPLY] UNKNOWN ACTION: FILTER
 ```
 
-**Corrección**
+**Fix**
 
-Se agregó soporte para:
+Support was added for:
 
 ```text
 FILTER
 ```
 
-IPv4 utiliza:
+IPv4 uses:
 
 ```text
 FILTER_SET4
 ```
 
-IPv6 utiliza:
+IPv6 uses:
 
 ```text
 FILTER_SET6
 ```
 
-`BAN` y `TEMP_BAN` utilizan sus conjuntos correspondientes.
+`BAN` and `TEMP_BAN` use their corresponding sets.
 
-**Validación**
+**Validation**
 
-Validado con:
+Validated with:
 
 ```text
 87.87.87.87
 ```
 
-La IP fue incorporada correctamente a:
+The IP was correctly added to:
 
 ```text
 are-filter
 ```
 
-y el evento `FILTER` quedó registrado.
+and the `FILTER` event was recorded.
 
 ---
 
 ## BUG-010
 
-**Título:** Ban Lifecycle no reconoce escalado permanente por salida multilínea
+**Title:** Ban Lifecycle does not recognize permanent escalation due to multiline output
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v1.1.0
+**Version:** v1.1.0
 
-**Prioridad:** Alta
+**Priority:** High
 
-**Problema**
+**Problem**
 
-Ban Lifecycle devolvía:
+Ban Lifecycle returned:
 
 ```text
 BAN|0|BAN_LEVEL_MAX
 ```
 
-pero `policy/apply.sh` interpretaba incorrectamente el resultado como un ban temporal.
+but `policy/apply.sh` incorrectly interpreted the result as a temporary ban.
 
-**Evidencia**
+**Evidence**
 
 ```text
 [APPLY] Ban Lifecycle:
@@ -3858,23 +3857,23 @@ BAN|0|BAN_LEVEL_MAX
 [APPLY] EXECUTE: TEMP BAN (0 sec)
 ```
 
-**Corrección**
+**Fix**
 
-Se normalizó la salida de:
+The output of:
 
 ```text
 ban_lifecycle_calculate()
 ```
 
-y `policy/apply.sh` reconoce correctamente:
+was normalized, and `policy/apply.sh` correctly recognizes:
 
 ```text
 BAN|0|BAN_LEVEL_MAX
 ```
 
-**Validación**
+**Validation**
 
-El escalado permanente se ejecuta correctamente.
+The permanent escalation executes correctly.
 
 ---
 
@@ -3882,41 +3881,41 @@ El escalado permanente se ejecuta correctamente.
 
 ## BUG-011
 
-**Título:** `db_increment_ban_level()` definida dos veces con comportamiento distinto
+**Title:** `db_increment_ban_level()` defined twice with different behavior
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.0 (en desarrollo)
+**Version:** v2.0 (in development)
 
-**Problema**
+**Problem**
 
-`database.sh` contenía dos definiciones de `db_increment_ban_level()`:
-una sin límite de nivel y otra con `MAX_LEVEL`. La segunda sobrescribía
-a la primera únicamente por orden textual dentro del archivo, sin
-garantía explícita.
+`database.sh` contained two definitions of `db_increment_ban_level()`:
+one with no level cap and another with `MAX_LEVEL`. The second overwrote
+the first only by textual order within the file, with no
+explicit guarantee.
 
-**Impacto**
+**Impact**
 
-Riesgo de que el Ban Lifecycle Engine dejara de respetar
-`BAN_LEVEL_MAX` ante una futura reorganización del archivo (ver
-TASK-009, donde ya se movieron funciones equivalentes a archivos
-propios).
+A risk that the Ban Lifecycle Engine would stop respecting
+`BAN_LEVEL_MAX` upon a future reorganization of the file (see
+TASK-009, where equivalent functions were already moved to their
+own files).
 
-**Corrección**
+**Fix**
 
-Eliminada la definición sin tope. Permanece únicamente la versión con
-`CASE WHEN ban_level < $MAX_LEVEL ...`.
+Removed the uncapped definition. Only the version with
+`CASE WHEN ban_level < $MAX_LEVEL ...` remains.
 
-**Validación**
+**Validation**
 
 ```bash
 ./are.sh sanction-test 84.84.84.84
-# Nivel de sanción actual: 7
+# Current sanction level: 7
 ```
 
-Confirmado en producción, respetando `BAN_LEVEL_MAX`.
+Confirmed in production, respecting `BAN_LEVEL_MAX`.
 
-**Archivos relacionados**
+**Related files**
 
 * `database.sh`
 
@@ -3924,18 +3923,18 @@ Confirmado en producción, respetando `BAN_LEVEL_MAX`.
 
 ## BUG-012
 
-**Título:** Regla de política ANOMALY inalcanzable y desconectada del motor de decisión
+**Title:** ANOMALY policy rule unreachable and disconnected from the decision engine
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.0 (en desarrollo)
+**Version:** v2.0 (in development)
 
-**Corrección**
+**Fix**
 
-Resuelta como parte de RFC-009: `anomaly.sh` reescrita con el contrato
-único de regla, conectada al orquestador real (`policy_evaluate()`).
+Resolved as part of RFC-009: `anomaly.sh` rewritten with the
+single rule contract, connected to the real orchestrator (`policy_evaluate()`).
 
-**Archivos relacionados**
+**Related files**
 
 * `policy/rules/anomaly.sh`
 
@@ -3943,29 +3942,29 @@ Resuelta como parte de RFC-009: `anomaly.sh` reescrita con el contrato
 
 ## BUG-014
 
-**Título:** Bloque de código huérfano en `dashboard/events.sh`
+**Title:** Orphan code block in `dashboard/events.sh`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.0 (en desarrollo)
+**Version:** v2.0 (in development)
 
-**Problema**
+**Problem**
 
-`dashboard/events.sh` contenía un bloque `db_exec("SELECT COUNT(*) FROM
-events WHERE date(fecha,'unixepoch')=date('now')")` ubicado fuera del
-cuerpo de la función `dashboard_events()`, después de su cierre `}`. Al
-estar a nivel de archivo, se ejecutaba en cada `source` del módulo (por
-ejemplo, cada carga de `bootstrap.sh`), no cuando se invocaba la función.
+`dashboard/events.sh` contained a `db_exec("SELECT COUNT(*) FROM
+events WHERE date(date,'unixepoch')=date('now')")` block located outside
+the body of the `dashboard_events()` function, after its closing `}`. Being
+at the file level, it ran on every `source` of the module (for
+example, each load of `bootstrap.sh`), not when the function was invoked.
 
-**Impacto**
+**Impact**
 
-Overhead silencioso en cada carga del módulo. La misma lógica ya existía
-correctamente implementada como función independiente:
-`db_count_events_today()` en `database.sh`, consumida por
-`dashboard/stats.sh`. El bloque suelto era una copia abandonada, sin
-consumidor.
+Silent overhead on every load of the module. The same logic already existed
+correctly implemented as an independent function:
+`db_count_events_today()` in `database.sh`, consumed by
+`dashboard/stats.sh`. The loose block was an abandoned copy, with no
+consumer.
 
-**Evidencia**
+**Evidence**
 
 ```bash
 grep -rn "eventos_hoy\|events_today\|date('now')" --include="*.sh" .
@@ -3974,48 +3973,48 @@ grep -rn "eventos_hoy\|events_today\|date('now')" --include="*.sh" .
 # ./database.sh:665:db_count_events_today() {
 ```
 
-**Corrección**
+**Fix**
 
-Se eliminó el bloque huérfano de `dashboard/events.sh`, dejando únicamente
-la definición de `dashboard_events()`.
+The orphan block was removed from `dashboard/events.sh`, leaving only
+the definition of `dashboard_events()`.
 
-**Validación**
+**Validation**
 
 ```bash
 ./are.sh events 45.148.10.238
 ./are.sh events 5.5.5.5
 ```
 
-Ambos casos confirmados en producción, comportamiento idéntico al previo
-a la corrección.
+Both cases confirmed in production, behavior identical to that prior
+to the fix.
 
 ---
 
 ## BUG-015
 
-**Título:** Variable `DECISION`/`decision` con case inconsistente en `handle_external_unban()`
+**Title:** `DECISION`/`decision` variable with inconsistent case in `handle_external_unban()`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.0 (en desarrollo)
+**Version:** v2.0 (in development)
 
-**Problema**
+**Problem**
 
-Durante el cutover manual de RFC-009 (reemplazar las tres llamadas a
-`policy_decide()` por `policy_evaluate()` en `are.sh`), la edición de
-`handle_external_unban()` asignó el resultado a `DECISION` (mayúscula),
-mientras el resto de la función seguía leyendo `$decision` (minúscula,
-declarada en el `local`). El resultado real de `policy_evaluate()`
-quedaba en una variable que nadie consumía; `action` y `reason` quedaban
-vacíos.
+During the manual cutover of RFC-009 (replacing the three calls to
+`policy_decide()` with `policy_evaluate()` in `are.sh`), the edit of
+`handle_external_unban()` assigned the result to `DECISION` (uppercase),
+while the rest of the function kept reading `$decision` (lowercase,
+declared in the `local`). The real result of `policy_evaluate()`
+was left in a variable no one consumed; `action` and `reason` were left
+empty.
 
-**Impacto**
+**Impact**
 
-Cada evento `EXTERNAL_UNBAN` en producción resultaba en
-`[WARN] [APPLY] UNKNOWN ACTION:` — la IP no era re-evaluada
-correctamente tras un unban externo, sin aplicar ninguna acción.
+Every `EXTERNAL_UNBAN` event in production resulted in
+`[WARN] [APPLY] UNKNOWN ACTION:` — the IP was not re-evaluated
+correctly after an external unban, applying no action.
 
-**Evidencia**
+**Evidence**
 
 ```
 Policy decision after external unban:  ()
@@ -4023,24 +4022,24 @@ Policy decision after external unban:  ()
 [WARN ] [APPLY] UNKNOWN ACTION:
 ```
 
-**Corrección**
+**Fix**
 
 ```bash
 sed -i '166s/DECISION=/decision=/' are.sh
 ```
 
-**Validación**
+**Validation**
 
 ```bash
 ./are.sh external-unban 185.202.158.215 modsec-lfi
 ```
 
-Resultado tras el fix: `Policy decision after external unban: FILTER
-(LOW_RISK)`, con `[APPLY] EXECUTE: FILTER` ejecutando correctamente.
-Confirmado con una segunda IP real (`67.219.16.7`) sin recurrencia del
-problema.
+Result after the fix: `Policy decision after external unban: FILTER
+(LOW_RISK)`, with `[APPLY] EXECUTE: FILTER` executing correctly.
+Confirmed with a second real IP (`67.219.16.7`) with no recurrence of the
+problem.
 
-**Archivos relacionados**
+**Related files**
 
 * `are.sh`
 
@@ -4048,167 +4047,166 @@ problema.
 
 ## BUG-016
 
-**Título:** Falta `policy/rules/credential.sh` — categoría CREDENTIAL sin regla evaluando su score
+**Title:** Missing `policy/rules/credential.sh` — the CREDENTIAL category with no rule evaluating its score
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.0 (en desarrollo)
+**Version:** v2.0 (in development)
 
-**Problema**
+**Problem**
 
-Durante la implementación de RFC-009 se escribieron reglas para 8 de
-las 9 categorías (`exploit`, `bot`, `recon`, `protocol`, `bruteforce`,
-`anomaly`, `malware`, `dos`, `social`). `CREDENTIAL` quedó sin regla
-propia — `bruteforce.sh` evalúa una señal relacionada
-(`ctx_get_events_24h`, frecuencia de eventos) pero no el score
-acumulado de la categoría (`ctx_get_credential`) contra
+During the implementation of RFC-009, rules were written for 8 of
+the 9 categories (`exploit`, `bot`, `recon`, `protocol`, `bruteforce`,
+`anomaly`, `malware`, `dos`, `social`). `CREDENTIAL` was left with no
+rule of its own — `bruteforce.sh` evaluates a related signal
+(`ctx_get_events_24h`, event frequency) but not the
+accumulated score of the category (`ctx_get_credential`) against
 `CREDENTIAL_THRESHOLD`.
 
-**Impacto**
+**Impact**
 
-`CREDENTIAL_THRESHOLD=30` estaba definido en `policy.conf` y la
-categoría figuraba en `REPUTATION_CATEGORIES`, pero ningún componente
-del motor la evaluaba por score. Los 6 jails reales que suman a
+`CREDENTIAL_THRESHOLD=30` was defined in `policy.conf` and the
+category appeared in `REPUTATION_CATEGORIES`, but no component
+of the engine evaluated it by score. The 6 real jails that add to
 `credential_score` (`sshd`, `telnet`, `dovecot`, `postfix-sasl`,
-`mysqld-auth`, `modsec-bruteforce`) acumulaban reputación sin que ese
-acumulado aportara al riesgo total — solo la señal de frecuencia de
-`bruteforce.sh` protegía indirectamente esos jails.
+`mysqld-auth`, `modsec-bruteforce`) accumulated reputation without that
+accumulation contributing to the total risk — only the `bruteforce.sh`
+frequency signal indirectly protected those jails.
 
-**Detección**
+**Detection**
 
-Encontrado por la propia herramienta construida para detectarlo: la
-opción "Validar" de la rama Política de ARE ADMIN (ver FEAT-005),
-diseñada específicamente para confirmar que cada categoría con umbral
-definido tenga su regla correspondiente en `policy/rules/`.
+Found by the very tool built to detect it: the
+"Validate" option of the Policy branch of ARE ADMIN (see FEAT-005),
+designed specifically to confirm that each category with a defined threshold
+has its corresponding rule in `policy/rules/`.
 
-**Corrección**
+**Fix**
 
-Se creó `policy/rules/credential.sh`, mismo contrato único que las
-demás 8 reglas: lee `CREDENTIAL_THRESHOLD` de `policy.conf`, aporta
-`ctx_get_credential` al acumulador de riesgo si lo supera. Agregada a
-`bootstrap.sh` junto al resto de `policy/rules/*.sh`.
+`policy/rules/credential.sh` was created, the same single contract as the
+other 8 rules: it reads `CREDENTIAL_THRESHOLD` from `policy.conf`, contributes
+`ctx_get_credential` to the risk accumulator if it exceeds it. Added to
+`bootstrap.sh` alongside the rest of `policy/rules/*.sh`.
 
-**Validación**
+**Validation**
 
 ```
-POLÍTICA - Validación
+POLICY - Validation
   [OK]    CREDENTIAL -> policy_rule_credential()
-  Resultado: CONFIGURACIÓN DE POLÍTICA VÁLIDA
+  Result: POLICY CONFIGURATION VALID
 ```
 
-Confirmado en producción con las 9 categorías mostrando `[OK]`.
+Confirmed in production with all 9 categories showing `[OK]`.
 
-**Archivos relacionados**
+**Related files**
 
-* `policy/rules/credential.sh` (nuevo)
+* `policy/rules/credential.sh` (new)
 * `bootstrap.sh`
 
 ---
 
 ## BUG-017
 
-**Título:** Deriva de truncamiento entre `total_score` y la suma real de categorías
+**Title:** Truncation drift between `total_score` and the real sum of categories
 
-**Estado:** Identificado — corrección estructural en curso (ver RFC-008)
+**Status:** Identified — structural fix in progress (see RFC-008)
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Problema**
+**Problem**
 
-`reputation_decay_apply()` trunca (`CAST(... AS INTEGER)`) cada
-columna de categoría de forma independiente, y trunca `total_score`
-por separado en la misma sentencia. Nueve truncamientos
-independientes pierden fracciones más rápido que un único
-truncamiento sobre el total agregado. Con el Decay Engine corriendo
-diariamente, el error se acumula: `total_score` almacenado queda
-sistemáticamente por encima de lo que la suma real de sus categorías
-justificaría.
+`reputation_decay_apply()` truncates (`CAST(... AS INTEGER)`) each
+category column independently, and truncates `total_score`
+separately in the same statement. Nine independent truncations
+lose fractions faster than a single truncation over the aggregated
+total. With the Decay Engine running daily, the error accumulates:
+the stored `total_score` ends up systematically above what the real sum
+of its categories would justify.
 
-**Impacto**
+**Impact**
 
-El motor de decisión (`policy_evaluate()`, piso de seguridad de
-RFC-009) usa `total_score` como referencia — una deriva sistemática
-hacia arriba no genera falsos negativos de seguridad, pero sí
-distorsiona la precisión del score real con el que se calibran los
-umbrales.
+The decision engine (`policy_evaluate()`, the RFC-009 safety floor)
+uses `total_score` as a reference — a systematic upward drift
+does not generate safety false negatives, but it does
+distort the precision of the real score against which the thresholds
+are calibrated.
 
-**Evidencia**
+**Evidence**
 
-Detectado al verificar la migración de RFC-008 contra la base real de
-producción (2366 IPs, servidor con 8 días de uptime y decay diario
-activo). Prácticamente todas las IPs con actividad histórica muestran
-`total_score` (viejo) mayor que `SUM(score)` real (nuevo), en
-magnitud proporcional a la antigüedad de la IP — consistente con
-acumulación diaria, no con un evento puntual.
+Detected when verifying the RFC-008 migration against the real production
+database (2366 IPs, a server with 8 days of uptime and daily decay
+active). Practically all IPs with historical activity show
+`total_score` (old) greater than the real `SUM(score)` (new), in
+magnitude proportional to the IP's age — consistent with
+daily accumulation, not with a single event.
 
-**Corrección**
+**Fix**
 
-No se aplica un parche aislado. Se resuelve de raíz como parte de las
-Fases 2-3 de RFC-008: al eliminar `total_score` como campo almacenado
-y calcularlo siempre como `SUM(score)` sobre `reputation_scores`, dos
-números que puedan desincronizarse dejan de existir — la deriva se
-vuelve estructuralmente imposible, no solo corregida puntualmente.
+An isolated patch is not applied. It is resolved at its root as part of
+Phases 2-3 of RFC-008: by removing `total_score` as a stored field
+and always computing it as `SUM(score)` over `reputation_scores`, two
+numbers that could get out of sync cease to exist — the drift
+becomes structurally impossible, not just fixed at one point.
 
-**Archivos relacionados**
+**Related files**
 
 * `decay.sh` (`reputation_decay_apply`)
-* Ver RFC-008 para la corrección definitiva.
+* See RFC-008 for the definitive fix.
 
 ---
 
 ## BUG-018
 
-**Título:** IPs con coma sin limpiar en `EXTERNAL_UNBAN`, reputación partida en filas duplicadas
+**Title:** IPs with an unclean comma in `EXTERNAL_UNBAN`, reputation split into duplicate rows
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Problema**
+**Problem**
 
-`sensors/fail2ban.sh` limpiaba el carácter `,` al final de la IP
-únicamente en la rama `Found` (`IP="${IP%,}"`), no en la rama `Unban`.
-Cuando una línea de log de Fail2Ban con formato de "Unban" traía la
-IP seguida de coma, esa coma viajaba sin limpiar hasta
-`handle_external_unban()`, que creaba/actualizaba una fila de
-`reputation` para `"<ip>,"` como si fuera una IP distinta de `"<ip>"`.
+`sensors/fail2ban.sh` cleaned the `,` character at the end of the IP
+only in the `Found` branch (`IP="${IP%,}"`), not in the `Unban` branch.
+When a Fail2Ban log line in "Unban" format brought the
+IP followed by a comma, that comma traveled uncleaned to
+`handle_external_unban()`, which created/updated a `reputation` row
+for `"<ip>,"` as if it were an IP distinct from `"<ip>"`.
 
-**Impacto**
+**Impact**
 
-Reputación de IPs reales partida entre dos filas independientes en la
-base de datos. Confirmado con evidencia real: `45.148.10.238` tenía
-195 puntos en su fila limpia (`BANNED`) y 57 puntos adicionales en su
-fila con coma (`WATCH`), sin que el motor de decisión pudiera ver el
-score combinado real. Caso más grave detectado: `20.48.234.177` tenía
-**0** en su fila limpia y **51** en la fila con coma — el score real
-de esa IP era completamente invisible para el sistema.
+The reputation of real IPs split between two independent rows in the
+database. Confirmed with real evidence: `45.148.10.238` had
+195 points in its clean row (`BANNED`) and 57 additional points in its
+comma row (`WATCH`), without the decision engine being able to see the
+real combined score. The most serious case detected: `20.48.234.177` had
+**0** in its clean row and **51** in the comma row — the real score
+of that IP was completely invisible to the system.
 
-**Evidencia**
+**Evidence**
 
-Detectado al ejecutar `db_verify_reputation_scores_migration()`
-(construida para RFC-008) contra la base real: 145 IPs con fila
-duplicada por coma, la mayoría de ellas coincidiendo exactamente con
-IPs reales que también existían limpias.
+Detected when running `db_verify_reputation_scores_migration()`
+(built for RFC-008) against the real database: 145 IPs with a row
+duplicated by comma, most of them matching exactly
+real IPs that also existed clean.
 
-**Corrección**
+**Fix**
 
-* `sensors/fail2ban.sh`: agregada la limpieza `IP="${IP%,}"` también
-  en la rama `Unban`, después de la asignación de `IP` (línea 49).
-* `database.sh`: nueva función `db_merge_comma_duplicates()` — para
-  cada par de filas limpia/con-coma, suma los scores por categoría,
-  recalcula `total_score`, mueve los eventos asociados (tabla
-  `events`) a la IP limpia, elimina la fila sucia, y ejecuta
-  `state_update()` sobre el resultado.
+* `sensors/fail2ban.sh`: the cleaning `IP="${IP%,}"` added also
+  in the `Unban` branch, after the `IP` assignment (line 49).
+* `database.sh`: new function `db_merge_comma_duplicates()` — for
+  each pair of clean/comma rows, it sums the scores per category,
+  recomputes `total_score`, moves the associated events (table
+  `events`) to the clean IP, deletes the dirty row, and runs
+  `state_update()` over the result.
 
-**Validación**
+**Validation**
 
-Ejecutado en producción real sobre las 145 IPs afectadas. Verificado:
-`db_verify_reputation_scores_migration()` pasó de listar 145 filas
-con coma a `0`. `45.148.10.238` quedó en `251` puntos (195+57, sin
-pérdida). `20.48.234.177` recuperó su score real (`51`, antes
-invisible con `0`).
+Executed in real production over the 145 affected IPs. Verified:
+`db_verify_reputation_scores_migration()` went from listing 145 rows
+with a comma to `0`. `45.148.10.238` was left at `251` points (195+57, with no
+loss). `20.48.234.177` recovered its real score (`51`, previously
+invisible at `0`).
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/fail2ban.sh`
 * `database.sh`
@@ -4217,61 +4215,61 @@ invisible con `0`).
 
 ## BUG-019
 
-**Título:** Decay trunca cada categoría por separado — IPs con actividad diversificada decaen más rápido que las concentradas
+**Title:** Decay truncates each category separately — IPs with diversified activity decay faster than concentrated ones
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Problema**
+**Problem**
 
-`reputation_decay_apply()` (ya migrada a `reputation_scores` en RFC-008
-Fase 3) aplicaba el factor de decay a cada fila de categoría por
-separado: `UPDATE reputation_scores SET score = CAST(score * FACTOR AS
-INTEGER)`. Cuando una IP tenía su score repartido entre varias
-categorías, cada una truncaba de forma independiente, perdiendo más
-fracción acumulada en total que si el factor se aplicara una sola vez
-sobre el score agregado.
+`reputation_decay_apply()` (already migrated to `reputation_scores` in RFC-008
+Phase 3) applied the decay factor to each category row
+separately: `UPDATE reputation_scores SET score = CAST(score * FACTOR AS
+INTEGER)`. When an IP had its score spread across several
+categories, each one truncated independently, losing more
+accumulated fraction in total than if the factor were applied a single time
+over the aggregated score.
 
-**Impacto**
+**Impact**
 
-Detectado con evidencia real en producción: una IP con
-`EXPLOIT=18, RECON=3, CREDENTIAL=2, ANOMALY=2` (total=25) decayó a
-`21` en una sola corrida (`25→21`, factor 0.95), cuando un único
-truncamiento sobre el agregado daría `23` (`25×0.95=23.75→23`).
-Consecuencia de seguridad real: una IP con actividad diversificada en
-varias categorías se liberaba más rápido que una con actividad
-concentrada en una sola, con el mismo score total — el resultado era
-el inverso de lo deseable, ya que diversidad de técnicas de ataque
-suele ser señal de mayor sofisticación, no de menor riesgo.
+Detected with real evidence in production: an IP with
+`EXPLOIT=18, RECON=3, CREDENTIAL=2, ANOMALY=2` (total=25) decayed to
+`21` in a single run (`25→21`, factor 0.95), when a single
+truncation over the aggregate would give `23` (`25×0.95=23.75→23`).
+A real safety consequence: an IP with activity diversified across
+several categories was released faster than one with activity
+concentrated in a single one, with the same total score — the result was
+the inverse of what is desirable, since a diversity of attack techniques
+usually signals greater sophistication, not lower risk.
 
-**Corrección**
+**Fix**
 
-`reputation_decay_apply()` calcula ahora el nuevo total como un único
-truncamiento sobre el agregado (`new_total = floor(old_total *
-FACTOR)`), y redistribuye ese total entre las categorías de forma
-proporcional a su peso relativo, usando el método del "mayor resto"
-(implementado en `awk` dentro del loop bash existente) para garantizar
-que la suma de las categorías redistribuidas sea exactamente igual al
-nuevo total, sin perder ni sobrar puntos. Para IPs con una sola
-categoría activa, el resultado es idéntico al método anterior — el fix
-solo cambia el comportamiento quando hay diversidad de categorías.
+`reputation_decay_apply()` now computes the new total as a single
+truncation over the aggregate (`new_total = floor(old_total *
+FACTOR)`), and redistributes that total among the categories
+proportionally to their relative weight, using the "largest remainder"
+method (implemented in `awk` inside the existing bash loop) to guarantee
+that the sum of the redistributed categories is exactly equal to the
+new total, without losing or gaining points. For IPs with a single
+active category, the result is identical to the previous method — the fix
+only changes the behavior when there is a diversity of categories.
 
-**Validación**
+**Validation**
 
-Probado con 4 casos límite (una sola categoría, score muy bajo cercano
-a liberación, 5 categorías con valores chicos, y el caso real de
-producción) ejecutando el `awk` real vía subprocess, no una
-reimplementación aproximada. Confirmado en producción real: IP de
-prueba reproduciendo el caso original (`203.0.113.60`) decayó
-correctamente a `EXPLOIT=16, RECON=3, CREDENTIAL=2, ANOMALY=2`, total
-`23` (antes: `21`). La misma corrida de `reputation_decay_apply()`
-procesó además dos IPs reales de tráfico genuino
-(`45.73.162.125`, `78.151.73.141`) con el mismo patrón de corrección
-(`25→23`), confirmando el fix con datos de producción real, no solo
-simulados.
+Tested with 4 edge cases (a single category, a very low score close
+to release, 5 categories with small values, and the real production
+case) running the real `awk` via subprocess, not an approximate
+reimplementation. Confirmed in real production: a test
+IP reproducing the original case (`203.0.113.60`) decayed
+correctly to `EXPLOIT=16, RECON=3, CREDENTIAL=2, ANOMALY=2`, total
+`23` (before: `21`). The same `reputation_decay_apply()` run also
+processed two real IPs of genuine traffic
+(`45.73.162.125`, `78.151.73.141`) with the same correction pattern
+(`25→23`), confirming the fix with real production data, not only
+simulated.
 
-**Archivos relacionados**
+**Related files**
 
 * `decay.sh` (`reputation_decay_apply`)
 
@@ -4279,60 +4277,60 @@ simulados.
 
 ## BUG-021
 
-**Título:** Consulta de filtro dinámico en `sensors/fail2ban.sh` sin manejo de bloqueo de SQLite
+**Title:** Dynamic filter query in `sensors/fail2ban.sh` with no SQLite lock handling
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Problema**
+**Problem**
 
-La consulta de filtro dinámico agregada en TASK-016
-(`SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL'`) usaba
-`sqlite3` directo, sin timeout de espera ante bloqueo (`database is
-locked`) ni blindaje contra respuesta vacía. Al correr manualmente
-`./sensors/fail2ban.sh --dry-run` mientras el timer automático
-(`are-fail2ban-found.timer`) escribía simultáneamente en la misma
-base, la consulta fallaba con `Error: database is locked`, y el
-`$PROFILE_EXISTS` vacío resultante rompía la comparación
-`[ "$PROFILE_EXISTS" -eq 0 ]` con `integer expression expected`.
+The dynamic filter query added in TASK-016
+(`SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL'`) used
+`sqlite3` directly, with no wait timeout on a lock (`database is
+locked`) nor shielding against an empty response. When running manually
+`./sensors/fail2ban.sh --dry-run` while the automatic timer
+(`are-fail2ban-found.timer`) was writing simultaneously to the same
+database, the query failed with `Error: database is locked`, and the
+resulting empty `$PROFILE_EXISTS` broke the comparison
+`[ "$PROFILE_EXISTS" -eq 0 ]` with `integer expression expected`.
 
-**Impacto**
+**Impact**
 
-Cada choque de concurrencia hacía que la línea de log en curso se
-descartara sin procesar — en el peor caso, durante una ráfaga de
-eventos reales de una IP atacante, varios de esos eventos podrían no
-sumar a su reputación.
+Each concurrency collision made the current log line be
+discarded without processing — in the worst case, during a burst of
+real events from an attacking IP, several of those events could fail to
+add to its reputation.
 
-**Detección**
+**Detection**
 
-Encontrado al correr manualmente el sensor en `--dry-run` para probar
-el jail nuevo `courier-auth`, mientras el timer automático procesaba
-en paralelo eventos reales de otra IP (`195.178.110.223`, ya
-bloqueada correctamente por el flujo normal — el hallazgo fue
-específicamente sobre la ejecución manual concurrente, no sobre un
-fallo del bloqueo en sí).
+Found when running the sensor manually in `--dry-run` to test
+the new `courier-auth` jail, while the automatic timer processed
+real events from another IP (`195.178.110.223`, already
+correctly blocked by the normal flow — the finding was
+specifically about the concurrent manual execution, not about a
+failure of the lock itself) in parallel.
 
-**Corrección**
+**Fix**
 
 ```bash
 PROFILE_EXISTS=$(sqlite3 -cmd ".timeout 3000" "$DB_FILE" "SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL';" 2>/dev/null)
 PROFILE_EXISTS="${PROFILE_EXISTS:-0}"
 ```
 
-`.timeout 3000` espera hasta 3 segundos si la base está bloqueada por
-otro proceso, en vez de fallar de inmediato. El blindaje
-`${PROFILE_EXISTS:-0}` evita que una respuesta vacía rompa la
-comparación entera posterior.
+`.timeout 3000` waits up to 3 seconds if the database is locked by
+another process, instead of failing immediately. The shielding
+`${PROFILE_EXISTS:-0}` prevents an empty response from breaking the
+entire subsequent comparison.
 
-**Recomendación operativa**
+**Operational recommendation**
 
-Para pruebas manuales del sensor, detener el timer automático antes
-de correr `--dry-run`/`--execute` manualmente
-(`systemctl stop are-fail2ban-found.timer`), evitando el choque de
-raíz además del fix de timeout.
+For manual tests of the sensor, stop the automatic timer before
+running `--dry-run`/`--execute` manually
+(`systemctl stop are-fail2ban-found.timer`), avoiding the collision at
+its root in addition to the timeout fix.
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/fail2ban.sh`
 
@@ -4340,59 +4338,59 @@ raíz además del fix de timeout.
 
 ## BUG-022
 
-**Título:** `db_exec()` sin manejo de bloqueo de SQLite — punto único de fallo de todo el sistema
+**Title:** `db_exec()` with no SQLite lock handling — a single point of failure for the whole system
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.1 (en desarrollo)
+**Version:** v2.1 (in development)
 
-**Problema**
+**Problem**
 
-`db_exec()`, la función central que ejecuta prácticamente cada
-lectura y escritura de ARE, invocaba `sqlite3` sin `.timeout`:
+`db_exec()`, the central function that executes practically every
+read and write of ARE, invoked `sqlite3` with no `.timeout`:
 
 ```bash
 RESULT=$(sqlite3 -batch "$DB_FILE" "$SQL" 2>/dev/null)
 ```
 
-Idéntico patrón al identificado y corregido en BUG-021, pero en el
-punto del que dependen todas las demás funciones del sistema
+An identical pattern to the one identified and fixed in BUG-021, but at the
+point on which all the other system functions depend
 (`handle_ban`, `handle_found`, `db_add_score`,
-`db_recalculate_total`, auditoría, decay, restauración de ipset al
-arrancar), no una consulta puntual.
+`db_recalculate_total`, auditing, decay, ipset restoration at
+boot), not a single query.
 
-**Impacto**
+**Impact**
 
-Cualquier choque de escrituras concurrentes contra la base —
-especialmente probable durante un ataque real, cuando múltiples
-eventos llegan en rápida sucesión (ver el ataque de
-`195.178.110.223` que motivó el hallazgo de BUG-021) — podía hacer
-que `sqlite3` fallara con `database is locked` en cualquier punto del
-sistema, no solo en el sensor.
+Any collision of concurrent writes against the database —
+especially likely during a real attack, when multiple
+events arrive in rapid succession (see the attack by
+`195.178.110.223` that motivated the BUG-021 finding) — could make
+`sqlite3` fail with `database is locked` at any point of the
+system, not only in the sensor.
 
-**Verificación de que el error no se perdía en un segundo nivel**
+**Verification that the error was not lost at a second level**
 
-Se confirmó que `db_error()`, invocada cuando `sqlite3` retorna
-código de error distinto de cero, sí registra el problema
-correctamente vía `ERROR()` — el punto ciego era exclusivamente la
-ausencia de `.timeout`, no un segundo nivel de silenciamiento.
+It was confirmed that `db_error()`, invoked when `sqlite3` returns
+a nonzero error code, does record the problem
+correctly via `ERROR()` — the blind spot was exclusively the
+absence of `.timeout`, not a second level of silencing.
 
-**Corrección**
+**Fix**
 
 ```bash
 RESULT=$(sqlite3 -batch -cmd ".timeout 3000" "$DB_FILE" "$SQL" 2>/dev/null)
 ```
 
-Mismo timeout de 3 segundos que BUG-021, aplicado en el punto único
-del que dependen todas las funciones de `database.sh`.
+The same 3-second timeout as BUG-021, applied at the single point
+on which all the functions of `database.sh` depend.
 
-**Validación**
+**Validation**
 
-Reproducido un escenario de 5 escrituras concurrentes reales
-(`db_add_score` en paralelo, mismo instante, contra la misma base):
-las 5 se aplicaron correctamente, sin ningún error de bloqueo.
+A scenario of 5 real concurrent writes was reproduced
+(`db_add_score` in parallel, at the same instant, against the same database):
+all 5 were applied correctly, with no lock error.
 
-**Archivos relacionados**
+**Related files**
 
 * `database.sh` (`db_exec`)
 
@@ -4400,38 +4398,38 @@ las 5 se aplicaron correctamente, sin ningún error de bloqueo.
 
 ## BUG-023
 
-**Título:** `PRODUCT_EXECUTABLE_FILES` incompleto tras RFC-016 — sensores nuevos sin permiso de ejecución en instalación limpia
+**Title:** `PRODUCT_EXECUTABLE_FILES` incomplete after RFC-016 — new sensors with no execute permission in a clean installation
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.2 (en desarrollo)
+**Version:** v2.2 (in development)
 
-**Problema**
+**Problem**
 
-El commit de RFC-016 agregó `sensors/spamassassin.sh` y las unidades
-systemd correspondientes, pero no actualizó
-`manifest/product.sh::PRODUCT_EXECUTABLE_FILES`. `sensors/` ya estaba
-declarado en `PRODUCT_DIRS` (copia automática de directorio completo),
-pero eso solo copia los archivos — los permisos de ejecución se
-asignan aparte, únicamente a lo listado en
-`PRODUCT_EXECUTABLE_FILES`. `sensors/apache_evasive.sh` tampoco
-estaba, desde antes de RFC-016.
+The RFC-016 commit added `sensors/spamassassin.sh` and the corresponding
+systemd units, but did not update
+`manifest/product.sh::PRODUCT_EXECUTABLE_FILES`. `sensors/` was already
+declared in `PRODUCT_DIRS` (automatic copy of the whole directory),
+but that only copies the files — execute permissions are
+assigned separately, only to what is listed in
+`PRODUCT_EXECUTABLE_FILES`. `sensors/apache_evasive.sh` was not there
+either, since before RFC-016.
 
-**Impacto**
+**Impact**
 
-En una instalación nueva o un `upgrade`, `install_permissions()`
-aplica `chmod 0644` a todos los archivos y solo despliega `0755`
-sobre los declarados en `PRODUCT_EXECUTABLE_FILES`. Sin la entrada,
-`spamassassin.sh` y `apache_evasive.sh` quedarían copiados pero sin
-permiso de ejecución — falla silenciosa: el timer de systemd
-fallaría (`Permission denied`) sin ningún error visible durante la
-instalación misma. Detectado antes de que afectara a ningún colega,
-al correr `are-installer verify` de forma preventiva en este
-servidor.
+In a new installation or an `upgrade`, `install_permissions()`
+applies `chmod 0644` to all files and only deploys `0755`
+over those declared in `PRODUCT_EXECUTABLE_FILES`. Without the entry,
+`spamassassin.sh` and `apache_evasive.sh` would be copied but with no
+execute permission — a silent failure: the systemd timer
+would fail (`Permission denied`) with no visible error during the
+installation itself. Detected before it affected any colleague,
+when running `are-installer verify` preventively on this
+server.
 
-**Corrección**
+**Fix**
 
-Se agregaron las dos entradas faltantes a `PRODUCT_EXECUTABLE_FILES`:
+The two missing entries were added to `PRODUCT_EXECUTABLE_FILES`:
 
 ```bash
 PRODUCT_EXECUTABLE_FILES=(
@@ -4443,18 +4441,18 @@ PRODUCT_EXECUTABLE_FILES=(
 )
 ```
 
-**Validación**
+**Validation**
 
 ```bash
 bash -n manifest/product.sh
 ./are-installer verify
 ```
 
-`are-installer verify` confirmado limpio: 11/11 checks en OK
-(Integridad, Enlaces, Comandos oficiales, Permisos, Base de datos,
+`are-installer verify` confirmed clean: 11/11 checks OK
+(Integrity, Links, Official commands, Permissions, Database,
 IPSet, Firewall, Systemd, Logrotate, Runtime).
 
-**Archivos relacionados**
+**Related files**
 
 * `manifest/product.sh`
 
@@ -4462,37 +4460,37 @@ IPSet, Firewall, Systemd, Logrotate, Runtime).
 
 ## BUG-024
 
-**Título:** Workflow de release fallaba si la Release de GitHub no existía
+**Title:** The release workflow failed if the GitHub Release did not exist
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Problema**
+**Problem**
 
-`gh release upload` (usado en `.github/workflows/release-package.yml`,
-IDEA-007 Fase 2) requiere que la Release ya exista en GitHub — solo
-sube assets a algo creado previamente, no crea nada. El primer disparo
-real del workflow, con el tag `v2.2.0`, falló con `release not found`:
-nunca se había creado una Release manualmente antes de ese tag.
+`gh release upload` (used in `.github/workflows/release-package.yml`,
+IDEA-007 Phase 2) requires the Release to already exist on GitHub — it only
+uploads assets to something previously created, it creates nothing. The first real
+trigger of the workflow, with the `v2.2.0` tag, failed with `release not found`:
+a Release had never been created manually before that tag.
 
-**Corrección**
+**Fix**
 
-El paso final del workflow ahora verifica primero si la Release
-existe (`gh release view`); si existe, sube los assets como antes
-(`--clobber`); si no, la crea con `gh release create` en el mismo
-paso, con los assets adjuntos directamente en la creación.
+The final step of the workflow now first checks whether the Release
+exists (`gh release view`); if it exists, it uploads the assets as before
+(`--clobber`); if not, it creates it with `gh release create` in the same
+step, with the assets attached directly at creation.
 
-**Validación**
+**Validation**
 
-Confirmado en producción: el primer intento con `v2.2.0` falló
-exactamente como se documenta arriba; con la Release creada a mano
-como corrección puntual, `Re-run failed jobs` completó los 4 pasos
-sin error, con ambos assets (`.tar.gz` + `.sha256`) visibles en la
-Release. Esta corrección elimina la dependencia del paso manual para
-cualquier tag futuro.
+Confirmed in production: the first attempt with `v2.2.0` failed
+exactly as documented above; with the Release created by hand
+as a one-off fix, `Re-run failed jobs` completed the 4 steps
+with no error, with both assets (`.tar.gz` + `.sha256`) visible in the
+Release. This fix removes the dependency on the manual step for
+any future tag.
 
-**Archivos relacionados**
+**Related files**
 
 * `.github/workflows/release-package.yml`
 
@@ -4500,74 +4498,74 @@ cualquier tag futuro.
 
 ## BUG-025
 
-**Título:** `scripts/install.sh` fallaba en servidores con `/tmp` montado `noexec`
+**Title:** `scripts/install.sh` failed on servers with `/tmp` mounted `noexec`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Problema**
+**Problem**
 
-`WORK_DIR="$(mktemp -d)"` usa el directorio temporal por defecto del
-sistema (`/tmp`). En este servidor, `/tmp` y `/var/tmp` están
-montados con la opción `noexec` (hardening estándar, común en
-entornos cPanel — confirmado con `mount | grep -i tmp`, mismo
-dispositivo `/usr/tmpDSK` montado en ambos puntos). El paquete
-descargado y extraído ahí tenía el bit de ejecución correcto
-(`-rwxr-xr-x`, confirmado con `ls -la` y por extracción manual), pero
-el punto de montaje bloquea la ejecución de todos modos, a nivel de
-kernel, sin importar los permisos del archivo — el chequeo
-`[ -x "./are-installer" ]` daba falso, con el mensaje "are-installer
-no encontrado o sin permiso de ejecución", que llevaba a sospechar
-del paquete cuando el paquete estaba bien.
+`WORK_DIR="$(mktemp -d)"` uses the system's default temporary
+directory (`/tmp`). On this server, `/tmp` and `/var/tmp` are
+mounted with the `noexec` option (standard hardening, common in
+cPanel environments — confirmed with `mount | grep -i tmp`, the same
+device `/usr/tmpDSK` mounted at both points). The downloaded and
+extracted package there had the correct execute bit
+(`-rwxr-xr-x`, confirmed with `ls -la` and by manual extraction), but
+the mount point blocks execution anyway, at the
+kernel level, regardless of the file's permissions — the check
+`[ -x "./are-installer" ]` returned false, with the message "are-installer
+not found or without execute permission", which led to suspecting
+the package when the package was fine.
 
-**Diagnóstico**
+**Diagnosis**
 
-Confirmado con `bash -x` sobre el script real y con extracción manual
-paso a paso en un `mktemp -d` sin el `trap cleanup` que borra la
-evidencia — mismo `.tar.gz`, mismo checksum verificado en ambos
-casos, resultado distinto según el punto de montaje del directorio de
-trabajo.
+Confirmed with `bash -x` over the real script and with manual extraction
+step by step in a `mktemp -d` without the `trap cleanup` that deletes the
+evidence — the same `.tar.gz`, the same checksum verified in both
+cases, a different result depending on the mount point of the work
+directory.
 
-**Corrección**
+**Fix**
 
-`WORK_DIR` movido de `/tmp` a `/root` (el `$HOME` de root, que el
-script ya exige como usuario obligatorio) — sin restricción `noexec`
-en la evidencia disponible, y consistente con que `upgrade`/`install`
-ya requieren privilegios de root de todos modos.
+`WORK_DIR` moved from `/tmp` to `/root` (root's `$HOME`, which the
+script already requires as the mandatory user) — with no `noexec` restriction
+in the available evidence, and consistent with `upgrade`/`install`
+already requiring root privileges anyway.
 
 ```bash
 WORK_DIR="$(mktemp -d /root/.are-install.XXXXXX)"
 ```
 
-Se evaluó `/opt` como alternativa antes de decidir `/root` — se
-descartó por convención: `/opt` está reservado para software
-instalado de forma permanente (el propio `/opt/are` cumple ese rol),
-no para directorios de trabajo transitorios.
+`/opt` was evaluated as an alternative before deciding on `/root` — it was
+discarded by convention: `/opt` is reserved for software
+installed permanently (`/opt/are` itself fulfills that role),
+not for transient work directories.
 
-**Validación**
+**Validation**
 
-Confirmado en producción real: `are-installer upgrade --remote`
-completó los 30+ pasos de `installer_upgrade()` sin error
-(descarga, checksum, extracción, copia de Core, configuración,
-enlaces, permisos, base de datos, systemd, logrotate, validación
-final — `are-installer verify` 11/11 en OK después).
+Confirmed in real production: `are-installer upgrade --remote`
+completed the 30+ steps of `installer_upgrade()` with no error
+(download, checksum, extraction, Core copy, configuration,
+links, permissions, database, systemd, logrotate, final
+validation — `are-installer verify` 11/11 OK afterward).
 
-Efecto colateral de la prueba, no relacionado con el bug en sí: al
-correr `upgrade --remote` con la única release publicada (`v2.2.0`)
-estando en una rama de desarrollo más nueva (`v2.3-dev`), el comando
-sobrescribió el código local sin comparar versiones — comportamiento
-esperado del diseño actual (no compara, solo aplica lo último
-publicado), pero sin aviso previo del riesgo antes de ejecutarlo en
-el servidor de producción real, en vez de en un entorno aislado.
-Recuperado sin pérdida de datos (`git checkout -- .`, con `events` y
-`jail_profile` verificados intactos en la base — ni `install_copy_files`
-ni `install_database` tocan datos persistentes). Queda como lección
-de proceso: cualquier prueba de `upgrade --remote` en este servidor
-debe advertirse explícitamente como "toca el código real de
-producción" antes de ejecutarla.
+A side effect of the test, unrelated to the bug itself: when
+running `upgrade --remote` with the only published release (`v2.2.0`)
+while on a newer development branch (`v2.3-dev`), the command
+overwrote the local code without comparing versions — expected
+behavior of the current design (it does not compare, it just applies the latest
+published) but with no prior warning of the risk before running it on
+the real production server, instead of in an isolated environment.
+Recovered with no data loss (`git checkout -- .`, with `events` and
+`jail_profile` verified intact in the database — neither `install_copy_files`
+nor `install_database` touches persistent data). It remains a process
+lesson: any `upgrade --remote` test on this server
+must be explicitly warned as "it touches the real production
+code" before running it.
 
-**Archivos relacionados**
+**Related files**
 
 * `scripts/install.sh`
 
@@ -4575,53 +4573,53 @@ producción" antes de ejecutarla.
 
 ## BUG-026
 
-**Título:** `sensors/spamassassin.sh` sin protección contra corridas solapadas — reprocesamiento duplicado del log
+**Title:** `sensors/spamassassin.sh` with no protection against overlapping runs — duplicate reprocessing of the log
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Problema**
+**Problem**
 
-El sensor no tenía ningún mecanismo de bloqueo (`flock`) entre lectura
-del offset, procesamiento del log, y escritura del nuevo offset. Si
-dos instancias corrían solapadas — el timer de systemd (cada 60s) en
-paralelo con una corrida manual, o el archivo de offset tocado a mano
-mientras el timer seguía activo, como ocurrió durante una sesión de
-diagnóstico de esta misma noche — ambas instancias podían leer el
-mismo offset viejo, procesar el mismo tramo del log dos o más veces,
-y generar eventos `FOUND` duplicados con la fecha de cada corrida
-extra, no la fecha real del evento original.
+The sensor had no locking mechanism (`flock`) between reading
+the offset, processing the log, and writing the new offset. If
+two instances ran overlapping — the systemd timer (every 60s) in
+parallel with a manual run, or the offset file touched by hand
+while the timer was still active, as happened during a diagnosis
+session this same night — both instances could read the
+same old offset, process the same stretch of the log two or more times,
+and generate duplicate `FOUND` events with the date of each extra
+run, not the real date of the original event.
 
-**Impacto real confirmado en producción**
+**Real impact confirmed in production**
 
-`96.127.160.85` (dos eventos reales legítimos, del 16 y 17 de agosto)
-terminó con `SOCIAL=78` en vez de `22` — 6 eventos duplicados de una
-misma corrida solapada, sumados encima de los 2 reales. La reputación
-inflada disparó una decisión `TEMP_BAN` real, aplicada al firewall
-sobre datos falsos — ver `BUG-027` para la segunda mitad del
-problema (por qué el `unban` posterior no revirtió esa sanción de
-forma persistente).
+`96.127.160.85` (two real legitimate events, from August 16 and 17)
+ended up with `SOCIAL=78` instead of `22` — 6 duplicate events from a
+single overlapping run, added on top of the 2 real ones. The inflated
+reputation triggered a real `TEMP_BAN` decision, applied to the firewall
+over false data — see `BUG-027` for the second half of the
+problem (why the later `unban` did not revert that sanction
+persistently).
 
-**Corrección**
+**Fix**
 
-`flock` no bloqueante sobre un archivo de lock dedicado
-(`$ARE_DATA/spamassassin.lock`), envolviendo la lectura del offset,
-el procesamiento del log, y la escritura del offset nuevo. Si otra
-instancia ya tiene el lock, la corrida nueva se cierra sin hacer
-nada, en vez de leer un offset que la otra instancia todavía no
-terminó de escribir. Aplica tanto a `--execute` como `--dry-run`,
-para que un diagnóstico manual no pueda corromper el estado de una
-corrida real en curso.
+A non-blocking `flock` over a dedicated lock file
+(`$ARE_DATA/spamassassin.lock`), wrapping the offset read,
+the log processing, and the new offset write. If another
+instance already holds the lock, the new run exits without doing
+anything, instead of reading an offset the other instance has not
+yet finished writing. It applies to both `--execute` and `--dry-run`,
+so that a manual diagnosis cannot corrupt the state of a real
+run in progress.
 
-**Validación**
+**Validation**
 
-Reprocesamiento completo del historial (`offset=0`,
-`sensors/spamassassin.sh --execute`) tras la corrección: 8 eventos
-reales procesados, cero duplicados — coincide exacto con el conteo
-manual de líneas `Warning` reales del log completo.
+Full reprocessing of the history (`offset=0`,
+`sensors/spamassassin.sh --execute`) after the fix: 8 real
+events processed, zero duplicates — it matches exactly the manual
+count of real `Warning` lines in the full log.
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/spamassassin.sh`
 
@@ -4629,51 +4627,51 @@ manual de líneas `Warning` reales del log completo.
 
 ## BUG-027
 
-**Título:** `handle_unban()` no persiste el unban en `sanction_state`
+**Title:** `handle_unban()` does not persist the unban in `sanction_state`
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Problema**
+**Problem**
 
-`handle_unban()` en `are.sh` quita la IP de los conjuntos `ipset`
-(`ban_set`, `filter_set`) y registra el evento `UNBAN` en `events`,
-pero nunca llama a `db_register_sanction_unban()` — la función que
-existe en `database.sh` para exactamente este propósito
-(`ban_until=0`, `last_unban=NOW`). La fila de `sanction_state` queda
-exactamente igual que antes del unban.
+`handle_unban()` in `are.sh` removes the IP from the `ipset` sets
+(`ban_set`, `filter_set`) and records the `UNBAN` event in `events`,
+but never calls `db_register_sanction_unban()` — the function that
+exists in `database.sh` for exactly this purpose
+(`ban_until=0`, `last_unban=NOW`). The `sanction_state` row is left
+exactly the same as before the unban.
 
-**Impacto**
+**Impact**
 
-El unban funciona en caliente (la IP sale del firewall real de
-inmediato), pero la persistencia miente: `sanction_state` sigue
-diciendo que hay una sanción vigente hasta una fecha futura.
-`are-restore-ipsets.service`, que repuebla el firewall al arrancar el
-sistema a partir de `sanction_state` (no de un snapshot del firewall
-en sí — ver `BAN_LIFECYCLE.md`), volvería a aplicar el ban ya
-revertido si el servidor se reinicia antes de que esa fecha pase.
-Encontrado al revertir el ban falso generado por `BUG-026`: el
-`unban` reportó éxito, pero `sanction_state` seguía mostrando
-`last_unban=0` y `ban_until` sin cambios.
+The unban works live (the IP leaves the real firewall
+immediately), but the persistence lies: `sanction_state` keeps
+saying there is a sanction in effect until a future date.
+`are-restore-ipsets.service`, which repopulates the firewall at system
+boot from `sanction_state` (not from a firewall snapshot
+itself — see `BAN_LIFECYCLE.md`), would reapply the already-reverted
+ban if the server reboots before that date passes.
+Found when reverting the false ban generated by `BUG-026`: the
+`unban` reported success, but `sanction_state` still showed
+`last_unban=0` and `ban_until` unchanged.
 
-**Corrección**
+**Fix**
 
-Una línea agregada a `handle_unban()`, antes del registro del evento:
+One line added to `handle_unban()`, before recording the event:
 
 ```bash
 db_register_sanction_unban "$ip"
 ```
 
-**Validación**
+**Validation**
 
-Confirmado en producción con `96.127.160.85`: antes de la corrección,
-`sanction_state` mostraba `ban_until=1787372819, last_unban=0` pese a
-un `unban` ya ejecutado. Tras la corrección y un segundo `unban`,
-`ban_until=0, last_unban=1787440100` (timestamp real) — persistencia
-ahora consistente con el estado real del firewall.
+Confirmed in production with `96.127.160.85`: before the fix,
+`sanction_state` showed `ban_until=1787372819, last_unban=0` despite
+an already-executed `unban`. After the fix and a second `unban`,
+`ban_until=0, last_unban=1787440100` (a real timestamp) — persistence
+now consistent with the real firewall state.
 
-**Archivos relacionados**
+**Related files**
 
 * `are.sh`
 
@@ -4681,37 +4679,37 @@ ahora consistente con el estado real del firewall.
 
 ## BUG-028
 
-**Título:** `sensors/spamassassin.sh` descartaba mensajes con score alto clasificados "NOT spam" por SpamAssassin
+**Title:** `sensors/spamassassin.sh` discarded high-score messages classified "NOT spam" by SpamAssassin
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.3 (en desarrollo)
+**Version:** v2.3 (in development)
 
-**Problema**
+**Problem**
 
-El sensor filtraba exclusivamente por el veredicto textual de
-SpamAssassin (`"detected message as spam ("`), delegando en el
-criterio interno de esa herramienta en vez de decidir por score
-propio contra `SPAMASSASSIN_MIN_SCORE`. Encontrado en producción: un
-mensaje real con score `6.2` (por encima de
-`SPAMASSASSIN_MIN_SCORE=5.0`) fue clasificado internamente por
-SpamAssassin como "NOT spam", pese a que el propio servidor de
-correo igual rechazó la entrega del mensaje — dos criterios internos
-de SpamAssassin/Exim desalineados entre sí (probablemente
-`required_score` interno de SpamAssassin más alto que el umbral real
-de rechazo de Exim), ninguno de los cuales ARE debía heredar
-ciegamente.
+The sensor filtered exclusively by SpamAssassin's textual verdict
+(`"detected message as spam ("`), delegating to that tool's
+internal criterion instead of deciding by its own score
+against `SPAMASSASSIN_MIN_SCORE`. Found in production: a
+real message with score `6.2` (above
+`SPAMASSASSIN_MIN_SCORE=5.0`) was internally classified by
+SpamAssassin as "NOT spam", even though the mail server
+itself still rejected the message's delivery — two internal criteria
+of SpamAssassin/Exim out of alignment with each other (probably
+SpamAssassin's internal `required_score` higher than Exim's real
+rejection threshold), neither of which ARE should inherit
+blindly.
 
-**Decisión de diseño**
+**Design decision**
 
-ARE es un motor de riesgo propio — no delega su criterio de
-clasificación en el flag booleano interno de otra herramienta. El
-sensor ahora captura ambos veredictos (`"spam"` y `"NOT spam"`) y
-extrae el score de cualquiera de los dos; la decisión de si cuenta
-como evento real queda 100% del lado del propio pipeline de ARE
-(`SPAMASSASSIN_MIN_SCORE`, ya existente), no del texto del log.
+ARE is its own risk engine — it does not delegate its classification
+criterion to another tool's internal boolean flag. The
+sensor now captures both verdicts (`"spam"` and `"NOT spam"`) and
+extracts the score from either of the two; the decision of whether it counts
+as a real event stays 100% on ARE's own pipeline side
+(`SPAMASSASSIN_MIN_SCORE`, already existing), not on the log text.
 
-**Corrección**
+**Fix**
 
 ```bash
 case "$line" in
@@ -4720,42 +4718,42 @@ case "$line" in
         ...
 ```
 
-La línea de rechazo genérico de Exim (`"rejected after DATA"`) sigue
-correctamente excluida — no tiene un score entre paréntesis inmediato
-después de "spam", el patrón no la matchea.
+The generic Exim rejection line (`"rejected after DATA"`) stays
+correctly excluded — it has no score in parentheses immediately
+after "spam", the pattern does not match it.
 
-**Incidente durante la corrección**
+**Incident during the fix**
 
-Al resetear el offset a `0` antes de copiar el archivo corregido, el
-timer automático (todavía con el código viejo) procesó el backlog
-completo en esa ventana, descartando de nuevo el evento que estábamos
-corrigiendo. Y una segunda prueba, con el archivo ya corregido pero
-sin detener el timer primero, generó duplicados reales (mismo patrón
-de fondo que `BUG-026`, pese al `flock` — el `flock` protege contra
-corridas *simultáneas*, no contra que el timer normal consuma un
-offset reseteado a mano entre pruebas manuales). Ambos incidentes
-llevaron a un tercer y definitivo reprocesamiento completo del
-historial (`DELETE` de todos los eventos `spamassassin-*`, offset a
-`0`, timer detenido explícitamente durante todo el proceso).
+When resetting the offset to `0` before copying the fixed file, the
+automatic timer (still with the old code) processed the full backlog
+in that window, discarding again the event we were
+fixing. And a second test, with the file already fixed but
+without stopping the timer first, generated real duplicates (the same
+underlying pattern as `BUG-026`, despite the `flock` — the `flock` protects against
+*simultaneous* runs, not against the normal timer consuming an
+offset reset by hand between manual tests). Both incidents
+led to a third and definitive full reprocessing of the
+history (`DELETE` of all `spamassassin-*` events, offset to
+`0`, the timer explicitly stopped during the entire process).
 
-**Lección de proceso, reforzando `BUG-026`:** cualquier manipulación
-manual del offset de este sensor debe hacerse con el timer detenido
-(`systemctl stop are-spamassassin.timer`) desde el primer paso, no
-solo cuando se anticipa un choque directo — el timer corriendo cada
-60 segundos es suficiente para interferir con cualquier ventana de
-prueba, aunque nunca coincida literalmente en el mismo segundo que la
-corrida manual.
+**Process lesson, reinforcing `BUG-026`:** any manual
+manipulation of this sensor's offset must be done with the timer stopped
+(`systemctl stop are-spamassassin.timer`) from the first step, not
+only when a direct collision is anticipated — the timer running every
+60 seconds is enough to interfere with any test
+window, even if it never literally coincides in the same second as the
+manual run.
 
-**Validación**
+**Validation**
 
-Reprocesamiento final limpio: 12 eventos totales, sin duplicados
-(`96.127.160.85` con 2 filas son sus dos eventos reales legítimos,
-no un error). Confirmado con consulta directa
-(`GROUP BY ip, jail HAVING COUNT(*) > 1` devuelve únicamente esa fila
-esperada). El mensaje que originó el hallazgo (`103.16.72.108`,
-score `6.2`) confirmado presente, clasificado `spamassassin-low`.
+Final clean reprocessing: 12 total events, no duplicates
+(`96.127.160.85` with 2 rows is its two real legitimate events,
+not an error). Confirmed with a direct query
+(`GROUP BY ip, jail HAVING COUNT(*) > 1` returns only that
+expected row). The message that originated the finding (`103.16.72.108`,
+score `6.2`) confirmed present, classified `spamassassin-low`.
 
-**Archivos relacionados**
+**Related files**
 
 * `sensors/spamassassin.sh`
 
@@ -4763,68 +4761,68 @@ score `6.2`) confirmado presente, clasificado `spamassassin-low`.
 
 ## BUG-029
 
-**Título:** Dependencias systemd hardcodeadas y timer único habilitado — instalación se rompía sin Fail2Ban/Exim preinstalados
+**Title:** Hardcoded systemd dependencies and a single enabled timer — installation broke without Fail2Ban/Exim preinstalled
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.4 (en desarrollo)
+**Version:** v2.4 (in development)
 
-**Problema**
+**Problem**
 
-Encontrado al probar la instalación real (`v2.3.0`, vía `curl | bash`)
-en Fedora y Kali — ninguno de los dos trae Fail2Ban preinstalado por
-defecto, un caso de uso completamente legítimo (ej. servidor de
-correo puro, sin Fail2Ban corriendo). Dos fallas distintas,
-descubiertas juntas por `are-installer verify` mostrando resultados
-distintos en cada servidor:
+Found when testing the real installation (`v2.3.0`, via `curl | bash`)
+on Fedora and Kali — neither of the two ships Fail2Ban preinstalled by
+default, a completely legitimate use case (e.g. a pure mail
+server, with no Fail2Ban running). Two distinct failures,
+discovered together by `are-installer verify` showing different results
+on each server:
 
-1. **`Requires=` hardcodeado en 4 unidades `.service`**
+1. **A hardcoded `Requires=` in 4 `.service` units**
    (`are-fail2ban-found`, `are-fail2ban-decay`, `are-spamassassin`,
-   `are-restore-ipsets`) sobre servicios externos
-   (`fail2ban.service`, `exim.service`) que pueden no existir. El
-   timer fallaba al arrancar (`Failed to queue unit startup job: Unit
-   fail2ban.service not found`), en cascada: `are.sh` nunca corría
-   por primera vez, los conjuntos `ipset` nunca se creaban —
-   `verify` reportaba "Conjunto IPSet faltante" sin relación aparente
-   con la causa real.
-2. **`install_systemd()`/`installer_uninstall()` en `are-installer`
-   con `systemctl enable/disable --now are-fail2ban-found.timer`
-   hardcodeado a un solo timer**, en vez de recorrer todos los
-   `.timer` del manifiesto (`PRODUCT_SYSTEMD_UNITS`). Cualquier
-   instalación nueva dejaba SpamAssassin y Decay instalados pero sin
-   habilitar, sin que nadie lo notara salvo por `verify` — y la
-   desinstalación tenía el mismo problema al revés, dejando timers
-   corriendo tras el `uninstall`.
+   `are-restore-ipsets`) over external services
+   (`fail2ban.service`, `exim.service`) that may not exist. The
+   timer failed to start (`Failed to queue unit startup job: Unit
+   fail2ban.service not found`), cascading: `are.sh` never ran
+   for the first time, the `ipset` sets were never created —
+   `verify` reported "Missing IPSet set" with no apparent relation
+   to the real cause.
+2. **`install_systemd()`/`installer_uninstall()` in `are-installer`
+   with `systemctl enable/disable --now are-fail2ban-found.timer`
+   hardcoded to a single timer**, instead of iterating over all the
+   `.timer` of the manifest (`PRODUCT_SYSTEMD_UNITS`). Any
+   new installation left SpamAssassin and Decay installed but without
+   being enabled, with no one noticing except through `verify` — and the
+   uninstall had the same problem in reverse, leaving timers
+   running after the `uninstall`.
 
-**Impacto**
+**Impact**
 
-Ambas fallas afectaban a cualquier instalación nueva, no algo
-específico de los entornos de prueba — el servidor de producción
-real (AlmaLinux) también tenía las mismas 4 unidades con `Requires=`
-hardcodeado, encontrado y corregido en paralelo por el propio Hernan
-antes de que llegara a revisarlas.
+Both failures affected any new installation, not something
+specific to the test environments — the real production server
+(AlmaLinux) also had the same 4 units with a hardcoded `Requires=`,
+found and fixed in parallel by Hernan himself
+before it reached the review of them.
 
-**Corrección**
+**Fix**
 
-* Las 4 unidades `.service` cambiadas de `Requires=`+`After=` a solo
-  `After=` (orden de arranque si el servicio existe, sin bloquear si
-  no) — coherente con que los propios sensores ya toleran limpiamente
-  la ausencia de su fuente externa (`sensors/fail2ban.sh` ya maneja
-  un log faltante sin crashear, por ejemplo).
-* `install_systemd()`/`installer_uninstall()` corregidas para
-  recorrer `PRODUCT_SYSTEMD_UNITS` completo, habilitando/
-  deshabilitando cualquier `*.timer` presente en el manifiesto, en
-  vez de un nombre fijo.
+* The 4 `.service` units changed from `Requires=`+`After=` to just
+  `After=` (startup order if the service exists, without blocking if
+  not) — consistent with the sensors themselves already cleanly tolerating
+  the absence of their external source (`sensors/fail2ban.sh` already handles
+  a missing log without crashing, for example).
+* `install_systemd()`/`installer_uninstall()` fixed to
+  iterate over the full `PRODUCT_SYSTEMD_UNITS`, enabling/
+  disabling any `*.timer` present in the manifest, instead
+  of a fixed name.
 
-**Validación**
+**Validation**
 
-Instalación completa (`curl | bash`, `v2.3.0` real) validada en
-Fedora (`dnf`) y Kali (`apt`) con la corrección aplicada — ambos
-gestores de paquetes del auto-instalador de `TASK-020` confirmados
-funcionando de punta a punta en el mismo ciclo de prueba. Corrección
-aplicada también en el servidor de producción AlmaLinux.
+A complete installation (`curl | bash`, real `v2.3.0`) validated on
+Fedora (`dnf`) and Kali (`apt`) with the fix applied — both
+package managers of the `TASK-020` auto-installer confirmed
+working end to end in the same test cycle. The fix
+applied to the AlmaLinux production server as well.
 
-**Archivos relacionados**
+**Related files**
 
 * `are-installer`
 * `systemd/are-fail2ban-found.service`
@@ -4836,48 +4834,48 @@ aplicada también en el servidor de producción AlmaLinux.
 
 ## BUG-030
 
-**Título:** `reputation_scores` nunca se creaba en una instalación genuinamente nueva
+**Title:** `reputation_scores` was never created in a genuinely new installation
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.4 (en desarrollo)
+**Version:** v2.4 (in development)
 
-**Problema**
+**Problem**
 
-`db_init_reputation_scores()` (la función que crea la tabla
-`reputation_scores`, el almacenamiento real del score por categoría
-desde `RFC-008`) solo se invocaba dentro de
-`db_migrate_reputation_scores()` — la migración de v2.0 a v2.1 para
-bases *ya existentes* con datos en el esquema viejo de columnas
-fijas. `db_init()`, la función que corre en cualquier instalación
-nueva, nunca la llamaba.
+`db_init_reputation_scores()` (the function that creates the
+`reputation_scores` table, the real per-category score storage
+since `RFC-008`) was only invoked inside
+`db_migrate_reputation_scores()` — the v2.0-to-v2.1 migration for
+*already-existing* databases with data in the old fixed-column
+schema. `db_init()`, the function that runs on any new
+installation, never called it.
 
-**Impacto**
+**Impact**
 
-Encontrado al probar la instalación real en Fedora (servidor sin
-datos previos, sin nada que migrar): cualquier operación que
-consultara `reputation_scores` fallaba con `"no such table"` —
-`are stats`, `are score`, y en general cualquier función que ya
-dependiera del esquema normalizado desde `RFC-008` Fase 2. Afecta a
-toda instalación nueva sobre cualquier sistema, no algo específico de
-Fedora — el bug estaba en `db_init()` en sí.
+Found when testing the real installation on Fedora (a server with no
+prior data, with nothing to migrate): any operation that
+queried `reputation_scores` failed with `"no such table"` —
+`are stats`, `are score`, and in general any function that already
+depended on the normalized schema since `RFC-008` Phase 2. It affects
+any new installation on any system, not something specific to
+Fedora — the bug was in `db_init()` itself.
 
-**Corrección**
+**Fix**
 
-Una línea agregada al final de `db_init()`:
+One line added at the end of `db_init()`:
 
 ```bash
 db_init_reputation_scores
 ```
 
-**Validación**
+**Validation**
 
-Reinstalación completa en Fedora (`rm are.db`, `are stats` disparando
-`db_init()` de cero) con la corrección aplicada: `reputation_scores`
-presente desde el primer momento, flujo completo (`found`, `score`,
-`stats`) funcionando sin errores de SQLite.
+A complete reinstall on Fedora (`rm are.db`, `are stats` triggering
+`db_init()` from scratch) with the fix applied: `reputation_scores`
+present from the first moment, the complete flow (`found`, `score`,
+`stats`) working with no SQLite errors.
 
-**Archivos relacionados**
+**Related files**
 
 * `database.sh`
 
@@ -4885,94 +4883,93 @@ presente desde el primer momento, flujo completo (`found`, `score`,
 
 ## BUG-031
 
-**Título:** `are-installer` nunca creaba IPSet ni reglas de firewall — la instalación remota documentada como validada nunca funcionó realmente limpia
+**Title:** `are-installer` never created IPSet or firewall rules — the remote installation documented as validated never actually worked clean
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.3.1 (tag movido — ver nota de proceso)
+**Version:** v2.3.1 (moved tag — see process note)
 
-**Problema**
+**Problem**
 
 `installer_install()`/`installer_upgrade()`/`installer_repair()`
-nunca invocaban `init_backend()` (que crea los 4 conjuntos IPSet y
-las 4 reglas de firewall correspondientes) — esa inicialización
-dependía por completo de que alguien ejecutara `are.sh` manualmente
-al menos una vez después de instalar. En producción (AlmaLinux) el
-bug quedó invisible porque Fail2Ban corre ahí desde el primer día y
-dispara `are.sh` solo. En la primera prueba de instalación remota
-(Fedora, sesión anterior) quedó igualmente invisible porque se
-corrieron comandos manuales (`are found`, `are stats`) durante las
-pruebas de `RFC-008`, sin validar la instalación limpia en sí — un
-error de proceso, no solo de código: el objetivo real de esa sesión
-(instalación remota funcionando sola) nunca se verificó de verdad, y
-quedó documentado como cerrado sin estarlo.
+never invoked `init_backend()` (which creates the 4 IPSet sets and
+the 4 corresponding firewall rules) — that initialization
+depended entirely on someone running `are.sh` manually
+at least once after installing. In production (AlmaLinux) the
+bug stayed invisible because Fail2Ban runs there from day one and
+triggers `are.sh` on its own. In the first remote-installation test
+(Fedora, a previous session) it was equally invisible because
+manual commands were run (`are found`, `are stats`) during the
+`RFC-008` tests, without validating the clean installation itself — a
+process error, not only a code one: the real objective of that session
+(remote installation working on its own) was never truly verified, and
+it was left documented as closed without being so.
 
-**Cómo se descubrió correctamente esta vez**
+**How it was correctly discovered this time**
 
-Instalación completamente limpia en Kali — `uninstall` +
-`rm -rf /var/lib/are` (para eliminar también los datos que
-`uninstall` conserva a propósito) + `curl | bash`, sin ningún comando
-manual entre la instalación y `are-installer verify`. Encontrado en
-dos capas, cada una expuesta al corregir la anterior:
+A completely clean installation on Kali — `uninstall` +
+`rm -rf /var/lib/are` (to also remove the data that
+`uninstall` deliberately keeps) + `curl | bash`, with no manual command
+between the installation and `are-installer verify`. Found in
+two layers, each exposed upon fixing the previous one:
 
-1. Los 4 `ipset` (`FILTER_SET4/6`, `BAN_SET4/6`) directamente no
-   existían — `install_ipsets()` (nueva) agregada, invocando
-   `init_ipsets()` de `infrastructure/ipset.sh`.
-2. Con los `ipset` ya creándose, `verify` seguía fallando —
-   `"Regla IPv4/IPv6 faltante"`. `init_ipsets()` sola no alcanza:
-   `backend/init.sh` ya tenía una función `init_backend()` que
-   orquesta `init_ipsets()` **y** `init_firewall()` (que crea las
-   reglas de `iptables`/`ip6tables`) — el primer fix la ignoró y
-   llamó solo a la mitad. Corregido para invocar `init_backend()`
-   completa.
+1. The 4 `ipset` (`FILTER_SET4/6`, `BAN_SET4/6`) directly did not
+   exist — `install_ipsets()` (new) added, invoking
+   `init_ipsets()` from `infrastructure/ipset.sh`.
+2. With the `ipset` already being created, `verify` kept failing —
+   `"Missing IPv4/IPv6 rule"`. `init_ipsets()` alone is not enough:
+   `backend/init.sh` already had an `init_backend()` function that
+   orchestrates `init_ipsets()` **and** `init_firewall()` (which creates
+   the `iptables`/`ip6tables` rules) — the first fix ignored it and
+   called only half. Fixed to invoke the complete `init_backend()`.
 
-**Corrección final**
+**Final fix**
 
-`install_ipsets()` en `are-installer` sourcea `infrastructure/ipset.sh`,
-`backend/firewall.sh` y `backend/init.sh`, e invoca `init_backend()` —
-reutilizando la orquestación ya existente en vez de duplicarla,
-invocada junto a `install_database()` en los tres flujos
+`install_ipsets()` in `are-installer` sources `infrastructure/ipset.sh`,
+`backend/firewall.sh`, and `backend/init.sh`, and invokes `init_backend()` —
+reusing the already-existing orchestration instead of duplicating it,
+invoked alongside `install_database()` in the three flows
 (`install`/`upgrade`/`repair`).
 
-**Nota de proceso: el tag `v2.3.0` se movió, no se creó `v2.3.1`**
+**Process note: the `v2.3.0` tag was moved, `v2.3.1` was not created**
 
-Dado que `v2.3.0` se había taggeado el mismo día, sin consumidores
-externos reales todavía, y que `v2.4-dev` no tenía contenido propio
-como para justificar una release, se decidió corregir el tag
-existente (`git tag -f v2.3.0` + `git push --force`) en vez de abrir
-un patch release `v2.3.1` formal. El workflow de release, ya con
-`--clobber` desde `BUG-024`, actualizó los assets de la Release
-existente sin necesitar ningún cambio adicional. Práctica excepcional,
-no la convención habitual del proyecto (que no vuelve a tocar tags ya
-publicados) — justificada únicamente por no haber consumidores reales
-del tag original todavía.
+Since `v2.3.0` had been tagged the same day, with no real
+external consumers yet, and `v2.4-dev` had no content of its own
+to justify a release, it was decided to fix the existing
+tag (`git tag -f v2.3.0` + `git push --force`) instead of opening
+a formal patch release `v2.3.1`. The release workflow, already with
+`--clobber` since `BUG-024`, updated the assets of the existing
+Release without needing any additional change. An exceptional practice,
+not the project's usual convention (which does not touch already-published
+tags) — justified only by there being no real consumers
+of the original tag yet.
 
-**Validación**
+**Validation**
 
-Cuatro instalaciones limpias en Kali en total, cada una exponiendo
-una capa nueva del problema hasta quedar realmente resuelto:
+Four clean installations on Kali in total, each exposing
+a new layer of the problem until it was really resolved:
 
-1. Primera corrida — expuso la falta de `install_ipsets()` (`ipset`
-   inexistentes).
-2. Segunda corrida (tras el primer fix) — `ipset` creándose bien,
-   expuso que `init_ipsets()` sola no alcanza, faltaba
-   `init_firewall()` (`init_backend()` completo).
-3. Tercera corrida (tras el segundo fix) — `IPSet: OK` y
-   `Firewall: OK`, pero expuso que `BUG-029` (unidades `.service` sin
-   `Requires=`) nunca se había traído de `v2.4-dev` a `main` — el tag
-   `v2.3.0` salía de `main`, no de esa rama, y quedó desincronizado
-   sin que nadie lo notara hasta este punto.
-4. Cuarta corrida (tras traer `BUG-029` a `main` y mover el tag una
-   vez más) — **11/11 en `OK`, instalación limpia completa,
-   sin ningún comando manual entre el `curl \| bash` y `verify`.**
+1. First run — exposed the lack of `install_ipsets()` (`ipset`
+   nonexistent).
+2. Second run (after the first fix) — `ipset` being created fine,
+   exposed that `init_ipsets()` alone is not enough, `init_firewall()`
+   was missing (the complete `init_backend()`).
+3. Third run (after the second fix) — `IPSet: OK` and
+   `Firewall: OK`, but exposed that `BUG-029` (`.service` units without
+   `Requires=`) had never been brought from `v2.4-dev` to `main` — the tag
+   `v2.3.0` came out of `main`, not that branch, and was left out of sync
+   without anyone noticing until this point.
+4. Fourth run (after bringing `BUG-029` to `main` and moving the tag one
+   more time) — **11/11 OK, a complete clean installation,
+   with no manual command between the `curl | bash` and `verify`.**
 
-Esta secuencia de cuatro corridas es la explicación honesta de por
-qué "instalación remota" se había documentado como cerrada en v2.3.0
-sin estarlo realmente — cada corrida previa validó una demo con
-intervención manual de por medio, no la instalación real y aislada
-que finalmente se logró acá.
+This sequence of four runs is the honest explanation of why
+"remote installation" had been documented as closed in v2.3.0
+without being so — each previous run validated a demo with
+manual intervention in the middle, not the real and isolated installation
+that was finally achieved here.
 
-**Archivos relacionados**
+**Related files**
 
 * `are-installer`
 
@@ -4980,40 +4977,40 @@ que finalmente se logró acá.
 
 ## BUG-032
 
-**Título:** `are.sh` nunca verificaba que corriera como root
+**Title:** `are.sh` never verified that it was running as root
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.4 (en desarrollo)
+**Version:** v2.4 (in development)
 
-**Problema**
+**Problem**
 
-`are.sh`, a diferencia de `are-installer` (que sí tiene
-`install_verify_root()`), nunca chequeaba privilegios de root.
-Encontrado en Kali: `are stats` sin `sudo` terminaba con `exit 0` y
-**cero salida** — ningún error, ningún log, nada — porque las
-operaciones internas que requieren root (`ipset`, `iptables`)
-fallaban en silencio sin que nada lo reportara con claridad.
+`are.sh`, unlike `are-installer` (which does have
+`install_verify_root()`), never checked for root privileges.
+Found on Kali: `are stats` without `sudo` ended with `exit 0` and
+**zero output** — no error, no log, nothing — because the internal
+operations that require root (`ipset`, `iptables`)
+failed silently with nothing reporting it clearly.
 
-**Corrección**
+**Fix**
 
-Chequeo explícito agregado justo después de cargar `config.conf`, en
-el mismo lugar y con el mismo criterio que ya usa `are-installer`:
+An explicit check added right after loading `config.conf`, in
+the same place and with the same criterion already used by `are-installer`:
 
 ```bash
 if [ "$(id -u)" -ne 0 ]; then
-    echo "ERROR: are requiere privilegios de root." >&2
+    echo "ERROR: are requires root privileges." >&2
     exit 1
 fi
 ```
 
-**Validación**
+**Validation**
 
-Confirmado en Fedora: `are stats` sin `sudo` ahora muestra
-`"ERROR: are requiere privilegios de root."` de inmediato, en vez de
-silencio; `sudo are stats` sigue funcionando normal.
+Confirmed on Fedora: `are stats` without `sudo` now shows
+`"ERROR: are requires root privileges."` immediately, instead of
+silence; `sudo are stats` keeps working normally.
 
-**Archivos relacionados**
+**Related files**
 
 * `are.sh`
 
@@ -5021,38 +5018,38 @@ silencio; `sudo are stats` sigue funcionando normal.
 
 ## BUG-033
 
-**Título:** `PRODUCT_EXECUTABLE_FILES` sin `scripts/install.sh` ni `scripts/build-package.sh` — `upgrade --remote` fallaba tras cada actualización
+**Title:** `PRODUCT_EXECUTABLE_FILES` without `scripts/install.sh` or `scripts/build-package.sh` — `upgrade --remote` failed after each update
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.4.1
+**Version:** v2.4.1
 
-**Problema**
+**Problem**
 
-Mismo patrón que `BUG-023` (permisos de ejecución faltantes en el
-manifiesto), esta vez con `scripts/`. El directorio ya estaba
-declarado en `PRODUCT_DIRS` (se copia completo en cada
-`install`/`upgrade`), pero eso solo copia los archivos — el permiso
-de ejecución se asigna aparte, únicamente sobre lo listado en
-`PRODUCT_EXECUTABLE_FILES`. Ninguno de los dos scripts estaba ahí,
-desde que `scripts/` se agregó al manifiesto (`IDEA-007` Fase 3).
+The same pattern as `BUG-023` (execute permissions missing from the
+manifest), this time with `scripts/`. The directory was already
+declared in `PRODUCT_DIRS` (it is copied completely on each
+`install`/`upgrade`), but that only copies the files — the execute
+permission is assigned separately, only over what is listed in
+`PRODUCT_EXECUTABLE_FILES`. Neither of the two scripts was there,
+since `scripts/` was added to the manifest (`IDEA-007` Phase 3).
 
-**Impacto**
+**Impact**
 
-Encontrado al validar `upgrade --remote` real, por primera vez,
-contra `v2.4.0` recién publicada: `are-installer upgrade --remote`
-fallaba con `"scripts/install.sh no encontrado o sin permiso de
-ejecución"`. Un `chmod +x` manual lo resolvía momentáneamente — pero
-como cada `install`/`upgrade` vuelve a copiar el archivo y a aplicar
-permisos según el manifiesto, el problema volvía a aparecer en la
-siguiente actualización, sin que el propio operador lo notara hasta
-la próxima vez que necesitara `upgrade --remote`. Confirmado en
-Kali: `chmod +x` manual antes del primer `upgrade --remote` exitoso,
-permisos perdidos de nuevo después.
+Found when validating `upgrade --remote` for real, for the first time,
+against the freshly published `v2.4.0`: `are-installer upgrade --remote`
+failed with `"scripts/install.sh not found or without execute
+permission"`. A manual `chmod +x` resolved it momentarily — but
+since each `install`/`upgrade` copies the file again and applies
+permissions according to the manifest, the problem reappeared in the
+next update, without the operator themselves noticing it until
+the next time they needed `upgrade --remote`. Confirmed on
+Kali: a manual `chmod +x` before the first successful `upgrade --remote`,
+permissions lost again afterward.
 
-**Corrección**
+**Fix**
 
-Dos entradas agregadas a `PRODUCT_EXECUTABLE_FILES`:
+Two entries added to `PRODUCT_EXECUTABLE_FILES`:
 
 ```bash
 PRODUCT_EXECUTABLE_FILES=(
@@ -5066,20 +5063,20 @@ PRODUCT_EXECUTABLE_FILES=(
 )
 ```
 
-**Validación**
+**Validation**
 
-Confirmado con `upgrade --remote` real, en Fedora y Kali, sin ningún
-`chmod` manual — los dos scripts quedaron con permiso de ejecución
-correcto (`rwxr-xr-x`) automáticamente. Encontrado en el camino un
-segundo problema relacionado, también corregido: el tag `v2.4.1`
-inicial se publicó con `PRODUCT_VERSION` todavía en `2.4.0` sin
-sincronizar — `scripts/build-package.sh` nombra el paquete según esa
-variable, no según el tag de git, así que el bootstrap (que arma el
-nombre del asset a partir del tag) buscaba `are-v2.4.1.tar.gz`
-mientras el paquete real se llamaba distinto. Corregido sincronizando
-los 4 archivos de versión y republicando el tag una vez más.
+Confirmed with a real `upgrade --remote`, on Fedora and Kali, with no
+manual `chmod` — the two scripts were left with the correct execute
+permission (`rwxr-xr-x`) automatically. A second related problem was
+found along the way, also fixed: the initial `v2.4.1` tag
+was published with `PRODUCT_VERSION` still at `2.4.0`, unsynchronized
+— `scripts/build-package.sh` names the package according to that
+variable, not according to the git tag, so the bootstrap (which builds
+the asset name from the tag) looked for `are-v2.4.1.tar.gz`
+while the real package was named differently. Fixed by synchronizing
+the 4 version files and republishing the tag one more time.
 
-**Archivos relacionados**
+**Related files**
 
 * `manifest/product.sh`
 
@@ -5087,93 +5084,97 @@ los 4 archivos de versión y republicando el tag una vez más.
 
 ## BUG-034
 
-**Título:** `dashboard/score.sh` mostraba `Último evento` en UTC y `Última actividad` en hora local — mismo timestamp, dos lecturas distintas sin señalizar
+**Title:** `dashboard/score.sh` showed `Last event` in UTC and `Last activity` in local time — the same timestamp, two different readings with no signaling
 
-**Estado:** ✔ Resuelto
+**Status:** ✔ Resolved
 
-**Versión:** v2.8 (en desarrollo)
+**Version:** v2.8 (in development)
 
-**Problema**
+**Problem**
 
-Encontrado al investigar un reporte real de un sistema anti-DDoS
-externo (bloqueo de 4 semanas sobre una IP que ARE solo sancionó con
-`TEMP_BAN` nivel 1). Al comparar el horario del correo del sistema
-externo (`Mon 17:25`) contra el dashboard de ARE, `Último evento`
-mostraba `20:25:51` — 3 horas de diferencia exacta con
-`Última actividad` (`17:25:51`) y con el propio correo. La
-diferencia coincidía exacto con la zona horaria real del servidor
-(`-03:00`) — no era un evento real posterior, ni un retraso genuino
-de ARE.
+Found when investigating a real report from an external anti-DDoS
+system (a 4-week block on an IP that ARE only sanctioned with
+a level-1 `TEMP_BAN`). When comparing the time of the external
+system's email (`Mon 17:25`) against ARE's dashboard, `Last event`
+showed `20:25:51` — exactly 3 hours' difference from
+`Last activity` (`17:25:51`) and from the email itself. The
+difference matched exactly the server's real time zone
+(`-03:00`) — it was not a real later event, nor a genuine delay
+of ARE.
 
-**Causa real**
+**Real cause**
 
-`db_get_last_event()`/`db_get_events()` (`database.sh`) construían
-el string con `datetime(fecha, 'unixepoch')`, que SQLite devuelve en
-UTC por defecto. `Última actividad`, en cambio, se arma en
-`dashboard/score.sh` con `date -d "@$updated"`, que usa la zona
-horaria local del sistema. Mismo timestamp interno (epoch), dos
-conversiones distintas dentro del mismo bloque de salida del
-dashboard, sin ninguna etiqueta que indicara cuál era cuál —
-suficiente para hacer leer mal el orden real de los eventos, como
-pasó en el momento de investigar este mismo reporte.
+`db_get_last_event()`/`db_get_events()` (`database.sh`) built
+the string with `datetime(date, 'unixepoch')`, which SQLite returns in
+UTC by default. `Last activity`, on the other hand, is built in
+`dashboard/score.sh` with `date -d "@$updated"`, which uses the system's local
+time zone. The same internal timestamp (epoch), two
+different conversions within the same dashboard output block,
+with no label indicating which was which —
+enough to make the real order of events be misread, as
+happened at the moment of investigating this very report.
 
-**Corrección**
+**Fix**
 
-Agregado el modificador `'localtime'` de SQLite a ambas consultas
-(`datetime(fecha, 'unixepoch', 'localtime')`), consistente con lo
-que ya hacía `Última actividad`.
+Added SQLite's `'localtime'` modifier to both queries
+(`datetime(date, 'unixepoch', 'localtime')`), consistent with what
+`Last activity` already did.
 
-**Validación**
+**Validation**
 
-Confirmado con la IP real del reporte: `Último evento` y
-`Última actividad` muestran ahora el mismo horario (`17:25:51`),
-coincidiendo con el horario real del correo del sistema anti-DDoS.
+Confirmed with the real IP from the report: `Last event` and
+`Last activity` now show the same time (`17:25:51`),
+matching the real time of the anti-DDoS system's email.
 
-**Nota — hallazgo relacionado, investigado y cerrado (sin cambio de código)**
+**Note — related finding, investigated and closed (with no code change)**
 
-Al corregir la lectura del horario, apareció una aparente
-discrepancia de criterio: ARE aplicó `TEMP_BAN` nivel 1 (categoría
-`DOS`, score `58`, vigente por solo 1 hora) sobre la misma IP que el
-sistema anti-DDoS del hosting bloqueó por 4 semanas. Investigado en
-la misma sesión: no es un gap de diseño. El `jail_profile` de
-`mod_evasive` ya tiene el peso casi máximo del sistema
-(`weight=70, confidence=0.95`), y el escalado real no depende de la
-severidad de un único evento sino de la reincidencia
-(`RISK_MULT_WATCH`/`RISK_MULT_BANNED`, `RFC-009`) — ya validado en
-producción con `45.33.70.56` escalando `BAN_LEVEL_4 → 5 → 6` por
-eventos consecutivos. Una primera sanción cautelosa que escala real
-ante repetición es el comportamiento diseñado, no un error. Cerrado
-sin ningún cambio de código.
+When fixing the time reading, an apparent discrepancy of
+criterion appeared: ARE applied a level-1 `TEMP_BAN` (category
+`DOS`, score `58`, in effect for only 1 hour) on the same IP that the
+hosting's anti-DDoS system blocked for 4 weeks. Investigated in
+the same session: it is not a design gap. The `jail_profile` of
+`mod_evasive` already has almost the maximum weight of the system
+(`weight=70, confidence=0.95`), and the real escalation does not depend on the
+severity of a single event but on recidivism
+(`RISK_MULT_WATCH`/`RISK_MULT_BANNED`, `RFC-009`) — already validated in
+production with `45.33.70.56` escalating `BAN_LEVEL_4 → 5 → 6` through
+consecutive events. A cautious first sanction that escalates for real
+upon repetition is the designed behavior, not an error. Closed
+with no code change at all.
 
-**Archivos relacionados**
+**Related files**
 
 * `database.sh`
 
 ---
 
-# OBSERVACIONES
+# OBSERVATIONS
 
-La documentación de trabajo debe mantenerse sincronizada con el estado real de ARE.
+The work documentation must be kept synchronized with the real state of ARE.
 
-Las entradas históricas resueltas se conservan cuando aportan:
+Resolved historical entries are kept when they provide:
 
-* contexto;
-* decisiones arquitectónicas;
-* fases de implementación;
-* evidencias;
-* validaciones;
-* información necesaria para comprender la evolución del sistema.
+* context;
+* architectural decisions;
+* implementation phases;
+* evidence;
+* validations;
+* information needed to understand the system's evolution.
 
-Las funcionalidades ya incorporadas en una versión estable no deberán reaparecer como trabajo pendiente.
+Features already added in a stable version must not reappear as pending work.
 
-Las RFC representan propuestas sujetas a decisión y no deben confundirse con funcionalidades implementadas.
+RFCs represent proposals subject to decision and must not be confused with implemented features.
 
-Las ideas no constituyen compromisos de implementación.
+Ideas do not constitute implementation commitments.
 
-La versión estable documentada actualmente es:
+The currently documented stable version is:
 
 ```text
 v2.8.3
 ```
 
-El trabajo futuro deberá incorporarse al Roadmap antes de convertirse en una línea formal de desarrollo.
+Future work must be added to the Roadmap before becoming a formal line of development.
+
+---
+
+> 🇪🇸 Versión en español (referencia): [`TODO.es.md`](TODO.es.md)

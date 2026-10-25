@@ -16,13 +16,9 @@ before publishing any fix.
 
 | Version | Status |
 |---------|:------:|
-| 2.3.x (in development) | ✅ Supported |
-| 2.2.x | ✅ Supported |
-| 2.1.x | ✅ Limited support |
-| 2.0.x | ❌ Not supported |
-| 1.1.x | ❌ Not supported |
-| 1.0.x | ❌ Not supported |
-| < 1.0 | ❌ Not supported |
+| 2.8.x | ✅ Supported |
+| 2.7.x | ✅ Limited support |
+| ≤ 2.6.x | ❌ Not supported |
 
 ---
 
@@ -30,6 +26,10 @@ before publishing any fix.
 
 If you discover a vulnerability in ARE, please avoid disclosing it publicly before it can be
 analyzed.
+
+Please report it privately through the repository's **Security** tab, using **Report a
+vulnerability** (GitHub private security advisory). This keeps the report confidential until
+a fix is published.
 
 Every report should include, whenever possible:
 

@@ -75,10 +75,13 @@ ARE is **not a replacement** — it's the reputation brain that complements Fail
 
 ## Demo
 
-<!-- TODO: add an asciinema cast / GIF here — see marketing/demo-script.md.
-     Recommended: the red/blue sequence — attack → score climbs by category →
-     WATCH → FILTER → ban → `are score` dashboard. -->
-*(demo recording coming — `are top`, `are score <ip>`, and a live ban escalation)*
+[![asciicast](https://asciinema.org/a/00DD24yGltrAsLba.svg)](https://asciinema.org/a/00DD24yGltrAsLba)
+
+A single attacker escalating in real time: each RCE hit scores the `EXPLOIT`
+category, the decision climbs `WATCH → FILTER → TEMP_BAN`, and `are score`
+shows the per-category breakdown. Fail2Ban would see unrelated events — ARE
+sees one escalating attacker. (`policy-compare` previews the verdict without
+enforcing it; `are unban` recovers the IP while keeping its history.)
 
 ## Threat categories
 

@@ -14,19 +14,17 @@ El objetivo es garantizar una gestión responsable de los incidentes de segurida
 
 | Versión | Estado |
 |---------|:------:|
-| 2.3.x (en desarrollo) | ✅ Soportada |
-| 2.2.x | ✅ Soportada |
-| 2.1.x | ✅ Soporte limitado |
-| 2.0.x | ❌ No soportada |
-| 1.1.x | ❌ No soportada |
-| 1.0.x | ❌ No soportada |
-| < 1.0 | ❌ No soportada |
+| 2.8.x | ✅ Soportada |
+| 2.7.x | ✅ Soporte limitado |
+| ≤ 2.6.x | ❌ No soportada |
 
 ---
 
 # Reporte de vulnerabilidades
 
 Si descubres una vulnerabilidad en ARE, evita su divulgación pública antes de que pueda ser analizada.
+
+Reportala de forma privada desde la pestaña **Security** del repositorio, usando **Report a vulnerability** (aviso de seguridad privado de GitHub). Así el reporte queda confidencial hasta que se publique una corrección.
 
 Todo reporte debería incluir, siempre que sea posible:
 
