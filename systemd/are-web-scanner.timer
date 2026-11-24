@@ -1,0 +1,10 @@
+[Unit]
+Description=Run ARE Web Scanner Sensor every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=are-web-scanner.service
+
+[Install]
+WantedBy=timers.target

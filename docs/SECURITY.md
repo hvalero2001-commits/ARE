@@ -16,9 +16,9 @@ before publishing any fix.
 
 | Version | Status |
 |---------|:------:|
-| 2.8.x | ✅ Supported |
-| 2.7.x | ✅ Limited support |
-| ≤ 2.6.x | ❌ Not supported |
+| 2.9.x | ✅ Supported |
+| 2.8.x | ✅ Limited support |
+| ≤ 2.7.x | ❌ Not supported |
 
 ---
 

@@ -8,7 +8,7 @@
 ##################################################
 PRODUCT_NAME="ARE"
 PRODUCT_DESCRIPTION="Abuse Reputation Engine"
-PRODUCT_VERSION="2.8.4"
+PRODUCT_VERSION="2.9.0"
 PRODUCT_LICENSE="GPL-3.0"
 ##################################################
 # Installation Layout
@@ -94,6 +94,8 @@ PRODUCT_SYSTEMD_UNITS+=( "are-mail-antivirus.service" "are-mail-antivirus.timer"
 PRODUCT_SYSTEMD_UNITS_OPTIONAL=(
     are-whitelist-sync.service
     are-whitelist-sync.timer
+    are-web-scanner.service
+    are-web-scanner.timer
 )
 ##################################################
 # Executable Links
@@ -124,6 +126,7 @@ PRODUCT_LOGROTATE_FILES=(
     mod_evasive_report
     admin_audit
     web_correlation
+    web_scanner
 )
 PRODUCT_EXECUTABLE_FILES=(
     are-installer
@@ -136,6 +139,7 @@ PRODUCT_EXECUTABLE_FILES=(
     sensors/apache_evasive.sh
     sensors/spamassassin.sh
     sensors/web_correlation.sh
+    sensors/web_scanner.sh
     scripts/install.sh
     scripts/build-package.sh
     scripts/sync_whitelist.sh

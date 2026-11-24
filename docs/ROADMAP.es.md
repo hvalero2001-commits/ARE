@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.8.4
+v2.9.0
 ```
 
 Estado:
@@ -459,6 +459,34 @@ Validado comparando cada `.es.md` byte a byte contra la versión anterior de su 
 ## Patch v2.8.4
 
 Patch solo de documentación. Tabla de versiones soportadas de `SECURITY.md` corregida (había quedado en 2.3.x), demo de asciinema incorporada al `README.md` y `docs/TODO.md` traducido al inglés (el original en español se conserva como `docs/TODO.es.md`, congelado en v2.8.3). Sin cambios de código. Ver `TASK-027` en `docs/TODO.md`.
+
+# v2.9
+
+## Objetivo
+
+Incorporar un sensor que detecte un tipo de amenaza que los sensores existentes no pueden ver: el reconocimiento de rutas sensibles desde una sola IP, leído directamente del `access_log` del servidor web (nginx o Apache).
+
+## Estado
+
+✔ Completado — liberado como release oficial (`v2.9.0`)
+
+## Funcionalidades incorporadas
+
+### Sensor Web Scanner
+
+Surge de un escaneo real capturado en un servidor nginx de pruebas detrás de un túnel de Cloudflare (unas 140 peticiones en 2 minutos a `.env`, `.git`, `.ssh`, respaldos y `phpinfo`, todas 404), siguiendo la regla del propio proyecto de no escribir un parser sin una línea real de log delante.
+
+* Reporta una sola IP que solicita varias rutas sensibles distintas en una corrida, con el contrato existente (`are.sh found <IP> web-scanner`); categoría RECON.
+* Lee el formato combined de nginx o Apache; descarta siempre direcciones de loopback y privadas.
+* Primer sensor entregado como **unidad systemd opcional**: se instala pero no se habilita sola, porque la ruta del log depende de cada servidor.
+
+## Limitación conocida
+
+Detrás de un proxy o túnel (por ejemplo Cloudflare Tunnel) el servidor ve toda conexión como `127.0.0.1`: el sensor puede detectar y acumular reputación una vez que el servidor web registra la IP real (`real_ip_header`), pero un ban en el firewall del host no puede bloquear al cliente real. Ver `IDEA-013` en `docs/TODO.md`.
+
+## Validación
+
+Log real capturado, corrida en el servidor de producción en aislamiento, instalación aislada con `are-installer verify` (11/11) y calibración con el flujo real de `are.sh found` (`WATCH` → `FILTER` → `TEMP_BAN`). Detalle en `IDEA-013`.
 
 ---
 

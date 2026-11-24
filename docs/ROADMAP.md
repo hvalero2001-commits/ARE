@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.8.4
+v2.9.0
 ```
 
 Status:
@@ -576,6 +576,34 @@ Validated by comparing each `.es.md` byte for byte against the previous version 
 ## Patch v2.8.4
 
 Documentation-only patch. Supported-versions table in `SECURITY.md` corrected (it had been left at 2.3.x), the asciinema demo embedded in `README.md`, and `docs/TODO.md` translated to English (the Spanish original is preserved as `docs/TODO.es.md`, frozen at v2.8.3). No code changes. See `TASK-027` in `docs/TODO.md`.
+
+# v2.9
+
+## Goal
+
+Add a sensor that detects a type of threat the existing sensors cannot see: reconnaissance of sensitive paths from a single IP, read directly from the web server's `access_log` (nginx or Apache).
+
+## Status
+
+✔ Completed — released as an official release (`v2.9.0`)
+
+## Features added
+
+### Web Scanner Sensor
+
+Arising from a real scan captured on a test nginx server behind a Cloudflare Tunnel (about 140 requests in 2 minutes to `.env`, `.git`, `.ssh`, backups and `phpinfo`, all 404), following the project's own rule of not writing a parser without a real log line in front of it.
+
+* Reports a single IP that requests several distinct sensitive paths in one run, with the existing contract (`are.sh found <IP> web-scanner`); category RECON.
+* Reads the combined log format of nginx or Apache; always discards loopback and private addresses.
+* First sensor shipped as an **optional systemd unit**: installed but not enabled automatically, since the log path depends on each server.
+
+## Known limitation
+
+Behind a proxy or tunnel (for example Cloudflare Tunnel) the server sees every connection as `127.0.0.1`: the sensor can detect and accumulate reputation once the web server records the real IP (`real_ip_header`), but a host firewall ban cannot block the real client. See `IDEA-013` in `docs/TODO.md`.
+
+## Validation
+
+Real captured log, production server run in isolation, isolated install with `are-installer verify` (11/11), and calibration with the real `are.sh found` flow (`WATCH` → `FILTER` → `TEMP_BAN`). Detail in `IDEA-013`.
 
 ---
 

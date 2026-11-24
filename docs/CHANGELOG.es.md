@@ -6,6 +6,54 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.9.0
+
+**Fecha:** 2026-11-24
+
+## Resumen
+
+Incorpora el sensor Web Scanner: detecta reconocimiento de rutas sensibles (`.env`, `.git`, `.ssh`, credenciales, respaldos, `phpinfo`) desde una sola IP leyendo un `access_log` en formato combined, de nginx o Apache. Es el primer sensor entregado como unidad systemd opcional.
+
+## Sensor Web Scanner
+
+Surge de un escaneo real capturado en un servidor nginx de pruebas detrás de un túnel de Cloudflare: una IP hizo unas 140 peticiones en 2 minutos a rutas como `.env`, `.git/HEAD`, `.ssh/id_rsa`, `backup.sql` y `phpinfo.php`, todas respondidas con 404. Ni Fail2Ban ni `web_correlation` pueden ver ese patrón (una sola IP, sin marcador de ruta común), y ARE no tenía sensor para logs de nginx.
+
+* Cuenta, por IP y por corrida, las rutas sensibles **distintas** solicitadas; a partir de `WEB_SCANNER_HIT_THRESHOLD` (por defecto 5) reporta la IP con `are.sh found <IP> web-scanner`.
+* Misma estructura que `web_correlation.sh`: configuración en `config.conf`, `flock` contra corridas solapadas, offset persistente (se reinicia si el log rota), `--dry-run` por defecto, filtro dinámico contra `jail_profile`, log dedicado con logrotate.
+* Descarta siempre direcciones de loopback, privadas (RFC 1918), link-local y ULA de IPv6, de modo que un log que todavía registre la IP del proxy nunca reporta al propio servidor.
+* Jail `web-scanner`, categoría RECON, peso 30, confianza 0.90, decay 0.95: 7 puntos por corrida (`peso × confianza × 0.25`).
+* Registrado en `sensor_registry` (`enabled=0`) y entregado como **unidad systemd opcional** (`are-web-scanner.service`/`.timer`): se instala pero no se habilita sola, porque `WEB_SCANNER_LOG_FILE` depende de cada servidor. Se habilita desde ARE ADMIN > Sensores tras configurar el log.
+* El patrón de rutas sensibles puede reemplazarse con `WEB_SCANNER_PATTERN`.
+
+## Validación
+
+* Log real capturado (142 URLs distintas): el sensor reporta la IP que escaneaba con 100 rutas sensibles; la versión del mismo log con la IP de loopback no reporta nada; 18 rutas legítimas comunes y el tráfico normal de un navegador no producen reporte ni falsos positivos.
+* Corrido en el servidor de producción (gawk, sqlite3 3.26) en un directorio aislado: resultado idéntico al del entorno simulado.
+* Instalación aislada seguida de `are-installer verify`: 11/11 OK, sin diferencias respecto de v2.8.4; las unidades opcionales y el archivo de logrotate quedan instalados, el timer no se habilita.
+* Calibración con el flujo real de `are.sh found`, diez corridas consecutivas sobre una IP de prueba: `WATCH` en la corrida 1, `FILTER` en la 3 (21 puntos), `TEMP_BAN` de 1 hora en la 9 (63 puntos).
+
+## Limitaciones conocidas
+
+* El log debe registrar la **IP real del cliente**. En nginx detrás de un proxy o túnel eso requiere `set_real_ip_from` / `real_ip_header` (para Cloudflare, `CF-Connecting-IP`).
+* Detrás de un túnel como Cloudflare Tunnel toda conexión llega al servidor desde `127.0.0.1`, así que un ban en el firewall del host (IPSet/iptables) no puede bloquear al cliente real. El sensor detecta y construye reputación ahí; bloquear exige un backend fuera del host (ver `IDEA-013`).
+* Las peticiones a bundles y `.map` (`main.js.map`, `_next/static/...`) no se detectan a propósito: las herramientas de desarrollo de los navegadores también las piden.
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.8.4
 
 **Fecha:** 2026-10-24

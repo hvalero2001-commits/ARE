@@ -211,7 +211,8 @@ db_init() {
     ('modsec-bruteforce','CREDENTIAL',10,0.90,0.97,'Brute force login'),
       ('sshd','CREDENTIAL',10,0.95,0.97,'SSH authentication attacks'),
       ('telnet','CREDENTIAL',15,0.98,0.97,'Telnet authentication attacks'),
-      ('web-correlation','BOT',8,0.88,0.95,'Scraping distribuido de catalogo/carrito, correlacion multi-IP');
+      ('web-correlation','BOT',8,0.88,0.95,'Scraping distribuido de catalogo/carrito, correlacion multi-IP'),
+      ('web-scanner','RECON',30,0.90,0.95,'Sondeo de rutas sensibles (.env, .git, respaldos) en access_log');
     "
 
     db_exec "
@@ -247,7 +248,8 @@ db_init() {
     ('fail2ban','polling',1,'are-fail2ban-found.timer','Sensor Fail2Ban, offset persistente, filtro dinámico contra jail_profile'),
     ('spamassassin','polling',1,'are-spamassassin.timer','Sensor SpamAssassin, categoría SOCIAL, 3 bandas por score'),
     ('apache_evasive','callback',1,NULL,'Sensor Apache/mod_evasive, invocado por DOSSystemCommand, sin timer systemd'),
-    ('web-correlation','polling',1,'are-web-correlation.timer','Sensor de correlación web, scraping distribuido de catálogo/carrito, categoría BOT');
+    ('web-correlation','polling',1,'are-web-correlation.timer','Sensor de correlación web, scraping distribuido de catálogo/carrito, categoría BOT'),
+    ('web-scanner','polling',0,'are-web-scanner.timer','Sensor de sondeo web, rutas sensibles en access_log (nginx/Apache), categoría RECON, unidad opcional');
     "
 
     # RFC-008: reputation_scores es el almacenamiento real del score

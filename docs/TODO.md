@@ -3564,6 +3564,57 @@ resolving it.
 ---
 
 
+## IDEA-013
+
+**Title:** Web Scanner sensor: reconnaissance of sensitive paths from nginx/Apache `access_log`, and enforcement behind a tunnel or proxy
+
+**Status:** ✔ Sensor implemented (v2.9.0) — validated in isolation and with the installer; the enforcement part is an open idea
+
+**Version:** v2.9.0
+
+**Description**
+
+It arose from a real test: ARE was going to be tried on a test server (AlmaLinux 10.3, nginx) publishing a CRM behind a Cloudflare Tunnel. The review showed that ARE could not protect it, for two separate reasons, and the first one was fixed with this sensor.
+
+**Real evidence gathered**
+
+* nginx recorded `127.0.0.1` as the origin of every request: the tunnel connects locally, and the real client IP only travels in `CF-Connecting-IP` (set by Cloudflare) and `X-Forwarded-For` (spoofable). `set_real_ip_from 127.0.0.1; real_ip_header CF-Connecting-IP;` fixes the log, trusting the header only when the TCP peer is localhost. Validated with real traffic: the first column shows the visitor's public IP.
+* A real scan captured in that log: one IP, about 140 requests in 2 minutes to `.env`, `.git/HEAD`, `.ssh/id_rsa`, `.aws/credentials`, `backup.sql`, `phpinfo.php` and similar, all 404. Fail2Ban does not see it without nginx jails, and `web_correlation` needs several IPs on a common path marker.
+* `web_correlation.sh` already parses the combined format of nginx correctly (`$1` = IP, `$4` = date, `$7` = URL).
+
+**Design**
+
+* Same contract as the rest of the polling sensors: read the real log, `are.sh found <IP> <JAIL>`, filter against `jail_profile`, persistent offset, `flock`, `--dry-run` by default.
+* Detection by **distinct sensitive paths per IP and per run** (`WEB_SCANNER_HIT_THRESHOLD`, default 5), not by status code: a legitimate visitor does not request `/.env`. The pattern (`WEB_SCANNER_PATTERN`) includes dotfiles (`.env`, `.git`, `.ssh`, `.aws`...), `phpinfo`, `docker-compose.yml`, `config`/`settings`/`secrets` files, backups (`.sql`, `.zip`, `.tar.gz`) and logs.
+* Loopback, private, link-local and ULA addresses are discarded before counting: if nginx still records the proxy IP, nothing is reported.
+* Shipped as an **optional systemd unit** (installed, not enabled): `WEB_SCANNER_LOG_FILE` has no valid default, and an enabled timer without it would fail every minute.
+* Calibration: jail `web-scanner`, RECON, weight 30, confidence 0.90, decay 0.95. With the `are.sh found` formula (`weight × confidence × 0.25`) each run adds 7 points.
+
+**Validation**
+
+* Real captured log (142 distinct URLs): the scanning IP is reported with 100 sensitive paths. The log as recorded (all `127.0.0.1`) reports nothing. 18 legitimate routes and the visitor's browser traffic produce no false positive.
+* Run on the production server (gawk, sqlite3 3.26) in an isolated directory: same result.
+* Isolated install and `are-installer verify`: 11/11 OK, no differences against v2.8.4.
+* Ten consecutive runs of the real `are.sh found` flow on a test IP: `WATCH` (run 1, 7 points), `FILTER` (run 3, 21), `TEMP_BAN` 1 hour (run 9, 63), escalating to `BAN_LEVEL_2` (6 hours) on run 10.
+* Pending: running it as an enabled timer against a real production log.
+
+**Not covered / open**
+
+* **Enforcement behind a tunnel or proxy.** The host firewall backend (IPSet/iptables) matches the connection's source address, which behind a tunnel is always `127.0.0.1`. Banning the real client requires a backend that acts where the real IP is visible: an `include` with `deny` directives for nginx, or the Cloudflare API (IP access rules). It would be a new backend, separate from the sensor; ARE has none yet.
+* Bundle and `.map` requests are not matched on purpose (browser developer tools request them too).
+* The sensor reports an IP once per run; an IP that keeps probing after a ban escalates the sanction level on every run, which is harmless when the firewall actually blocks it.
+
+**Related files**
+
+* `sensors/web_scanner.sh`
+* `systemd/are-web-scanner.service`, `systemd/are-web-scanner.timer`
+* `templates/logrotate/web_scanner`
+* `database.sh`
+* `manifest/product.sh`
+* `config/config.conf`, `templates/config/config.conf`
+
+---
+
 # HISTORY OF RESOLVED BUGS
 
 The following incidents are part of ARE's technical history and are kept for traceability.
@@ -5202,7 +5253,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.8.4
+v2.9.0
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

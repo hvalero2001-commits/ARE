@@ -1,0 +1,9 @@
+[Unit]
+Description=ARE Web Scanner Sensor
+After=httpd.service nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/are/sensors/web_scanner.sh --execute
+User=root
+Group=root
