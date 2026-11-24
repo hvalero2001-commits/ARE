@@ -6,6 +6,29 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.9.4
+
+**Fecha:** 2026-11-24
+
+## Resumen
+
+Patch de código: elimina un comando muerto encontrado durante la auditoría de contenido de v2.9.3.
+
+## Novedades
+
+* `are.sh`: se elimina el comando `autoban`. Invocaba `auto_enforce_ban`, función no definida en ningún archivo del producto, por lo que `are autoban` terminaba siempre con `command not found`. El comando no figuraba en `are help` ni en ningún documento.
+* `docs/TODO.md`: nueva entrada `TASK-031`. `docs/TODO.es.md` sigue congelado en v2.8.3.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* systemd.
+
+---
+
 # v2.9.3
 
 **Fecha:** 2026-11-24

@@ -14,7 +14,7 @@ implementation, and the new components needed to manage the full reputation-and-
 Versions v2.1 through v2.9 extended that same base without introducing an
 architectural break.
 
-Version v2.9.3 is the latest stable release.
+Version v2.9.4 is the latest stable release.
 
 ---
 

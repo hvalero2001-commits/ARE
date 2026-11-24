@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.9.3
+v2.9.4
 ```
 
 Status:
@@ -614,6 +614,10 @@ Documentation-only patch. ARCHITECTURE, DESIGN, PROJECT, INSTALL and the README 
 ## Patch v2.9.3
 
 Documentation-only patch. Statements that no longer matched the code are corrected: the Installer skips the Core copy when source and installation are the same directory, `uninstall` removes everything, and the ARE ADMIN menu tree in `DESIGN` matches the real menus. No code changes. See `TASK-030` in `docs/TODO.md`.
+
+## Patch v2.9.4
+
+Code patch: removes the `autoban` command from `are.sh`, which called a function (`auto_enforce_ban`) defined nowhere and so always failed. No other behavior changes. See `TASK-031` in `docs/TODO.md`.
 
 ---
 

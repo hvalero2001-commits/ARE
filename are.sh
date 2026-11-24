@@ -345,9 +345,6 @@ top)
 external-unban)
     handle_external_unban
 ;;
-autoban)
-    auto_enforce_ban
-;;
 ban)
     handle_ban
 ;;

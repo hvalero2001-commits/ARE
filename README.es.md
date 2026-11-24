@@ -107,7 +107,7 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.9.3** (estable, liberada)
+**ARE v2.9.4** (estable, liberada)
 
 La versión 2.7 sincroniza automáticamente la whitelist contra listas de IPs publicadas por terceros (ej. Cloudflare). La versión 2.8 agrega el sensor `mail-antivirus` (categoría MALWARE), detectando rechazos de Exim vía ACL `av_scanner`. El patch 2.8.1 corrige el Installer Engine: ya no sobrescribe `config.conf`/`whitelist.conf` en `upgrade`, y sincroniza permisos de ejecución faltantes. El patch 2.8.2 agrega la fusión automática de variables nuevas de configuración (`install_config_merge`), sin sobrescribir valores existentes. El patch 2.8.3 publica la documentación en inglés como canónica y conserva los originales en español (`.es.md`). La versión 2.9 agrega el sensor `web-scanner` (categoría RECON): detecta IPs que sondean rutas sensibles (`.env`, `.git`, `.ssh`, respaldos) leyendo un `access_log` de nginx o Apache; es una unidad opcional que se habilita desde ARE ADMIN.
 

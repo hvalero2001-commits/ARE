@@ -8,7 +8,7 @@
 ##################################################
 PRODUCT_NAME="ARE"
 PRODUCT_DESCRIPTION="Abuse Reputation Engine"
-PRODUCT_VERSION="2.9.3"
+PRODUCT_VERSION="2.9.4"
 PRODUCT_LICENSE="GPL-3.0"
 ##################################################
 # Installation Layout

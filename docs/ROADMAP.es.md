@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.9.3
+v2.9.4
 ```
 
 Estado:
@@ -497,6 +497,10 @@ Patch solo de documentación. ARCHITECTURE, DESIGN, PROJECT, INSTALL y las lista
 ## Patch v2.9.3
 
 Patch solo de documentación. Se corrigen afirmaciones que ya no coincidían con el código: el Installer omite la copia del Core cuando origen e instalación son el mismo directorio, `uninstall` elimina todo, y el árbol de menús de ARE ADMIN en `DESIGN` coincide con los menús reales. Sin cambios de código. Ver `TASK-030` en `docs/TODO.md`.
+
+## Patch v2.9.4
+
+Patch de código: elimina el comando `autoban` de `are.sh`, que invocaba una función (`auto_enforce_ban`) no definida en ningún archivo y por lo tanto siempre fallaba. Sin otros cambios de comportamiento. Ver `TASK-031` en `docs/TODO.md`.
 
 ---
 

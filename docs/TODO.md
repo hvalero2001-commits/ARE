@@ -1721,6 +1721,37 @@ The menu options in `DESIGN` compared with the `echo` lines of each `admin/*_men
 
 ---
 
+## TASK-031
+
+**Title:** Remove the dead `autoban` command
+
+**Status:** ✔ Implemented
+
+**Version:** v2.9.4
+
+**Context**
+
+Found while checking `USER_GUIDE` against the `case` of `are.sh` (`TASK-030`): the `autoban` branch called `auto_enforce_ban`, a function defined in no file of the product (searched across the whole tree). `are autoban` therefore always failed with `command not found`. The command was not in `are help` nor in any document.
+
+**Fix**
+
+The `autoban` branch is removed from `are.sh`. Automatic enforcement is already done by `apply_decision` after each decision, so there is nothing to implement behind it.
+
+**Validation**
+
+`grep -rn "auto_enforce_ban\|autoban" --include='*.sh'` over the tree returns nothing after the change; `bash -n are.sh`; `are help`, `are status` and `are stats` unchanged.
+
+**Related files**
+
+* `are.sh`
+* `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`, `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
