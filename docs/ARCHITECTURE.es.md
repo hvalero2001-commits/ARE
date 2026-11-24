@@ -8,7 +8,7 @@ La arquitectura separa la observación de los eventos, la construcción de reput
 
 ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1 a v2.9 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.9.2 constituye la última versión estable liberada.
+La versión v2.9.3 constituye la última versión estable liberada.
 
 ---
 
@@ -531,7 +531,7 @@ Enlaces ejecutables
 
 `verify` comprueba la integridad y los componentes operativos definidos para la instalación.
 
-`uninstall` elimina el producto y conserva los elementos persistentes que forman parte de la política de conservación establecida por ARE.
+`uninstall` elimina el producto por completo — Core, enlaces, unidades systemd, configuración de logrotate, datos persistentes y logs; por defecto no se conserva nada.
 
 ---
 

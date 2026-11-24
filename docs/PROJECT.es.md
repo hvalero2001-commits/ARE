@@ -141,7 +141,7 @@ Administra el ciclo de vida del producto.
 Versión estable liberada:
 
 ```text
-v2.9.2
+v2.9.3
 ```
 
 Capacidades implementadas.

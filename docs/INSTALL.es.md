@@ -123,11 +123,9 @@ El Installer utiliza los valores definidos por el Manifest en lugar de mantener 
 
 Las operaciones de instalación, actualización y reparación utilizan el árbol fuente que contiene `are-installer`.
 
-El árbol fuente debe ser diferente del destino instalado.
+Normalmente el árbol fuente es diferente del destino instalado. Esto permite que una actualización copie el Core de una versión fuente sobre una instalación existente sin utilizar la instalación activa como origen.
 
-Esto permite que una actualización copie el Core de una versión fuente sobre una instalación existente sin utilizar la instalación activa como origen.
-
-Si el árbol fuente y el destino resuelven al mismo directorio, la operación debe finalizar con error.
+Si el árbol fuente y el destino resuelven al mismo directorio (por ejemplo, cuando la instalación es a la vez un checkout de git), no hay nada que copiar: el Installer lo informa, omite la copia del Core y ejecuta todos los demás pasos (configuración, enlaces, permisos, base de datos, IPSet, systemd, logrotate, validación).
 
 ---
 
@@ -304,7 +302,7 @@ are-installer upgrade
 
 La operación requiere una instalación existente.
 
-El árbol fuente utilizado para la actualización debe corresponder a la versión que se desea instalar y debe ser diferente del árbol instalado.
+El árbol fuente utilizado para la actualización debe corresponder a la versión que se desea instalar. Cuando es el propio árbol instalado (un checkout de git), se omite la copia del Core y se ejecutan los demás pasos.
 
 El proceso actualiza los componentes administrados por el Manifest y conserva los datos persistentes.
 
@@ -426,23 +424,17 @@ La desinstalación se ejecuta mediante:
 are-installer uninstall
 ```
 
-Su objetivo es retirar los componentes administrados por ARE del sistema.
+Su objetivo es retirar ARE del sistema por completo.
 
-La operación elimina los componentes del Core, enlaces ejecutables, unidades systemd y configuración de logrotate administrados por el producto.
-
-Los datos persistentes no forman parte de la eliminación normal del Core.
-
-Por tanto, la desinstalación conserva separadamente:
+La operación elimina el Core, los enlaces ejecutables, las unidades systemd y la configuración de logrotate administrados por el producto, y también los datos persistentes y los logs:
 
 ```text
-configuración
-datos persistentes
-base de datos
-reputación histórica
-logs
+/opt/are
+/var/lib/are   (incluye la base de datos y la reputación acumulada)
+/var/log/are
 ```
 
-La separación entre software instalado y datos persistentes permite retirar ARE sin eliminar automáticamente información histórica del sistema.
+Por defecto no se conserva nada. Quien quiera preservar información (por ejemplo la base de datos o la configuración) debe copiarla antes de desinstalar.
 
 ---
 

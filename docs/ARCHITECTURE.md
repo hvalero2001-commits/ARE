@@ -14,7 +14,7 @@ implementation, and the new components needed to manage the full reputation-and-
 Versions v2.1 through v2.9 extended that same base without introducing an
 architectural break.
 
-Version v2.9.2 is the latest stable release.
+Version v2.9.3 is the latest stable release.
 
 ---
 
@@ -610,8 +610,8 @@ Executable links
 
 `verify` checks the integrity and the operational components defined for the installation.
 
-`uninstall` removes the product and preserves the persistent elements that are part of ARE's
-retention policy.
+`uninstall` removes the product completely — Core, links, systemd units, logrotate configuration,
+persistent data and logs; nothing is preserved by default.
 
 ---
 

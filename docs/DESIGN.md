@@ -523,8 +523,8 @@ A `repair` can rebuild missing components of an incomplete installation.
 
 A `verify` checks that the required components are present and operational.
 
-An `uninstall` removes the product without automatically turning the persistent data into part of
-the removed content.
+An `uninstall` removes the product completely, including the persistent data and logs; whoever wants
+to keep information copies it first.
 
 ---
 
@@ -582,7 +582,9 @@ ARE ADMIN
 │   ├── Create
 │   ├── Modify
 │   ├── Delete
-│   └── Validate
+│   ├── Validate
+│   ├── Export
+│   └── Import
 │
 ├── 2. Categories
 │   ├── List
@@ -590,7 +592,9 @@ ARE ADMIN
 │
 ├── 3. Sensors
 │   ├── Status
-│   └── Configuration
+│   ├── Configuration
+│   ├── Enable/Disable
+│   └── Jails without a profile
 │
 ├── 4. Policy
 │   ├── View configuration
@@ -600,7 +604,13 @@ ARE ADMIN
 │   ├── Query IP
 │   ├── Events
 │   ├── Top
-│   └── Statistics
+│   ├── Statistics
+│   ├── Trends
+│   ├── Trends by category
+│   ├── Export trends (CSV)
+│   ├── Trend anomalies
+│   ├── Export reputation
+│   └── Import reputation
 │
 ├── 6. Decay
 │   ├── Status
@@ -614,6 +624,8 @@ ARE ADMIN
 │
 └── 0. Exit
 ```
+
+Every submenu also accepts `x` to leave ARE ADMIN directly, and `0` to go back one level.
 
 ---
 
@@ -629,22 +641,30 @@ Each menu branch is built on an already-defined component, without duplicating i
   (`config/jail_scale.conf`) when the category defines one. Delete requires typing the jail's exact
   name as confirmation, not just a y/N answer, since it is the CRUD's only destructive operation.
   Validate reuses the consistency-check concept described for the Installer Engine (Section 12),
-  checking for a valid category and weight/confidence ranges.
+  checking for a valid category and weight/confidence ranges. Export and Import move the catalog
+  between servers (RFC-011) under `${ARE_DATA}/backups/jail_profiles/`, recorded in the audit log.
 * **Categories** exposes the reputation model (Section 3) in read-only mode, including the scores
   associated with each category. The category catalog and its thresholds are read dynamically from
   `REPUTATION_CATEGORIES` in `config/policy.conf` (Section 3.2), keeping the listing from being
   hardcoded in the interface.
 * **Sensors** exposes the status and configuration of the Sensor Framework (Section 8), without
   letting the CLI decide policy or directly modify reputation. The status includes the sensor's
-  persistent offset and the status of the associated systemd timer.
+  persistent offset and the status of the associated systemd timer. Enable/Disable acts on the
+  sensor registry (`sensor_registry`, RFC-017): `systemctl enable/disable --now` on the timer for
+  polling sensors, a flag file for callback sensors; the jail profiles and their history are never
+  touched. "Jails without a profile" lists jails seen in the Fail2Ban log that have no managed
+  profile, read-only.
 * **Policy** allows inspecting and validating the Policy Engine's configuration (Section 4), without
-  directly running a decision on a specific IP. A branch pending implementation: there are concurrent
-  definitions of the decision engine in the code base whose coexistence is not resolved; the branch
-  will be enabled once the canonical engine is identified (see `docs/TODO.md`).
+  directly running a decision on a specific IP. The branch is implemented since the single decision
+  engine was identified (RFC-009); Validate checks that every category with a threshold has its
+  rule in `policy/rules/`.
 * **State / Reputation** allows querying the accumulated knowledge (Section 2.4) and an IP's event
   history, obtaining a prioritized listing (Top), and querying an aggregate activity summary
   (Statistics), reusing `dashboard_score`, `dashboard_events`, `dashboard_top`, and `dashboard_stats`
-  respectively.
+  respectively. It also offers daily trends, trends by category, CSV export of trends and detection
+  of anomalies against the recent average (reusing only the existing `events` table), and
+  export/import of reputation between servers, filtered by the roles present in the local
+  `jail_profile`.
 * **Decay** exposes the cycle described in Section 6. *Status* queries `last_decay` and the current
   candidates; *Dry-run* simulates the Decay Engine's effect without modifying `reputation` or
   triggering a real re-evaluation; *Run* invokes the full Decay → Reputation → State Engine → Policy

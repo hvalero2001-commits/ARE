@@ -33,8 +33,9 @@ ARE's operational commands are:
 
 ```text
 are admin
+are status
+are help
 are stats
-are trends [days]
 are top
 are score <IP>
 are events <IP>
@@ -197,16 +198,29 @@ The `TOP JAILS` section uses the `events` table as its source and excludes inter
 
 ---
 
-# Trends
+# System status
 
-Query the daily evolution of recorded activity:
+Check the health of ARE:
 
 ```bash
-are trends [days]
+are status
 ```
 
-By default it shows the last 7 days. Each row includes total events, a breakdown by action type
-(`FOUND`, `BAN`, `EXTERNAL_UNBAN`), and the distinct IPs involved that day.
+It reports the state of the database (reputation, active and banned IPs), checks that the ban and filter ipsets exist and that their DROP rules are present in the IPv4 and IPv6 firewalls, and shows how many IPs are candidates for reputation decay. Any failed check is shown as `ERROR`.
+
+Built-in command help is available with `are help`.
+
+---
+
+# Trends
+
+Trends are available only from ARE ADMIN (there is no `are trends` command):
+
+```text
+are admin → State / Reputation → Trends
+```
+
+The same submenu offers trends by category, CSV export of trends, and trend anomalies. The Trends option asks for a number of days (7 by default). Each row includes total events, a breakdown by action type (`FOUND`, `BAN`, `EXTERNAL_UNBAN`), and the distinct IPs involved that day.
 
 ---
 
@@ -541,7 +555,7 @@ are-installer install
 Installation creates the required structure, installs the Core, the configuration, the database,
 the links, permissions, services, timers, and logrotate, and performs the final validation.
 
-Installation must not use the same directory as both source and target.
+When the source and the target are the same directory (a git checkout), the Core copy is skipped and the remaining steps run.
 
 ## Upgrade
 

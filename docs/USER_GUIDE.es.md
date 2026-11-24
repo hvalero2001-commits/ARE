@@ -32,8 +32,9 @@ Los comandos operativos de ARE son:
 
 ```text
 are admin
+are status
+are help
 are stats
-are trends [días]
 are top
 are score <IP>
 are events <IP>
@@ -179,15 +180,29 @@ La sección `TOP JAILS` utiliza la tabla `events` como fuente de información y 
 
 ---
 
-# Tendencias
+# Estado del sistema
 
-Consultar la evolución diaria de la actividad registrada:
+Verificar la salud de ARE:
 
 ```bash
-are trends [días]
+are status
 ```
 
-Por defecto muestra los últimos 7 días. Cada fila incluye eventos totales, desglose por tipo de acción (`FOUND`, `BAN`, `EXTERNAL_UNBAN`) e IPs distintas involucradas ese día.
+Informa el estado de la base de datos (reputación, IPs activas y baneadas), verifica que existan los ipsets de ban y filter y que sus reglas DROP estén presentes en los firewalls IPv4 e IPv6, y muestra cuántas IPs son candidatas a decay de reputación. Cualquier verificación fallida se muestra como `ERROR`.
+
+La ayuda integrada de comandos está disponible con `are help`.
+
+---
+
+# Tendencias
+
+Las tendencias están disponibles solo desde ARE ADMIN (no existe el comando `are trends`):
+
+```text
+are admin → Estado / Reputación → Tendencias
+```
+
+El mismo submenú ofrece tendencias por categoría, exportación de tendencias a CSV y anomalías en tendencias. La opción Tendencias solicita la cantidad de días (7 por defecto). Cada fila incluye eventos totales, desglose por tipo de acción (`FOUND`, `BAN`, `EXTERNAL_UNBAN`) e IPs distintas involucradas ese día.
 
 ---
 
@@ -488,7 +503,7 @@ are-installer install
 
 La instalación crea la estructura requerida, instala el Core, la configuración, la base de datos, los enlaces, permisos, servicios, timers y logrotate, y realiza la validación final.
 
-La instalación no debe utilizar como origen y destino el mismo directorio.
+Cuando el origen y el destino son el mismo directorio (un checkout de git), se omite la copia del Core y se ejecutan los demás pasos.
 
 ## Actualizar
 

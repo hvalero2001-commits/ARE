@@ -6,6 +6,38 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.9.3
+
+**Fecha:** 2026-11-24
+
+## Resumen
+
+Patch solo de documentación: elimina afirmaciones que ya no coincidían con el código, encontradas al comprobar el contenido de cada documento contra el comportamiento real (v2.9.2 solo había alineado versiones y listas de sensores). Sin cambios de código.
+
+## Novedades
+
+* `docs/INSTALL.md` / `.es.md` y `docs/USER_GUIDE.md` / `.es.md`: cuando el árbol fuente y la instalación son el mismo directorio (un checkout de git), el Installer omite la copia del Core y ejecuta los demás pasos; los documentos decían que la operación debía abortar.
+* `docs/INSTALL.md` / `.es.md`, `docs/ARCHITECTURE.md` / `.es.md` y `docs/DESIGN.md` / `.es.md`: `uninstall` elimina todo (Core, datos persistentes y logs); los documentos decían que conservaba configuración, base de datos, reputación y logs.
+* `docs/DESIGN.md` / `.es.md` (Sección 13): el árbol de menús de ARE ADMIN y la descripción de las ramas coinciden ahora con los menús reales (exportar/importar perfiles, activar/desactivar sensores y jails sin perfil, tendencias, anomalías, exportar/importar reputación, `x` para salir); la rama Política ya no figura como pendiente.
+* `docs/USER_GUIDE.md` / `.es.md`: se elimina el comando inexistente `are trends [días]` (las tendencias se alcanzan solo desde ARE ADMIN → Estado / Reputación → Tendencias); se agregan los comandos existentes `are status` y `are help`.
+* `docs/TODO.md`: nueva entrada `TASK-030`. `docs/TODO.es.md` sigue congelado en v2.8.3.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.9.2
 
 **Fecha:** 2026-11-24

@@ -132,13 +132,14 @@ independent definition of the product structure.
 
 The install, upgrade, and repair operations use the source tree that contains `are-installer`.
 
-The source tree must be different from the installed target.
+The source tree is normally different from the installed target. This lets an upgrade copy the
+Core from a source version over an existing installation without using the live installation as the
+origin.
 
-This lets an upgrade copy the Core from a source version over an existing installation without
-using the live installation as the origin.
-
-If the source tree and the target resolve to the same directory, the operation must abort with
-an error.
+If the source tree and the target resolve to the same directory (for example when the installation
+is itself a git checkout), there is nothing to copy: the Installer reports it, skips the Core copy
+and runs every other step (configuration, links, permissions, database, IPSet, systemd, logrotate,
+validation).
 
 ---
 
@@ -328,8 +329,8 @@ are-installer upgrade
 
 The operation requires an existing installation.
 
-The source tree used for the upgrade must correspond to the version you want to install and must
-be different from the installed tree.
+The source tree used for the upgrade must correspond to the version you want to install. When it is
+the installed tree itself (a git checkout), the Core copy is skipped and the remaining steps run.
 
 The process updates the components managed by the Manifest and preserves the persistent data.
 
@@ -466,25 +467,19 @@ Uninstallation is run with:
 are-installer uninstall
 ```
 
-Its goal is to remove the ARE-managed components from the system.
+Its goal is to remove ARE from the system completely.
 
-The operation removes the Core components, executable links, systemd units, and logrotate
-configuration managed by the product.
-
-Persistent data is not part of the normal Core removal.
-
-Therefore, uninstallation separately preserves:
+The operation removes the Core, executable links, systemd units and logrotate configuration managed
+by the product, and also the persistent data and logs:
 
 ```text
-configuration
-persistent data
-database
-historical reputation
-logs
+/opt/are
+/var/lib/are   (including the database and the accumulated reputation)
+/var/log/are
 ```
 
-Separating installed software from persistent data makes it possible to remove ARE without
-automatically deleting the system's historical information.
+Nothing is preserved by default. Whoever wants to keep information (for example the database or
+the configuration) must copy it before uninstalling.
 
 ---
 

@@ -519,7 +519,7 @@ Un `repair` puede reconstruir componentes faltantes de una instalación incomple
 
 Un `verify` comprueba que los componentes requeridos se encuentren presentes y operativos.
 
-Un `uninstall` elimina el producto sin convertir automáticamente los datos persistentes en parte del contenido eliminado.
+Un `uninstall` elimina el producto por completo, incluidos los datos persistentes y los logs; quien quiera conservar información la copia antes.
 
 ---
 
@@ -566,7 +566,9 @@ ARE ADMIN
 │   ├── Crear
 │   ├── Modificar
 │   ├── Eliminar
-│   └── Validar
+│   ├── Validar
+│   ├── Exportar
+│   └── Importar
 │
 ├── 2. Categorías
 │   ├── Listar
@@ -574,7 +576,9 @@ ARE ADMIN
 │
 ├── 3. Sensores
 │   ├── Estado
-│   └── Configuración
+│   ├── Configuración
+│   ├── Activar/Desactivar
+│   └── Jails sin perfil
 │
 ├── 4. Política
 │   ├── Ver configuración
@@ -584,7 +588,13 @@ ARE ADMIN
 │   ├── Consultar IP
 │   ├── Eventos
 │   ├── Top
-│   └── Estadísticas
+│   ├── Estadísticas
+│   ├── Tendencias
+│   ├── Tendencias por categoría
+│   ├── Exportar tendencias (CSV)
+│   ├── Anomalías en tendencias
+│   ├── Exportar reputación
+│   └── Importar reputación
 │
 ├── 6. Decay
 │   ├── Estado
@@ -599,17 +609,19 @@ ARE ADMIN
 └── 0. Salir
 ```
 
+Todos los submenús aceptan además `x` para salir de ARE ADMIN directamente, y `0` para volver un nivel.
+
 ---
 
 ## 13.4 Correspondencia con los componentes del diseño
 
 Cada rama del menú se apoya en un componente ya definido, sin duplicar su lógica:
 
-* **Jails / Perfiles** administra `jail_profile` (Sección 3.2) mediante un CRUD completo. Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. La categoría se restringe a `REPUTATION_CATEGORIES` mediante selección numerada, nunca texto libre. Crear y Modificar ofrecen asistencia de peso/confianza en dos niveles: referencia estadística calculada de perfiles reales existentes en la categoría, o una escala de niveles curada por el administrador (`config/jail_scale.conf`) cuando la categoría la define. Eliminar exige escribir el nombre exacto del jail como confirmación, no solo una respuesta s/N, por ser la única operación destructiva del CRUD. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12), comprobando categoría válida y rangos de peso/confianza.
+* **Jails / Perfiles** administra `jail_profile` (Sección 3.2) mediante un CRUD completo. Crear, Modificar y Eliminar operan sobre la relación jail–categoría, no sobre la estructura de `reputation`. La categoría se restringe a `REPUTATION_CATEGORIES` mediante selección numerada, nunca texto libre. Crear y Modificar ofrecen asistencia de peso/confianza en dos niveles: referencia estadística calculada de perfiles reales existentes en la categoría, o una escala de niveles curada por el administrador (`config/jail_scale.conf`) cuando la categoría la define. Eliminar exige escribir el nombre exacto del jail como confirmación, no solo una respuesta s/N, por ser la única operación destructiva del CRUD. Validar reutiliza el concepto de verificación de consistencia descrito para el Installer Engine (Sección 12), comprobando categoría válida y rangos de peso/confianza. Exportar e Importar trasladan el catálogo entre servidores (RFC-011) bajo `${ARE_DATA}/backups/jail_profiles/`, con registro en el log de auditoría.
 * **Categorías** expone en modo de solo lectura el modelo de reputación (Sección 3), incluyendo las puntuaciones asociadas a cada categoría. El catálogo de categorías y sus umbrales se leen dinámicamente desde `REPUTATION_CATEGORIES` en `config/policy.conf` (Sección 3.2), evitando que el listado quede hardcodeado en la interfaz.
-* **Sensores** expone el estado y la configuración del Sensor Framework (Sección 8), sin permitir que la CLI decida política ni modifique reputación de forma directa. El estado incluye el offset persistente del sensor y el estado del timer de systemd asociado.
-* **Política** permite inspeccionar y validar la configuración del Policy Engine (Sección 4), sin ejecutar directamente una decisión sobre una IP concreta. Rama pendiente de implementación: existen definiciones concurrentes del motor de decisión en el código base cuya convivencia no está resuelta; la rama se habilitará una vez identificado el motor canónico (ver `docs/TODO.md`).
-* **Estado / Reputación** permite consultar el conocimiento acumulado (Sección 2.4) y el historial de eventos de una IP, obtener un listado priorizado (Top), y consultar un resumen agregado de actividad del sistema (Estadísticas), reutilizando `dashboard_score`, `dashboard_events`, `dashboard_top` y `dashboard_stats` respectivamente.
+* **Sensores** expone el estado y la configuración del Sensor Framework (Sección 8), sin permitir que la CLI decida política ni modifique reputación de forma directa. El estado incluye el offset persistente del sensor y el estado del timer de systemd asociado. Activar/Desactivar opera sobre el registro de sensores (`sensor_registry`, RFC-017): `systemctl enable/disable --now` sobre el timer en sensores de polling, un archivo flag en sensores de callback; los perfiles de jail y su historial no se tocan nunca. "Jails sin perfil" lista, en solo lectura, los jails vistos en el log de Fail2Ban que no tienen perfil administrado.
+* **Política** permite inspeccionar y validar la configuración del Policy Engine (Sección 4), sin ejecutar directamente una decisión sobre una IP concreta. La rama está implementada desde que se identificó el motor de decisión único (RFC-009); Validar comprueba que cada categoría con umbral tenga su regla en `policy/rules/`.
+* **Estado / Reputación** permite consultar el conocimiento acumulado (Sección 2.4) y el historial de eventos de una IP, obtener un listado priorizado (Top), y consultar un resumen agregado de actividad del sistema (Estadísticas), reutilizando `dashboard_score`, `dashboard_events`, `dashboard_top` y `dashboard_stats` respectivamente. También ofrece tendencias diarias, tendencias por categoría, exportación de tendencias a CSV y detección de anomalías contra el promedio reciente (reutilizando solo la tabla `events`), y exportar/importar reputación entre servidores, filtrada por los roles presentes en el `jail_profile` local.
 * **Decay** expone el ciclo descrito en la Sección 6. *Estado* consulta `last_decay` y candidatas actuales; *Dry-run* simula el efecto del Decay Engine sin modificar `reputation` ni provocar una reevaluación real; *Ejecutar* invoca el flujo completo Decay → Reputation → State Engine → Policy Engine (Sección 6.3), delegando la aplicación efectiva de cualquier decisión resultante al mecanismo de Apply ya definido en la Sección 2.3. La operación de Ejecutar requiere confirmación explícita antes de invocarse.
 * **Configuración** permite ver y validar la configuración desacoplada (Sección 10), sin embeber dicha configuración en el código de los motores, y consultar el estado operativo general del sistema (base de datos, Decay, Firewall, IPSet) reutilizando `dashboard_status`.
 

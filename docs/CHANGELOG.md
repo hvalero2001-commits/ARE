@@ -6,6 +6,38 @@ The project follows versioning based on stable releases.
 
 ---
 
+# v2.9.3
+
+**Date:** 2026-11-24
+
+## Summary
+
+Documentation-only patch: removes statements that no longer matched the code, found by checking the content of each document against the real behavior (v2.9.2 had only aligned versions and sensor lists). No code changes.
+
+## Changes
+
+* `docs/INSTALL.md` / `.es.md` and `docs/USER_GUIDE.md` / `.es.md`: when the source tree and the installation are the same directory (a git checkout), the Installer skips the Core copy and runs the remaining steps; the documents said the operation must abort.
+* `docs/INSTALL.md` / `.es.md`, `docs/ARCHITECTURE.md` / `.es.md` and `docs/DESIGN.md` / `.es.md`: `uninstall` removes everything (Core, persistent data and logs); the documents said it preserved configuration, database, reputation and logs.
+* `docs/DESIGN.md` / `.es.md` (Section 13): the ARE ADMIN menu tree and branch descriptions now match the real menus (profile export/import, sensor enable/disable and unmanaged jails, trends, anomalies, reputation export/import, `x` to leave); the Policy branch is no longer described as pending.
+* `docs/USER_GUIDE.md` / `.es.md`: removed the non-existent `are trends [days]` command (trends are reached only through ARE ADMIN → State / Reputation → Trends); added the existing `are status` and `are help` commands.
+* `docs/TODO.md`: new entry `TASK-030`. `docs/TODO.es.md` stays frozen at v2.8.3.
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.9.2
 
 **Date:** 2026-11-24

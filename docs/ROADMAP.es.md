@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.9.2
+v2.9.3
 ```
 
 Estado:
@@ -493,6 +493,10 @@ Log real capturado, corrida en el servidor de producción en aislamiento, instal
 ## Patch v2.9.2
 
 Patch solo de documentación. ARCHITECTURE, DESIGN, PROJECT, INSTALL y las listas de sensores del README quedan al nivel de v2.9.1, en inglés y en español; DESIGN ya no describe v2.8 como en desarrollo. Sin cambios de código. Ver `TASK-029` en `docs/TODO.md`.
+
+## Patch v2.9.3
+
+Patch solo de documentación. Se corrigen afirmaciones que ya no coincidían con el código: el Installer omite la copia del Core cuando origen e instalación son el mismo directorio, `uninstall` elimina todo, y el árbol de menús de ARE ADMIN en `DESIGN` coincide con los menús reales. Sin cambios de código. Ver `TASK-030` en `docs/TODO.md`.
 
 ---
 

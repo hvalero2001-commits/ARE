@@ -1687,6 +1687,40 @@ Every document compared against the code and against `CHANGELOG`/`TODO` for v2.8
 
 ---
 
+## TASK-030
+
+**Title:** Documentation content audit against the real behavior
+
+**Status:** ✔ Implemented
+
+**Version:** v2.9.3
+
+**Context**
+
+`TASK-029` (v2.9.2) aligned versions and sensor lists, but only compared each document against the changelog. Checking the content against the code found statements that had stopped being true: `INSTALL` and `USER_GUIDE` said the operation must abort when source and installation are the same directory (changed in `TASK-024`, v2.8.1); `INSTALL`, `ARCHITECTURE` and `DESIGN` said `uninstall` preserves configuration, database, reputation and logs (changed in `TASK-022`, v2.4); `USER_GUIDE` documented an `are trends [days]` command that does not exist in `are.sh` and omitted `are status` and `are help`; `DESIGN` Section 13 listed an ARE ADMIN menu without profile export/import, sensor enable/disable, unmanaged jails, trends, anomalies and reputation export/import, and described the Policy branch as pending although it is implemented.
+
+**Fix**
+
+Each statement corrected in English and Spanish against the installer code and the real ARE ADMIN menus (read from `admin/*.sh`). `docs/TODO.es.md` stays frozen at v2.8.3.
+
+**Validation**
+
+The menu options in `DESIGN` compared with the `echo` lines of each `admin/*_menu.sh` / `admin/jails.sh` / `admin/categories.sh`; `USER_GUIDE` commands compared with the `case` of `are.sh`; installer statements compared with `install_copy_files()` and `installer_uninstall()`; code fences balanced; EN and ES changed together.
+
+**Related files**
+
+* `docs/INSTALL.md`, `docs/INSTALL.es.md`
+* `docs/USER_GUIDE.md`, `docs/USER_GUIDE.es.md`
+* `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE.es.md`
+* `docs/DESIGN.md`, `docs/DESIGN.es.md`
+* `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`, `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -5326,7 +5360,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.9.2
+v2.9.3
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

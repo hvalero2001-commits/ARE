@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.9.2
+v2.9.3
 ```
 
 Status:
@@ -610,6 +610,10 @@ Real captured log, production server run in isolation, isolated install with `ar
 ## Patch v2.9.2
 
 Documentation-only patch. ARCHITECTURE, DESIGN, PROJECT, INSTALL and the README sensor lists are brought in line with v2.9.1, in English and Spanish; DESIGN no longer describes v2.8 as in development. No code changes. See `TASK-029` in `docs/TODO.md`.
+
+## Patch v2.9.3
+
+Documentation-only patch. Statements that no longer matched the code are corrected: the Installer skips the Core copy when source and installation are the same directory, `uninstall` removes everything, and the ARE ADMIN menu tree in `DESIGN` matches the real menus. No code changes. See `TASK-030` in `docs/TODO.md`.
 
 ---
 
