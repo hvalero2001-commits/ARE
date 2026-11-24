@@ -1783,6 +1783,34 @@ Synthetic combined-format logs in isolation (see `CHANGELOG`): cross-domain accu
 
 ---
 
+## TASK-033
+
+**Title:** Automatic dependency installation: correct SQLite package name on the RHEL family
+
+**Status:** ✔ Implemented
+
+**Version:** v2.9.6
+
+**Context**
+
+While reviewing what ARE needs on AlmaLinux 10 (a clean machine without `sqlite3`), the question was whether `install_auto_install_dependencies()` could install it. The function passed the missing command name (`sqlite3`) as the package name to `apt-get`, `dnf` and `yum`. On Debian, Ubuntu and Kali the package is `sqlite3`; on AlmaLinux, Rocky, RHEL and Fedora it is `sqlite`. The production server (AlmaLinux 8) already had `sqlite3`, so the problem never showed there.
+
+**Fix**
+
+`sqlite3` is mapped to the package `sqlite` when the manager is `dnf` or `yum`, and stays `sqlite3` with `apt-get` (which also wins when both kinds are present, as in the previous order). The existing `ip6tables` → `iptables` mapping is unchanged.
+
+**Validation**
+
+Function run in isolation with stub managers (see `CHANGELOG`); `bash -n are-installer`. The `sqlite` name was checked against a published AlmaLinux 10 guide; not run on a clean AlmaLinux machine.
+
+**Related files**
+
+* `are-installer`
+* `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`, `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
+* `VERSION`, `config/config.conf`, `templates/config/config.conf`, `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -5422,7 +5450,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.9.5
+v2.9.6
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

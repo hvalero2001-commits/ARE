@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.9.5
+v2.9.6
 ```
 
 Estado:
@@ -505,6 +505,10 @@ Patch de código: elimina el comando `autoban` de `are.sh`, que invocaba una fun
 ## Patch v2.9.5
 
 Patch de código: el sensor Web Scanner acepta varios archivos de log o globs en `WEB_SCANNER_LOG_FILE` (en cPanel, un log por dominio), con un offset por archivo y las rutas sensibles distintas contadas sobre la corrida completa. La idea de enforcement de `IDEA-013` (un backend para servicios detrás de un túnel o proxy) se descarta por quedar fuera del alcance. Ver `TASK-032` en `docs/TODO.md`.
+
+## Patch v2.9.6
+
+Patch de código: la instalación automática de dependencias del Installer usa el nombre de paquete `sqlite` (no `sqlite3`) con `dnf`/`yum`, de modo que una instalación limpia en AlmaLinux, Rocky, RHEL o Fedora pueda resolverlo. Ver `TASK-033` en `docs/TODO.md`.
 
 ---
 

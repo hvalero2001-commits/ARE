@@ -160,11 +160,22 @@ install_auto_install_dependencies() {
 
     # ip6tables se resuelve instalando el paquete "iptables" —
     # no existe un paquete "ip6tables" independiente.
+    # sqlite3 es el nombre del comando; el paquete se llama "sqlite3"
+    # en Debian/Ubuntu/Kali (apt-get) y "sqlite" en la familia RHEL
+    # (dnf/yum: AlmaLinux, Rocky, RHEL, Fedora).
+    local sqlite_package="sqlite3"
+    if ! command -v apt-get >/dev/null 2>&1 &&
+       { command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; }; then
+        sqlite_package="sqlite"
+    fi
+
     local packages=()
     local item
     for item in "${missing[@]}"; do
         if [ "$item" = "ip6tables" ]; then
             packages+=("iptables")
+        elif [ "$item" = "sqlite3" ]; then
+            packages+=("$sqlite_package")
         else
             packages+=("$item")
         fi

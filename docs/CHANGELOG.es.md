@@ -6,6 +6,33 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.9.6
+
+**Fecha:** 2026-11-24
+
+## Resumen
+
+Patch de código: la instalación automática de dependencias del Installer usa el nombre correcto del paquete de SQLite en las distribuciones de la familia RHEL.
+
+## Novedades
+
+* `are-installer`: `install_auto_install_dependencies()` pasaba el nombre del comando `sqlite3` como nombre de paquete a todos los gestores. El paquete se llama `sqlite3` en Debian, Ubuntu y Kali (`apt-get`), pero `sqlite` en AlmaLinux, Rocky, RHEL y Fedora (`dnf`/`yum`), por lo que una instalación limpia ahí podía no resolverlo. Ahora instala `sqlite` cuando el gestor es `dnf` o `yum` y conserva `sqlite3` para `apt-get`; si coexisten ambos tipos de gestor, gana `apt-get`, como antes. Producción no se veía afectada porque `sqlite3` ya estaba instalado.
+* `docs/TODO.md`: nueva entrada `TASK-033`. `docs/TODO.es.md` sigue congelado en v2.8.3.
+
+## Validación
+
+La función se ejecutó en aislamiento con gestores de paquetes simulados: `apt-get` recibe `sqlite3`, `dnf` y `yum` reciben `sqlite`, `apt-get` tiene precedencia cuando hay varios, y sin ninguno el mensaje de error sigue listando los paquetes faltantes. `bash -n` sobre el instalador. El nombre del paquete en la familia RHEL se confirmó contra una guía de instalación publicada para AlmaLinux 10; no se ejecutó en una máquina AlmaLinux limpia.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* systemd.
+
+---
+
 # v2.9.5
 
 **Fecha:** 2026-11-24

@@ -145,7 +145,7 @@ Manages the product lifecycle.
 Latest stable release:
 
 ```text
-v2.9.5
+v2.9.6
 ```
 
 Implemented capabilities:

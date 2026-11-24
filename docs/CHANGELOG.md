@@ -6,6 +6,33 @@ The project follows versioning based on stable releases.
 
 ---
 
+# v2.9.6
+
+**Date:** 2026-11-24
+
+## Summary
+
+Code patch: the Installer's automatic dependency installation uses the right SQLite package name on RHEL-family distributions.
+
+## Changes
+
+* `are-installer`: `install_auto_install_dependencies()` passed the command name `sqlite3` as the package name to every package manager. The package is called `sqlite3` on Debian, Ubuntu and Kali (`apt-get`) but `sqlite` on AlmaLinux, Rocky, RHEL and Fedora (`dnf`/`yum`), so a clean install there could not resolve it. It now installs `sqlite` when the manager is `dnf` or `yum` and keeps `sqlite3` for `apt-get`; when both kinds of manager exist, `apt-get` wins, as before. Production was not affected because `sqlite3` was already installed.
+* `docs/TODO.md`: new entry `TASK-033`. `docs/TODO.es.md` stays frozen at v2.8.3.
+
+## Validation
+
+The function was run in isolation with stub package managers: `apt-get` receives `sqlite3`, `dnf` and `yum` receive `sqlite`, `apt-get` takes precedence when several are present, and with none the error message still lists the missing packages. `bash -n` on the installer. The package name on the RHEL family was confirmed against a published installation guide for AlmaLinux 10; it has not been run on a clean AlmaLinux machine.
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* systemd.
+
+---
+
 # v2.9.5
 
 **Date:** 2026-11-24

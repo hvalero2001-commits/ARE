@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.9.5
+v2.9.6
 ```
 
 Status:
@@ -622,6 +622,10 @@ Code patch: removes the `autoban` command from `are.sh`, which called a function
 ## Patch v2.9.5
 
 Code patch: the Web Scanner sensor accepts several log files or globs in `WEB_SCANNER_LOG_FILE` (on cPanel, one log per domain), with one offset per file and distinct sensitive paths counted over the whole run. The `IDEA-013` enforcement idea (a backend for services behind a tunnel or proxy) is discarded as out of scope. See `TASK-032` in `docs/TODO.md`.
+
+## Patch v2.9.6
+
+Code patch: the Installer's automatic dependency installation uses the package name `sqlite` (not `sqlite3`) with `dnf`/`yum`, so a clean install on AlmaLinux, Rocky, RHEL or Fedora can resolve it. See `TASK-033` in `docs/TODO.md`.
 
 ---
 
