@@ -11,10 +11,10 @@ decision, and action enforcement.
 ARE v2.0 continued this architecture from the functional base established in v1.1, adding the
 product's own identity, an operational structure independent of the historical `f2b-ipset`
 implementation, and the new components needed to manage the full reputation-and-sanction cycle.
-Versions v2.1, v2.2, v2.3, v2.4, v2.5, and v2.6 extended that same base without introducing an
+Versions v2.1 through v2.9 extended that same base without introducing an
 architectural break.
 
-Version v2.9.1 is the latest stable release.
+Version v2.9.2 is the latest stable release.
 
 ---
 
@@ -917,6 +917,24 @@ v2.7 extended that base with:
   (`PRODUCT_SYSTEMD_UNITS_OPTIONAL`) — installed on every update, but not activated automatically if
   it depends on explicit administrator configuration; this keeps a niche capability, useful for some
   servers and pointless for others, from becoming noise for those who do not need it.
+
+v2.8 extended that base with:
+
+* a sensor for malware detected in incoming mail (`mail-antivirus`, MALWARE category) that relies on
+  the generic rejection message of the mail server's antivirus ACL, not on one antivirus engine;
+* an Installer Engine that never overwrites an existing configuration file on `upgrade` — it only
+  merges variables added by a newer template, and recognizes when the installation directory and the
+  source are the same directory (a git checkout).
+
+v2.9 extended that base with:
+
+* the Web Scanner sensor (RECON category), which reads the `access_log` of nginx or Apache and
+  reports an IP that requests several distinct sensitive paths in one run; it is the first sensor
+  shipped as an optional systemd unit, enabled from ARE ADMIN once its log is configured;
+* a documented limit of the Firewall Backend: behind a tunnel or reverse proxy every connection
+  reaches the host from `127.0.0.1`, so a host-firewall ban cannot block the real client. A backend
+  that acts where the real IP is visible is an open idea (`IDEA-013`), not part of the architecture
+  yet.
 
 Future capabilities that have not yet been implemented and validated are not part of the current
 state of the architecture.

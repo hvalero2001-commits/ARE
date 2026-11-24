@@ -77,7 +77,7 @@ Entre las capacidades actuales de ARE se encuentran:
 * Evaluación histórica del comportamiento de cada dirección IP.
 * Motor de estados para el ciclo de vida de las IP.
 * Policy Engine separado del mecanismo de detección, con evaluación por categoría y umbrales configurables.
-* Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive), incluyendo un sensor real para señales heurísticas de correo (SpamAssassin), un sensor de correlación de comportamiento web entre múltiples IPs (detección de scraping distribuido de catálogo), y control operativo de activación/desactivación por sensor desde ARE ADMIN.
+* Framework de sensores, con soporte para los patrones de polling (Fail2Ban) y callback (Apache/mod_evasive), incluyendo un sensor real para señales heurísticas de correo (SpamAssassin), un sensor de correlación de comportamiento web entre múltiples IPs (detección de scraping distribuido de catálogo), un sensor de antivirus de correo (`mail-antivirus`), un sensor de reconocimiento de rutas sensibles en logs de nginx/Apache (`web-scanner`, unidad opcional), y control operativo de activación/desactivación por sensor desde ARE ADMIN.
 * Exportación e importación de reputación entre servidores de la misma flota, filtrada por categoría y score mínimo, con relevancia automática por el rol de cada servidor (solo se aplican categorías que ya tienen presencia local).
 * Persistencia mediante SQLite, con modelo de reputación extensible sin migración de esquema.
 * Interfaz de administración por línea de comandos (ARE ADMIN), con auditoría de operaciones.
@@ -107,7 +107,7 @@ Las categorías de reputación utilizadas actualmente son:
 
 ### Versión
 
-**ARE v2.9.1** (estable, liberada)
+**ARE v2.9.2** (estable, liberada)
 
 La versión 2.7 sincroniza automáticamente la whitelist contra listas de IPs publicadas por terceros (ej. Cloudflare). La versión 2.8 agrega el sensor `mail-antivirus` (categoría MALWARE), detectando rechazos de Exim vía ACL `av_scanner`. El patch 2.8.1 corrige el Installer Engine: ya no sobrescribe `config.conf`/`whitelist.conf` en `upgrade`, y sincroniza permisos de ejecución faltantes. El patch 2.8.2 agrega la fusión automática de variables nuevas de configuración (`install_config_merge`), sin sobrescribir valores existentes. El patch 2.8.3 publica la documentación en inglés como canónica y conserva los originales en español (`.es.md`). La versión 2.9 agrega el sensor `web-scanner` (categoría RECON): detecta IPs que sondean rutas sensibles (`.env`, `.git`, `.ssh`, respaldos) leyendo un `access_log` de nginx o Apache; es una unidad opcional que se habilita desde ARE ADMIN.
 

@@ -6,9 +6,9 @@ ARE (Abuse Reputation Engine) es un motor de reputación y decisión diseñado p
 
 La arquitectura separa la observación de los eventos, la construcción de reputación, la evaluación del estado, la decisión de política y la ejecución de las acciones.
 
-ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1, v2.2, v2.3, v2.4, v2.5 y v2.6 extendieron esa misma base sin introducir una ruptura arquitectónica.
+ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1 a v2.9 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.9.1 constituye la última versión estable liberada.
+La versión v2.9.2 constituye la última versión estable liberada.
 
 ---
 
@@ -810,5 +810,15 @@ v2.6 extendió esa base con:
 v2.7 extendió esa base con:
 
 * el Installer Engine incorpora el concepto de unidad systemd opcional (`PRODUCT_SYSTEMD_UNITS_OPTIONAL`) — se instala en toda actualización, pero no se activa automáticamente si depende de configuración explícita del administrador; evita que una capacidad de nicho, útil para algunos servidores y sin sentido para otros, se convierta en ruido para quien no la necesita.
+
+v2.8 extendió esa base con:
+
+* un sensor de malware en correo entrante (`mail-antivirus`, categoría MALWARE) que se apoya en el mensaje de rechazo genérico de la ACL antivirus del servidor de correo, no en un motor antivirus concreto;
+* un Installer Engine que nunca sobrescribe un archivo de configuración existente en `upgrade` — solo fusiona las variables agregadas por una plantilla más nueva, y reconoce cuando el directorio de instalación y el origen son el mismo directorio (un checkout de git).
+
+v2.9 extendió esa base con:
+
+* el sensor Web Scanner (categoría RECON), que lee el `access_log` de nginx o Apache y reporta una IP que solicita varias rutas sensibles distintas en una corrida; es el primer sensor entregado como unidad systemd opcional, que se habilita desde ARE ADMIN una vez configurado su log;
+* un límite documentado del Firewall Backend: detrás de un túnel o proxy inverso toda conexión llega al host desde `127.0.0.1`, de modo que un ban en el firewall del host no puede bloquear al cliente real. Un backend que actúe donde la IP real es visible es una idea abierta (`IDEA-013`), todavía no forma parte de la arquitectura.
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.

@@ -859,11 +859,34 @@ structure consolidated through v2.0, v2.1, and v2.2.
   noise; the Installer Engine needed to distinguish between "install" (always) and "enable" (only when
   appropriate), something that did not exist until this version.
 
+## Decisions consolidated in v2.8
+
+* a sensor must not depend on the identity of the tool behind it when the log message does not —
+  `mail-antivirus` is named after the generic rejection of the mail server's antivirus ACL, so the
+  sensor keeps working if the antivirus engine is replaced;
+* an installer must never overwrite configuration the administrator may have edited: on `upgrade` an
+  existing file is always kept, and only variables that are missing are appended from the template,
+  never changing a value already present and never touching files that are not `KEY=value`;
+* when the installation directory is also the source checkout, there is nothing to copy; the
+  installer recognizes the case and runs every other step instead of aborting.
+
+## Decisions consolidated in v2.9
+
+* detection by what a request asks for, not by how the server answered: an IP that requests several
+  distinct sensitive paths (`.env`, `.git`, backups) in one run is scanning, whatever the status code;
+* a sensor must never report the address of its own proxy — loopback, private, link-local and ULA
+  addresses are discarded before counting, so a log that still records the proxy IP reports nothing
+  instead of banning the server itself;
+* a capability that cannot work without a server-specific value (here, the log path) is installed but
+  not enabled automatically, and is turned on from ARE ADMIN once configured;
+* a limit that is not solved is documented as a limit, not simulated: behind a tunnel or reverse proxy
+  the host firewall sees only `127.0.0.1`; blocking the real client needs a backend that acts where
+  the real IP is visible (`IDEA-013`), which does not exist yet.
+
 Future capabilities that have not yet been implemented and validated are not part of the current
 state of the design; they belong to the Roadmap or the corresponding RFCs.
 
-Version v2.8 is in development and validation. This document describes only decisions corresponding
-to the implemented and verified state.
+This document describes only decisions corresponding to the implemented and verified state.
 
 ---
 

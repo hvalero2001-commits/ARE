@@ -747,6 +747,19 @@ El diseño actual conserva los principios establecidos durante v1.1 y los adapta
 * una integración con una fuente externa nunca debe dejar el sistema en peor estado que antes de intentarla — validar el contenido descargado antes de escribir nada, y abortar sin tocar el archivo si la validación falla, en vez de aplicar un resultado parcial o vacío;
 * no toda unidad de systemd que se instala debe habilitarse automáticamente — cuando depende de configuración explícita del administrador para tener sentido, activarla sin esa configuración es solo ruido; el Installer Engine necesitaba distinguir entre "instalar" (siempre) y "activar" (solo si corresponde), algo que no existía hasta esta versión.
 
+## Decisiones consolidadas en v2.8
+
+* un sensor no debe depender de la identidad de la herramienta que hay detrás cuando el mensaje del log no lo hace — `mail-antivirus` lleva el nombre del rechazo genérico de la ACL antivirus del servidor de correo, de modo que el sensor sigue funcionando si se reemplaza el motor antivirus;
+* un instalador nunca debe sobrescribir configuración que el administrador pudo haber editado: en `upgrade` un archivo existente se conserva siempre, y solo se agregan desde la plantilla las variables que faltan, sin cambiar nunca un valor ya presente y sin tocar archivos que no son `KEY=valor`;
+* cuando el directorio de instalación es a la vez el checkout de origen, no hay nada que copiar; el instalador reconoce el caso y ejecuta todos los demás pasos en vez de abortar.
+
+## Decisiones consolidadas en v2.9
+
+* detección por lo que una solicitud pide, no por cómo respondió el servidor: una IP que solicita varias rutas sensibles distintas (`.env`, `.git`, respaldos) en una corrida está escaneando, sea cual sea el código de estado;
+* un sensor nunca debe reportar la dirección de su propio proxy — las direcciones loopback, privadas, link-local y ULA se descartan antes de contar, de modo que un log que todavía registre la IP del proxy no reporta nada en lugar de banear al propio servidor;
+* una capacidad que no puede funcionar sin un valor propio de cada servidor (aquí, la ruta del log) se instala pero no se habilita sola, y se activa desde ARE ADMIN una vez configurada;
+* un límite sin resolver se documenta como límite, no se simula: detrás de un túnel o proxy inverso el firewall del host solo ve `127.0.0.1`; bloquear al cliente real exige un backend que actúe donde la IP real es visible (`IDEA-013`), que todavía no existe.
+
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
 
-La versión v2.8 se encuentra en desarrollo y validación. Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.
+Este documento describe únicamente decisiones correspondientes al estado implementado y comprobado.

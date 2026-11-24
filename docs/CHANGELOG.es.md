@@ -6,6 +6,39 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.9.2
+
+**Fecha:** 2026-11-24
+
+## Resumen
+
+Patch solo de documentación: deja todos los documentos del proyecto al nivel de v2.9.1. Sin cambios de código.
+
+## Novedades
+
+* `docs/ARCHITECTURE.md` / `.es.md`: la lista "extendió esa base con" cubre ahora v2.8 y v2.9; la introducción ya no se detiene en v2.6.
+* `docs/DESIGN.md` / `.es.md`: nuevas secciones "Decisiones consolidadas en v2.8" y "en v2.9"; eliminada la frase final que todavía describía v2.8 como en desarrollo.
+* `docs/PROJECT.md` / `.es.md`: la lista de capacidades implementadas incluye ahora los sensores Web Correlation, Mail Antivirus y Web Scanner.
+* `docs/INSTALL.md` / `.es.md`: la sección Systemd describe las unidades opcionales y los pasos para habilitar Web Scanner.
+* `README.md` / `README.es.md`: las listas de sensores incluyen antivirus de correo y logs de acceso web.
+* `docs/TODO.md`: nueva entrada `TASK-029`. `docs/TODO.es.md` sigue congelado en v2.8.3.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.9.1
 
 **Fecha:** 2026-11-24

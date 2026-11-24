@@ -145,7 +145,7 @@ Manages the product lifecycle.
 Latest stable release:
 
 ```text
-v2.9.1
+v2.9.2
 ```
 
 Implemented capabilities:
@@ -159,6 +159,9 @@ Implemented capabilities:
 - Fail2Ban Sensor.
 - Apache/mod_evasive Sensor.
 - SpamAssassin Sensor (SOCIAL category).
+- Web Correlation Sensor (BOT category): distributed scraping seen across several IPs.
+- Mail Antivirus Sensor (MALWARE category).
+- Web Scanner Sensor (RECON category), shipped as an optional systemd unit.
 - Firewall Backend (IPSet), with automatic restoration at system boot.
 - Dashboard, with statistics, per-category time-based trends, and anomaly detection.
 - Installer Engine, with packaging, distribution, and self-update (available-version query, remote

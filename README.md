@@ -14,7 +14,7 @@ ARE is a reputation and decision engine that turns the stream of security events
 server into a per-IP risk score across nine threat categories — and escalates its response
 (`WATCH → FILTER → TEMP_BAN → BANNED`) based on *accumulated behavior*, not one isolated hit.
 
-It sits on top of the tools you already run (Fail2Ban, ModSecurity, mod_evasive, SpamAssassin)
+It sits on top of the tools you already run (Fail2Ban, ModSecurity, mod_evasive, SpamAssassin, mail antivirus, web access logs)
 and decides in **code, not by trusting any single sensor**.
 
 ---

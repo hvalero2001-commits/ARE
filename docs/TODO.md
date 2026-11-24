@@ -1652,6 +1652,41 @@ v2.9.0 shipped the Web Scanner sensor validated in isolation. The first activati
 
 ---
 
+## TASK-029
+
+**Title:** Full documentation audit against v2.9.1
+
+**Status:** ✔ Implemented
+
+**Version:** v2.9.2
+
+**Context**
+
+After v2.9.1, a document-by-document audit found documents that still described earlier versions: `docs/DESIGN.md` ended by calling v2.8 "in development" and had no v2.8 or v2.9 decisions; `docs/ARCHITECTURE.md` stopped its version list at v2.7 and its introduction at v2.6; `docs/PROJECT.md` did not list the Web Correlation, Mail Antivirus and Web Scanner sensors; `docs/INSTALL.md` did not mention optional units; the README sensor lists omitted mail antivirus and web logs. The Spanish mirror in the claude.ai Project had the same gaps plus a stale `TODO.md` (v2.8.3, without `TASK-027`, `TASK-028` and `IDEA-013`).
+
+**Fix**
+
+Each affected document updated in English and Spanish, version files and status references moved to 2.9.2, `CHANGELOG` and `ROADMAP` entries added. `docs/TODO.es.md` stays frozen at v2.8.3.
+
+**Validation**
+
+Every document compared against the code and against `CHANGELOG`/`TODO` for v2.8.x and v2.9.x; code fences balanced in every changed file; the EN/ES pair of each changed document changed together.
+
+**Related files**
+
+* `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE.es.md`
+* `docs/DESIGN.md`, `docs/DESIGN.es.md`
+* `docs/PROJECT.md`, `docs/PROJECT.es.md`
+* `docs/INSTALL.md`, `docs/INSTALL.es.md`
+* `README.md`, `README.es.md`
+* `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`, `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -5291,7 +5326,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.9.1
+v2.9.2
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

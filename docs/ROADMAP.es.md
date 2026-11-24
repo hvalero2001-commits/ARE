@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.9.1
+v2.9.2
 ```
 
 Estado:
@@ -489,6 +489,10 @@ Detrás de un proxy o túnel (por ejemplo Cloudflare Tunnel) el servidor ve toda
 ## Validación
 
 Log real capturado, corrida en el servidor de producción en aislamiento, instalación aislada con `are-installer verify` (11/11) y calibración con el flujo real de `are.sh found` (`WATCH` → `FILTER` → `TEMP_BAN`). Detalle en `IDEA-013`. Habilitado en producción en el patch de documentación `v2.9.1`: timer y offset verificados; todavía no hubo tráfico de escáner en ese log, por lo que el camino de detección a decisión falta observarlo en vivo. Ver `TASK-028`.
+
+## Patch v2.9.2
+
+Patch solo de documentación. ARCHITECTURE, DESIGN, PROJECT, INSTALL y las listas de sensores del README quedan al nivel de v2.9.1, en inglés y en español; DESIGN ya no describe v2.8 como en desarrollo. Sin cambios de código. Ver `TASK-029` en `docs/TODO.md`.
 
 ---
 

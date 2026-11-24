@@ -430,6 +430,11 @@ are-restore-ipsets.service
 This service repopulates the IPSet sets from the database, since IPSet does not natively keep its
 contents across reboots.
 
+Since v2.7 the Installer also manages optional units (`PRODUCT_SYSTEMD_UNITS_OPTIONAL`): they are
+installed on `install`, `upgrade` and `repair`, but never enabled automatically. The Web Scanner
+sensor (`are-web-scanner.service` and `are-web-scanner.timer`) is one of them: it needs
+`WEB_SCANNER_LOG_FILE` in `config.conf` and is then enabled from ARE ADMIN (Sensors → Enable/Disable).
+
 The Installer manages the units declared by the Product Manifest.
 
 ---

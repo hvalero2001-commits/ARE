@@ -141,7 +141,7 @@ Administra el ciclo de vida del producto.
 Versión estable liberada:
 
 ```text
-v2.9.1
+v2.9.2
 ```
 
 Capacidades implementadas.
@@ -154,6 +154,9 @@ Capacidades implementadas.
 - Fail2Ban Sensor.
 - Apache/mod_evasive Sensor.
 - SpamAssassin Sensor (categoría SOCIAL).
+- Sensor Web Correlation (categoría BOT): scraping distribuido visto en varias IPs.
+- Sensor Mail Antivirus (categoría MALWARE).
+- Sensor Web Scanner (categoría RECON), entregado como unidad systemd opcional.
 - Firewall Backend (IPSet), con restauración automática al arrancar el sistema.
 - Dashboard, con estadísticas, tendencias temporales por categoría, y detección de anomalías.
 - Installer Engine, con empaquetado, distribución, y auto-actualización (consulta de versión disponible, actualización remota, instalación automática de dependencias del sistema).
