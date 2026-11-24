@@ -770,7 +770,7 @@ El diseño actual conserva los principios establecidos durante v1.1 y los adapta
 * detección por lo que una solicitud pide, no por cómo respondió el servidor: una IP que solicita varias rutas sensibles distintas (`.env`, `.git`, respaldos) en una corrida está escaneando, sea cual sea el código de estado;
 * un sensor nunca debe reportar la dirección de su propio proxy — las direcciones loopback, privadas, link-local y ULA se descartan antes de contar, de modo que un log que todavía registre la IP del proxy no reporta nada en lugar de banear al propio servidor;
 * una capacidad que no puede funcionar sin un valor propio de cada servidor (aquí, la ruta del log) se instala pero no se habilita sola, y se activa desde ARE ADMIN una vez configurada;
-* un límite sin resolver se documenta como límite, no se simula: detrás de un túnel o proxy inverso el firewall del host solo ve `127.0.0.1`; bloquear al cliente real exige un backend que actúe donde la IP real es visible (`IDEA-013`), que todavía no existe.
+* un límite sin resolver se documenta como límite, no se simula: detrás de un túnel o proxy inverso el firewall del host solo ve `127.0.0.1`; bloquear al cliente real exigiría un backend que actúe donde la IP real es visible, que se evaluó y se descartó por quedar fuera del alcance: ARE apunta a servidores cuyo firewall ve la dirección real del cliente (`IDEA-013`).
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual del diseño; pertenecen al Roadmap o a las RFC correspondientes.
 

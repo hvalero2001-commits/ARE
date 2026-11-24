@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.9.4
+v2.9.5
 ```
 
 Status:
@@ -599,9 +599,9 @@ Arising from a real scan captured on a test nginx server behind a Cloudflare Tun
 
 ## Known limitations
 
-The sensor reads a single log file; on cPanel each domain has its own log, so one instance covers one domain (multi-log support is not implemented).
+In v2.9.0 the sensor read a single log file; multi-log support was added in v2.9.5 (see Patch v2.9.5).
 
-Behind a proxy or tunnel (for example Cloudflare Tunnel) the server sees every connection as `127.0.0.1`: the sensor can detect and accumulate reputation once the web server records the real IP (`real_ip_header`), but a host firewall ban cannot block the real client. See `IDEA-013` in `docs/TODO.md`.
+Scope: ARE bans through the host firewall, so it targets servers where the firewall sees the real client address (a host or VPS). Behind a proxy or tunnel (for example Cloudflare Tunnel) the server sees every connection as `127.0.0.1`: the sensor can detect and accumulate reputation once the web server records the real IP (`real_ip_header`), but a host firewall ban cannot block the real client. A dedicated enforcement backend for that setup was evaluated and discarded as out of scope (see `IDEA-013` in `docs/TODO.md`).
 
 ## Validation
 
@@ -618,6 +618,10 @@ Documentation-only patch. Statements that no longer matched the code are correct
 ## Patch v2.9.4
 
 Code patch: removes the `autoban` command from `are.sh`, which called a function (`auto_enforce_ban`) defined nowhere and so always failed. No other behavior changes. See `TASK-031` in `docs/TODO.md`.
+
+## Patch v2.9.5
+
+Code patch: the Web Scanner sensor accepts several log files or globs in `WEB_SCANNER_LOG_FILE` (on cPanel, one log per domain), with one offset per file and distinct sensitive paths counted over the whole run. The `IDEA-013` enforcement idea (a backend for services behind a tunnel or proxy) is discarded as out of scope. See `TASK-032` in `docs/TODO.md`.
 
 ---
 

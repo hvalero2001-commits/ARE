@@ -461,11 +461,12 @@ Lee el `access_log` de un servidor web (nginx o Apache, formato combined) y repo
 Se instala con su unidad systemd **sin habilitar**, porque la ruta del log depende de cada servidor. Para habilitarlo:
 
 ```text
-1) Definir WEB_SCANNER_LOG_FILE en config/config.conf
+1) Definir WEB_SCANNER_LOG_FILE en config/config.conf (una o más rutas o globs separados por espacios;
+   en cPanel, por ejemplo "/usr/local/apache/domlogs/*-ssl_log")
 2) are admin → Sensores → Activar/Desactivar → web-scanner
 ```
 
-Otros parámetros: `WEB_SCANNER_JAIL` (por defecto `web-scanner`) y `WEB_SCANNER_HIT_THRESHOLD` (rutas sensibles distintas por corrida, por defecto 5). Limitaciones: lee un único archivo de log (en cPanel, un dominio), el log debe registrar la IP real del cliente, y detrás de un túnel o proxy un ban de firewall del host no puede bloquear al cliente real (ver `IDEA-013` en `docs/TODO.md`).
+Otros parámetros: `WEB_SCANNER_JAIL` (por defecto `web-scanner`) y `WEB_SCANNER_HIT_THRESHOLD` (rutas sensibles distintas por corrida, por defecto 5). Cada archivo de log lleva su propio offset y el conteo de rutas sensibles distintas se hace sobre la corrida completa, de modo que una IP que sondea varios dominios acumula entre ellos. Alcance: el log debe registrar la IP real del cliente; ARE está pensado para servidores cuyo firewall ve la dirección real del cliente (un host o VPS), no para servicios publicados detrás de un túnel o proxy inverso.
 
 ---
 

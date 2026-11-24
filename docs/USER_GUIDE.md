@@ -507,14 +507,16 @@ It is installed with its systemd unit **not enabled**, because the log path depe
 To enable it:
 
 ```text
-1) Set WEB_SCANNER_LOG_FILE in config/config.conf
+1) Set WEB_SCANNER_LOG_FILE in config/config.conf (one or more paths or globs, separated by spaces;
+   on cPanel, for example "/usr/local/apache/domlogs/*-ssl_log")
 2) are admin → Sensors → Enable/Disable → web-scanner
 ```
 
 Other settings: `WEB_SCANNER_JAIL` (default `web-scanner`) and `WEB_SCANNER_HIT_THRESHOLD` (distinct
-sensitive paths per run, default 5). Limitations: it reads one log file (on cPanel, one domain),
-the log must record the real client IP, and behind a tunnel or proxy a host firewall ban cannot
-block the real client (see `IDEA-013` in `docs/TODO.md`).
+sensitive paths per run, default 5). Each log file keeps its own offset, and the count
+of distinct sensitive paths is made over the whole run, so an IP probing several domains accumulates across them.
+Scope: the log must record the real client IP; ARE is designed for servers whose firewall sees the real client
+address (a host or VPS), not for services published behind a tunnel or reverse proxy.
 
 ---
 

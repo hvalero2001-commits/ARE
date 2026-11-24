@@ -14,7 +14,7 @@ implementation, and the new components needed to manage the full reputation-and-
 Versions v2.1 through v2.9 extended that same base without introducing an
 architectural break.
 
-Version v2.9.4 is the latest stable release.
+Version v2.9.5 is the latest stable release.
 
 ---
 
@@ -932,9 +932,9 @@ v2.9 extended that base with:
   reports an IP that requests several distinct sensitive paths in one run; it is the first sensor
   shipped as an optional systemd unit, enabled from ARE ADMIN once its log is configured;
 * a documented limit of the Firewall Backend: behind a tunnel or reverse proxy every connection
-  reaches the host from `127.0.0.1`, so a host-firewall ban cannot block the real client. A backend
-  that acts where the real IP is visible is an open idea (`IDEA-013`), not part of the architecture
-  yet.
+  reaches the host from `127.0.0.1`, so a host-firewall ban cannot block the real client. ARE
+  targets servers whose firewall sees the real client address; a backend for that setup was
+  evaluated and discarded as out of scope (`IDEA-013`).
 
 Future capabilities that have not yet been implemented and validated are not part of the current
 state of the architecture.

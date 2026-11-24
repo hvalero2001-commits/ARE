@@ -6,6 +6,35 @@ The project follows versioning based on stable releases.
 
 ---
 
+# v2.9.5
+
+**Date:** 2026-11-24
+
+## Summary
+
+Code patch: the Web Scanner sensor can read several log files, and the enforcement idea behind a tunnel or proxy is discarded as out of scope.
+
+## Changes
+
+* `sensors/web_scanner.sh`: `WEB_SCANNER_LOG_FILE` accepts several paths and/or globs separated by spaces (on cPanel, `"/usr/local/apache/domlogs/*-ssl_log"` covers every domain). Each file keeps its own offset in `web_scanner.offsets/`; the count of distinct sensitive paths is made over the whole run, so an IP probing several domains accumulates across them. With a single path the behavior is unchanged: the previous `web_scanner.offset` file is adopted for the first log and then removed.
+* `config/config.conf` and `templates/config/config.conf`: comment documenting the multi-log syntax.
+* `IDEA-013`: the enforcement part (a backend for services published behind a tunnel or reverse proxy) is discarded. ARE targets servers whose firewall sees the real client address; the limitation stays documented as scope in `USER_GUIDE`, `ROADMAP`, `ARCHITECTURE` and `DESIGN`.
+* `docs/TODO.md`: new entry `TASK-032`. `docs/TODO.es.md` stays frozen at v2.8.3.
+
+## Validation
+
+Tested in isolation with synthetic combined-format logs: an IP with 3 sensitive paths in each of two domains is reported (6 in total, none reaching the threshold of 5 alone); private addresses and an IP below the threshold are not reported; `--dry-run` writes no offsets; a second `--execute` with no new lines reports nothing; a truncated log restarts from the beginning; the legacy offset is adopted and removed.
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* systemd.
+
+---
+
 # v2.9.4
 
 **Date:** 2026-11-24

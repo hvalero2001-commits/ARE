@@ -1752,6 +1752,37 @@ The `autoban` branch is removed from `are.sh`. Automatic enforcement is already 
 
 ---
 
+## TASK-032
+
+**Title:** Web Scanner: multi-log support, and discard of the `IDEA-013` enforcement idea
+
+**Status:** ✔ Implemented
+
+**Version:** v2.9.5
+
+**Context**
+
+`TASK-028` left an open limitation: the sensor reads one log file, and on cPanel each domain has its own under `/usr/local/apache/domlogs/`, so one instance covered one domain. Separately, `IDEA-013` proposed an enforcement backend for services behind a tunnel or proxy; it was reviewed and discarded: that setup came from a Cloudflare Tunnel test of a CRM, it is not how services are normally published (hosting or VPS, where the firewall sees the real client IP), and changing the architecture of a security product for one specific case is not worth it.
+
+**Fix**
+
+`WEB_SCANNER_LOG_FILE` accepts several paths and/or globs separated by spaces. Each file has its own offset (`web_scanner.offsets/`, one file per log); the distinct sensitive paths per IP are counted over the whole run, across files. A previous single `web_scanner.offset` is adopted for the first log and removed. With one path the behavior is the same as before.
+
+**Validation**
+
+Synthetic combined-format logs in isolation (see `CHANGELOG`): cross-domain accumulation, private addresses ignored, `--dry-run` without offsets, no re-reporting on a second run, rotation restart, legacy offset migration. `bash -n` on the sensor.
+
+**Related files**
+
+* `sensors/web_scanner.sh`
+* `config/config.conf`, `templates/config/config.conf`
+* `docs/USER_GUIDE.md`, `docs/USER_GUIDE.es.md`, `docs/INSTALL.md`, `docs/INSTALL.es.md`
+* `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE.es.md`, `docs/DESIGN.md`, `docs/DESIGN.es.md`
+* `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`, `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
+* `VERSION`, `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -3706,7 +3737,7 @@ resolving it.
 
 **Title:** Web Scanner sensor: reconnaissance of sensitive paths from nginx/Apache `access_log`, and enforcement behind a tunnel or proxy
 
-**Status:** ✔ Sensor implemented (v2.9.0) — validated in isolation and with the installer; the enforcement part is an open idea
+**Status:** ✔ Sensor implemented (v2.9.0) — validated in isolation and with the installer; the enforcement part is discarded (out of scope, v2.9.5)
 
 **Version:** v2.9.0
 
@@ -3738,7 +3769,7 @@ It arose from a real test: ARE was going to be tried on a test server (AlmaLinux
 
 **Not covered / open**
 
-* **Enforcement behind a tunnel or proxy.** The host firewall backend (IPSet/iptables) matches the connection's source address, which behind a tunnel is always `127.0.0.1`. Banning the real client requires a backend that acts where the real IP is visible: an `include` with `deny` directives for nginx, or the Cloudflare API (IP access rules). It would be a new backend, separate from the sensor; ARE has none yet.
+* **Enforcement behind a tunnel or proxy — discarded (v2.9.5).** ARE targets servers whose firewall sees the real client IP (hosting or VPS); services published behind a tunnel are not the normal deployment, and a dedicated backend is not worth changing the architecture for. Original analysis: the host firewall backend (IPSet/iptables) matches the connection's source address, which behind a tunnel is always `127.0.0.1`. Banning the real client requires a backend that acts where the real IP is visible: an `include` with `deny` directives for nginx, or the Cloudflare API (IP access rules). It would be a new backend, separate from the sensor; ARE has none yet.
 * Bundle and `.map` requests are not matched on purpose (browser developer tools request them too).
 * The sensor reports an IP once per run; an IP that keeps probing after a ban escalates the sanction level on every run, which is harmless when the firewall actually blocks it.
 
@@ -5391,7 +5422,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.9.3
+v2.9.5
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

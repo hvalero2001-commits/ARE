@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.9.4
+v2.9.5
 ```
 
 Estado:
@@ -482,9 +482,9 @@ Surge de un escaneo real capturado en un servidor nginx de pruebas detrás de un
 
 ## Limitaciones conocidas
 
-El sensor lee un único archivo de log; en cPanel cada dominio tiene el suyo, por lo que una instancia cubre un dominio (el soporte de múltiples logs no está implementado).
+En v2.9.0 el sensor leía un único archivo de log; el soporte de múltiples logs se agregó en v2.9.5 (ver Patch v2.9.5).
 
-Detrás de un proxy o túnel (por ejemplo Cloudflare Tunnel) el servidor ve toda conexión como `127.0.0.1`: el sensor puede detectar y acumular reputación una vez que el servidor web registra la IP real (`real_ip_header`), pero un ban en el firewall del host no puede bloquear al cliente real. Ver `IDEA-013` en `docs/TODO.md`.
+Alcance: ARE banea mediante el firewall del host, por lo que apunta a servidores donde el firewall ve la dirección real del cliente (un host o VPS). Detrás de un proxy o túnel (por ejemplo Cloudflare Tunnel) el servidor ve toda conexión como `127.0.0.1`: el sensor puede detectar y acumular reputación una vez que el servidor web registra la IP real (`real_ip_header`), pero un ban en el firewall del host no puede bloquear al cliente real. Un backend de enforcement dedicado para ese escenario se evaluó y se descartó por quedar fuera del alcance (ver `IDEA-013` en `docs/TODO.md`).
 
 ## Validación
 
@@ -501,6 +501,10 @@ Patch solo de documentación. Se corrigen afirmaciones que ya no coincidían con
 ## Patch v2.9.4
 
 Patch de código: elimina el comando `autoban` de `are.sh`, que invocaba una función (`auto_enforce_ban`) no definida en ningún archivo y por lo tanto siempre fallaba. Sin otros cambios de comportamiento. Ver `TASK-031` en `docs/TODO.md`.
+
+## Patch v2.9.5
+
+Patch de código: el sensor Web Scanner acepta varios archivos de log o globs en `WEB_SCANNER_LOG_FILE` (en cPanel, un log por dominio), con un offset por archivo y las rutas sensibles distintas contadas sobre la corrida completa. La idea de enforcement de `IDEA-013` (un backend para servicios detrás de un túnel o proxy) se descarta por quedar fuera del alcance. Ver `TASK-032` en `docs/TODO.md`.
 
 ---
 

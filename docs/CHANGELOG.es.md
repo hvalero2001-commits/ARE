@@ -6,6 +6,35 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.9.5
+
+**Fecha:** 2026-11-24
+
+## Resumen
+
+Patch de código: el sensor Web Scanner puede leer varios archivos de log, y la idea de enforcement detrás de un túnel o proxy se descarta por quedar fuera del alcance.
+
+## Novedades
+
+* `sensors/web_scanner.sh`: `WEB_SCANNER_LOG_FILE` acepta varias rutas y/o globs separados por espacios (en cPanel, `"/usr/local/apache/domlogs/*-ssl_log"` cubre todos los dominios). Cada archivo conserva su propio offset en `web_scanner.offsets/`; el conteo de rutas sensibles distintas se hace sobre la corrida completa, de modo que una IP que sondea varios dominios acumula entre ellos. Con una sola ruta el comportamiento no cambia: el archivo `web_scanner.offset` anterior se adopta para el primer log y luego se elimina.
+* `config/config.conf` y `templates/config/config.conf`: comentario que documenta la sintaxis multi-log.
+* `IDEA-013`: se descarta la parte de enforcement (un backend para servicios publicados detrás de un túnel o proxy inverso). ARE apunta a servidores cuyo firewall ve la dirección real del cliente; la limitación queda documentada como alcance en `USER_GUIDE`, `ROADMAP`, `ARCHITECTURE` y `DESIGN`.
+* `docs/TODO.md`: nueva entrada `TASK-032`. `docs/TODO.es.md` sigue congelado en v2.8.3.
+
+## Validación
+
+Probado en aislamiento con logs sintéticos en formato combined: una IP con 3 rutas sensibles en cada uno de dos dominios se reporta (6 en total, ninguna alcanza sola el umbral de 5); las direcciones privadas y una IP por debajo del umbral no se reportan; `--dry-run` no escribe offsets; un segundo `--execute` sin líneas nuevas no reporta nada; un log truncado reinicia desde el principio; el offset anterior se adopta y se elimina.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* systemd.
+
+---
+
 # v2.9.4
 
 **Fecha:** 2026-11-24

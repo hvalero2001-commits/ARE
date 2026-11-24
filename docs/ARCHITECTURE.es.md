@@ -8,7 +8,7 @@ La arquitectura separa la observación de los eventos, la construcción de reput
 
 ARE v2.0 continuó esta arquitectura a partir de la base funcional establecida en v1.1, incorporando la identidad propia del producto, una estructura operativa independiente de la implementación histórica de `f2b-ipset` y nuevos componentes necesarios para administrar el ciclo completo de reputación y sanciones. Las versiones v2.1 a v2.9 extendieron esa misma base sin introducir una ruptura arquitectónica.
 
-La versión v2.9.4 constituye la última versión estable liberada.
+La versión v2.9.5 constituye la última versión estable liberada.
 
 ---
 
@@ -819,6 +819,6 @@ v2.8 extendió esa base con:
 v2.9 extendió esa base con:
 
 * el sensor Web Scanner (categoría RECON), que lee el `access_log` de nginx o Apache y reporta una IP que solicita varias rutas sensibles distintas en una corrida; es el primer sensor entregado como unidad systemd opcional, que se habilita desde ARE ADMIN una vez configurado su log;
-* un límite documentado del Firewall Backend: detrás de un túnel o proxy inverso toda conexión llega al host desde `127.0.0.1`, de modo que un ban en el firewall del host no puede bloquear al cliente real. Un backend que actúe donde la IP real es visible es una idea abierta (`IDEA-013`), todavía no forma parte de la arquitectura.
+* un límite documentado del Firewall Backend: detrás de un túnel o proxy inverso toda conexión llega al host desde `127.0.0.1`, de modo que un ban en el firewall del host no puede bloquear al cliente real. ARE apunta a servidores cuyo firewall ve la dirección real del cliente; un backend para ese escenario se evaluó y se descartó por quedar fuera del alcance (`IDEA-013`).
 
 Las capacidades futuras que todavía no hayan sido implementadas y validadas no forman parte del estado actual de la arquitectura.

@@ -17,6 +17,13 @@
 #   privadas se descartan SIEMPRE, para no reportar al propio
 #   proxy como si fuera el atacante.
 #
+#   WEB_SCANNER_LOG_FILE admite varias rutas y/o globs separados por
+#   espacios (ej. "/usr/local/apache/domlogs/*-ssl_log" en cPanel,
+#   un log por dominio). Cada archivo tiene su propio offset; el
+#   conteo de rutas sensibles distintas se hace sobre la corrida
+#   completa, de modo que una IP que sondea varios dominios acumula
+#   en conjunto.
+#
 #   Origen: escáner real capturado en nginx (unas 140 peticiones
 #   en 2 minutos a .env, .git, .ssh, backups, phpinfo; todas 404).
 #
@@ -46,8 +53,9 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # --- Infraestructura (config.conf) ---
-LOG_FILE="${WEB_SCANNER_LOG_FILE:?WEB_SCANNER_LOG_FILE no configurado}"
-OFFSET_FILE="$ARE_DATA/web_scanner.offset"
+LOG_SPEC="${WEB_SCANNER_LOG_FILE:?WEB_SCANNER_LOG_FILE no configurado}"
+OFFSET_FILE="$ARE_DATA/web_scanner.offset"       # offset heredado (un solo log)
+OFFSET_DIR="$ARE_DATA/web_scanner.offsets"        # un offset por archivo
 LOCK_FILE="$ARE_DATA/web_scanner.lock"
 REPORT_LOG="${WEB_SCANNER_REPORT_LOG:-/var/log/are/web_scanner.log}"
 JAIL_NAME="${WEB_SCANNER_JAIL:-web-scanner}"
@@ -64,12 +72,24 @@ PROBE_PATTERN="${WEB_SCANNER_PATTERN:-$DEFAULT_PATTERN}"
 
 MODE="${1:---dry-run}"
 
-if [ ! -f "$LOG_FILE" ]; then
-    echo "ERROR: Log no encontrado: $LOG_FILE"
+# Resolver rutas y globs en la lista de logs a leer
+LOG_FILES=()
+set -f
+for spec in $LOG_SPEC; do
+    set +f
+    for f in $spec; do
+        [ -f "$f" ] && LOG_FILES+=("$f")
+    done
+    set -f
+done
+set +f
+
+if [ "${#LOG_FILES[@]}" -eq 0 ]; then
+    echo "ERROR: Ningún log encontrado para: $LOG_SPEC"
     exit 1
 fi
 
-mkdir -p "$(dirname "$OFFSET_FILE")"
+mkdir -p "$ARE_DATA" "$OFFSET_DIR"
 
 # Protección contra corridas solapadas (mismo criterio que
 # sensors/web_correlation.sh y sensors/spamassassin.sh, ver BUG-026)
@@ -79,16 +99,42 @@ if ! flock -n 200; then
     exit 0
 fi
 
-TOTAL_LINES=$(wc -l < "$LOG_FILE")
-LAST_LINE=0
-if [ -f "$OFFSET_FILE" ]; then
-    LAST_LINE=$(cat "$OFFSET_FILE")
+offset_path() {
+    # Un archivo de offset por log, nombrado por su ruta
+    echo "$OFFSET_DIR/$(echo "$1" | sed 's#/#_#g')"
+}
+
+# Offset heredado de versiones con un solo log: se adopta para ese
+# archivo la primera vez y se elimina.
+if [ -f "$OFFSET_FILE" ] && [ "${#LOG_FILES[@]}" -ge 1 ]; then
+    first="${LOG_FILES[0]}"
+    [ -f "$(offset_path "$first")" ] || cp "$OFFSET_FILE" "$(offset_path "$first")"
+    [ "$MODE" = "--execute" ] && rm -f "$OFFSET_FILE"
 fi
-# Log rotado o truncado: reiniciar desde el principio
-if [ "$LAST_LINE" -gt "$TOTAL_LINES" ]; then
-    LAST_LINE=0
-fi
-START_LINE=$((LAST_LINE + 1))
+
+# Emite las líneas nuevas de todos los logs y registra el total de
+# cada uno para guardarlo al final de la corrida.
+declare -A NEW_OFFSET
+read_new_lines() {
+    local f total last
+    for f in "${LOG_FILES[@]}"; do
+        total=$(wc -l < "$f")
+        last=0
+        [ -f "$(offset_path "$f")" ] && last=$(cat "$(offset_path "$f")")
+        # Log rotado o truncado: reiniciar desde el principio
+        [ "$last" -gt "$total" ] && last=0
+        NEW_OFFSET["$f"]=$total
+        sed -n "$((last + 1)),${total}p" "$f"
+    done
+}
+
+save_offsets() {
+    [ "$MODE" = "--execute" ] || return 0
+    local f
+    for f in "${LOG_FILES[@]}"; do
+        echo "${NEW_OFFSET[$f]}" > "$(offset_path "$f")"
+    done
+}
 
 # ------------------------------------------------------------------
 # Detección: por cada IP pública, contar las rutas sensibles
@@ -100,7 +146,11 @@ START_LINE=$((LAST_LINE + 1))
 
 # El patrón se pasa por entorno (no con -v): awk -v interpreta las
 # barras invertidas y degradaría \. a "cualquier carácter".
-CANDIDATES=$(sed -n "${START_LINE},${TOTAL_LINES}p" "$LOG_FILE" | PROBE_PATTERN="$PROBE_PATTERN" awk -v thr="$HIT_THRESHOLD" '
+STREAM=$(mktemp)
+trap 'rm -f "$STREAM"' EXIT
+read_new_lines > "$STREAM"
+
+CANDIDATES=$(PROBE_PATTERN="$PROBE_PATTERN" awk -v thr="$HIT_THRESHOLD" '
     BEGIN { pat = ENVIRON["PROBE_PATTERN"] }
     function es_local(ip) {
         return (ip ~ /^127\./ || ip ~ /^10\./ || ip ~ /^192\.168\./ \
@@ -119,12 +169,10 @@ CANDIDATES=$(sed -n "${START_LINE},${TOTAL_LINES}p" "$LOG_FILE" | PROBE_PATTERN=
     END {
         for (ip in hits) if (hits[ip] >= thr) print ip "|" hits[ip]
     }
-')
+' "$STREAM")
 
 if [ -z "$CANDIDATES" ]; then
-    if [ "$MODE" = "--execute" ]; then
-        echo "$TOTAL_LINES" > "$OFFSET_FILE"
-    fi
+    save_offsets
     exit 0
 fi
 
@@ -133,9 +181,7 @@ fi
 PROFILE_EXISTS=$(sqlite3 -cmd ".timeout 3000" "$DB_FILE" "SELECT COUNT(*) FROM jail_profile WHERE name='$JAIL_NAME';" 2>/dev/null)
 PROFILE_EXISTS="${PROFILE_EXISTS:-0}"
 if [ "$PROFILE_EXISTS" -eq 0 ]; then
-    if [ "$MODE" = "--execute" ]; then
-        echo "$TOTAL_LINES" > "$OFFSET_FILE"
-    fi
+    save_offsets
     exit 0
 fi
 
@@ -149,6 +195,4 @@ do
     fi
 done
 
-if [ "$MODE" = "--execute" ]; then
-    echo "$TOTAL_LINES" > "$OFFSET_FILE"
-fi
+save_offsets

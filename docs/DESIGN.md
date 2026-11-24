@@ -900,8 +900,9 @@ structure consolidated through v2.0, v2.1, and v2.2.
 * a capability that cannot work without a server-specific value (here, the log path) is installed but
   not enabled automatically, and is turned on from ARE ADMIN once configured;
 * a limit that is not solved is documented as a limit, not simulated: behind a tunnel or reverse proxy
-  the host firewall sees only `127.0.0.1`; blocking the real client needs a backend that acts where
-  the real IP is visible (`IDEA-013`), which does not exist yet.
+  the host firewall sees only `127.0.0.1`; blocking the real client would need a backend that acts where
+  the real IP is visible, which was evaluated and discarded as out of scope: ARE targets servers whose
+  firewall sees the real client address (`IDEA-013`).
 
 Future capabilities that have not yet been implemented and validated are not part of the current
 state of the design; they belong to the Roadmap or the corresponding RFCs.
