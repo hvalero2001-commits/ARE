@@ -129,8 +129,8 @@ per-category accumulated scores for a specific IP.
 
 ## Sensors
 
-Status and configuration of the active sensors (Fail2Ban and SpamAssassin by polling,
-`apache_evasive` by callback), read dynamically from the sensor registry.
+Status and configuration of the active sensors (Fail2Ban, SpamAssassin, Web Correlation,
+`mail-antivirus` and Web Scanner by polling, `apache_evasive` by callback), read dynamically from the sensor registry.
 
 ```text
 1) Status
@@ -467,6 +467,40 @@ each with its own managed profile. It reports to the `SOCIAL` category.
 
 A sensor invoked directly by Apache the moment `mod_evasive` detects a flood, without waiting for a
 periodic read cycle. It reports to the `DOS` category.
+
+## Web Correlation (polling pattern)
+
+Reads a web server `access_log` and groups requests by a configurable path marker (default `cart`)
+and time window. When enough distinct IPs hit the marker in the same window, it reports each IP of
+the group as `web-correlation` (category `BOT`). It detects distributed scraping that no
+single-IP rule can see. Configured with `WEB_CORRELATION_LOG_FILE`, `WEB_CORRELATION_PATH_MARKER`
+and `WEB_CORRELATION_IP_THRESHOLD`.
+
+## mail-antivirus (polling pattern)
+
+Reads the Exim main log and reports the source IP of messages rejected by the antivirus ACL
+(`rejected after DATA` with a virus or harmful-content verdict) as `mail-antivirus`, category
+`MALWARE`. Configured with `MAIL_ANTIVIRUS_LOG_FILE`.
+
+## Web Scanner (polling pattern, optional unit)
+
+Reads a web server `access_log` (nginx or Apache, combined format) and reports a single IP that
+requests several **distinct sensitive paths** in one run — `.env`, `.git`, `.ssh`, `phpinfo`,
+`wp-config`, backups and similar — as `web-scanner` (category `RECON`). Loopback and private
+addresses are always discarded.
+
+It is installed with its systemd unit **not enabled**, because the log path depends on each server.
+To enable it:
+
+```text
+1) Set WEB_SCANNER_LOG_FILE in config/config.conf
+2) are admin → Sensors → Enable/Disable → web-scanner
+```
+
+Other settings: `WEB_SCANNER_JAIL` (default `web-scanner`) and `WEB_SCANNER_HIT_THRESHOLD` (distinct
+sensitive paths per run, default 5). Limitations: it reads one log file (on cPanel, one domain),
+the log must record the real client IP, and behind a tunnel or proxy a host firewall ban cannot
+block the real client (see `IDEA-013` in `docs/TODO.md`).
 
 ---
 

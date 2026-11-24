@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.9.0
+v2.9.1
 ```
 
 Estado:
@@ -480,13 +480,15 @@ Surge de un escaneo real capturado en un servidor nginx de pruebas detrás de un
 * Lee el formato combined de nginx o Apache; descarta siempre direcciones de loopback y privadas.
 * Primer sensor entregado como **unidad systemd opcional**: se instala pero no se habilita sola, porque la ruta del log depende de cada servidor.
 
-## Limitación conocida
+## Limitaciones conocidas
+
+El sensor lee un único archivo de log; en cPanel cada dominio tiene el suyo, por lo que una instancia cubre un dominio (el soporte de múltiples logs no está implementado).
 
 Detrás de un proxy o túnel (por ejemplo Cloudflare Tunnel) el servidor ve toda conexión como `127.0.0.1`: el sensor puede detectar y acumular reputación una vez que el servidor web registra la IP real (`real_ip_header`), pero un ban en el firewall del host no puede bloquear al cliente real. Ver `IDEA-013` en `docs/TODO.md`.
 
 ## Validación
 
-Log real capturado, corrida en el servidor de producción en aislamiento, instalación aislada con `are-installer verify` (11/11) y calibración con el flujo real de `are.sh found` (`WATCH` → `FILTER` → `TEMP_BAN`). Detalle en `IDEA-013`.
+Log real capturado, corrida en el servidor de producción en aislamiento, instalación aislada con `are-installer verify` (11/11) y calibración con el flujo real de `are.sh found` (`WATCH` → `FILTER` → `TEMP_BAN`). Detalle en `IDEA-013`. Habilitado en producción en el patch de documentación `v2.9.1`: timer y offset verificados; todavía no hubo tráfico de escáner en ese log, por lo que el camino de detección a decisión falta observarlo en vivo. Ver `TASK-028`.
 
 ---
 

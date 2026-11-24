@@ -6,6 +6,47 @@ El proyecto sigue un versionado basado en versiones estables.
 
 ---
 
+# v2.9.1
+
+**Fecha:** 2026-11-24
+
+## Resumen
+
+Patch solo de documentación: completa la documentación de v2.9.0 tras la primera corrida del sensor Web Scanner en el servidor de producción. Sin cambios de código.
+
+## Novedades
+
+* `docs/USER_GUIDE.md` / `.es.md`: la sección Sensores describe ahora todos los sensores incluidos hasta la fecha (faltaban Web Correlation, `mail-antivirus` y Web Scanner) y cómo habilitar la unidad opcional de Web Scanner.
+* `docs/CHANGELOG.md` / `.es.md` y `docs/ROADMAP.md` / `.es.md`: v2.9.0 registra ahora la validación en producción y una limitación conocida más (abajo).
+* `docs/PROJECT.es.md`: eliminado un cierre de bloque de código sobrante (heredado del texto original en español) que hacía que el resto del documento se renderizara como código.
+* `docs/TODO.md`: nueva entrada `TASK-028`. `docs/TODO.es.md` sigue congelado en v2.8.3.
+
+## Validación en producción (v2.9.0)
+
+* `are-installer upgrade` + `verify` en el servidor de producción: todas las comprobaciones OK; las unidades opcionales quedan instaladas y sin habilitar; el perfil `web-scanner` (`RECON`, peso 30) está sembrado.
+* Habilitado desde ARE ADMIN (Sensores → Activar/Desactivar): el timer corre cada minuto, el servicio termina `Succeeded`, el offset avanza.
+* Primer dry-run contra el log real de un dominio de cPanel (11.064 líneas, unas 17 horas): sin reportes, lo cual es correcto — solo 2 peticiones tocaron rutas sensibles, ambas desde una dirección de Cloudflare ya incluida en la whitelist, por debajo del umbral de 5.
+
+## Limitación conocida (agregada)
+
+* El sensor lee un único archivo de log (`WEB_SCANNER_LOG_FILE`). En cPanel cada dominio tiene el suyo en `/usr/local/apache/domlogs/`, por lo que una instancia cubre un dominio. El soporte de múltiples logs no está implementado.
+
+## Compatibilidad
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.9.0
 
 **Fecha:** 2026-11-24

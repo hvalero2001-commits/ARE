@@ -1614,6 +1614,44 @@ After v2.8.3, three gaps remained: the supported-versions table in `docs/SECURIT
 
 ---
 
+## TASK-028
+
+**Title:** Web Scanner sensor: production activation and documentation completion
+
+**Status:** ✔ Implemented
+
+**Version:** v2.9.1
+
+**Context**
+
+v2.9.0 shipped the Web Scanner sensor validated in isolation. The first activation on the production server exposed documentation gaps: the user guide did not describe Web Correlation, `mail-antivirus` or Web Scanner (the first two were already missing before v2.9.0), the single-log limitation was not recorded, and the production validation had no entry.
+
+**Evidence**
+
+`are-installer upgrade` + `verify` on production: all OK; optional units installed and not enabled; `web-scanner` profile seeded (`RECON`, weight 30). Enabled from ARE ADMIN: timer every minute, service `Succeeded`, offset advancing. First dry-run against a real cPanel domain log (11,064 lines, about 17 hours): no report — only 2 requests touched sensitive paths, both from a Cloudflare address already whitelisted, below the threshold of 5. The detection-to-decision path has not yet been seen live because that log holds no scanner traffic.
+
+**Fix**
+
+`docs/USER_GUIDE.md` / `.es.md` (Sensors section), `docs/CHANGELOG.md` / `.es.md`, `docs/ROADMAP.md` / `.es.md`, version files and status references. Known limitation recorded: one log file per instance (on cPanel, one domain). `docs/TODO.es.md` stays frozen at v2.8.3.
+
+**Open**
+
+* Observe the first real `web-scanner` event end to end (`are events <IP>`).
+* Multi-log support for cPanel domlogs.
+* Enforcement behind a tunnel or proxy: `IDEA-013`.
+
+**Related files**
+
+* `docs/USER_GUIDE.md`, `docs/USER_GUIDE.es.md`
+* `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`
+* `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
+* `VERSION`
+* `config/config.conf`
+* `templates/config/config.conf`
+* `manifest/product.sh`
+
+---
+
 # RFC
 
 ## RFC-001
@@ -5253,7 +5291,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.9.0
+v2.9.1
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

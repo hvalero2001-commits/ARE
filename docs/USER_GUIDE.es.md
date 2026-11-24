@@ -119,7 +119,7 @@ Consulta de solo lectura del catálogo de categorías de reputación y sus umbra
 
 ## Sensores
 
-Estado y configuración de los sensores activos (Fail2Ban y SpamAssassin por polling, `apache_evasive` por callback), leídos dinámicamente desde el registro de sensores.
+Estado y configuración de los sensores activos (Fail2Ban, SpamAssassin, Web Correlation, `mail-antivirus` y Web Scanner por polling, `apache_evasive` por callback), leídos dinámicamente desde el registro de sensores.
 
 ```text
 1) Estado
@@ -430,6 +430,27 @@ ARE mantiene un sensor para SpamAssassin que lee el log del MTA de forma periód
 ## Apache / mod_evasive (patrón callback)
 
 Sensor invocado directamente por Apache en el instante en que `mod_evasive` detecta un flood, sin esperar a un ciclo de lectura periódica. Reporta a la categoría `DOS`.
+
+## Web Correlation (patrón polling)
+
+Lee el `access_log` de un servidor web y agrupa las peticiones por un marcador de ruta configurable (por defecto `cart`) y una ventana de tiempo. Cuando suficientes IPs distintas tocan el marcador en la misma ventana, reporta cada IP del grupo como `web-correlation` (categoría `BOT`). Detecta scraping distribuido que ninguna regla por IP individual puede ver. Se configura con `WEB_CORRELATION_LOG_FILE`, `WEB_CORRELATION_PATH_MARKER` y `WEB_CORRELATION_IP_THRESHOLD`.
+
+## mail-antivirus (patrón polling)
+
+Lee el log principal de Exim y reporta como `mail-antivirus` (categoría `MALWARE`) la IP de origen de los mensajes rechazados por la ACL del antivirus (`rejected after DATA` con veredicto de virus o contenido dañino). Se configura con `MAIL_ANTIVIRUS_LOG_FILE`.
+
+## Web Scanner (patrón polling, unidad opcional)
+
+Lee el `access_log` de un servidor web (nginx o Apache, formato combined) y reporta como `web-scanner` (categoría `RECON`) a una IP que pide varias **rutas sensibles distintas** en una misma corrida: `.env`, `.git`, `.ssh`, `phpinfo`, `wp-config`, respaldos y similares. Las direcciones de loopback y privadas se descartan siempre.
+
+Se instala con su unidad systemd **sin habilitar**, porque la ruta del log depende de cada servidor. Para habilitarlo:
+
+```text
+1) Definir WEB_SCANNER_LOG_FILE en config/config.conf
+2) are admin → Sensores → Activar/Desactivar → web-scanner
+```
+
+Otros parámetros: `WEB_SCANNER_JAIL` (por defecto `web-scanner`) y `WEB_SCANNER_HIT_THRESHOLD` (rutas sensibles distintas por corrida, por defecto 5). Limitaciones: lee un único archivo de log (en cPanel, un dominio), el log debe registrar la IP real del cliente, y detrás de un túnel o proxy un ban de firewall del host no puede bloquear al cliente real (ver `IDEA-013` en `docs/TODO.md`).
 
 ---
 

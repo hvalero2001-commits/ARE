@@ -6,6 +6,47 @@ The project follows versioning based on stable releases.
 
 ---
 
+# v2.9.1
+
+**Date:** 2026-11-24
+
+## Summary
+
+Documentation-only patch: completes the v2.9.0 documentation after the first run of the Web Scanner sensor on the production server. No code changes.
+
+## Changes
+
+* `docs/USER_GUIDE.md` / `.es.md`: the Sensors section now describes every sensor shipped to date (Web Correlation, `mail-antivirus` and Web Scanner were missing) and how to enable the optional Web Scanner unit.
+* `docs/CHANGELOG.md` / `.es.md` and `docs/ROADMAP.md` / `.es.md`: v2.9.0 now records the production validation and one more known limitation (below).
+* `docs/PROJECT.es.md`: removed a stray closing code fence (left over from the original Spanish text) that rendered the rest of the document as code.
+* `docs/TODO.md`: new entry `TASK-028`. `docs/TODO.es.md` stays frozen at v2.8.3.
+
+## Validation in production (v2.9.0)
+
+* `are-installer upgrade` + `verify` on the production server: all checks OK; the optional units are installed and not enabled; the `web-scanner` profile (`RECON`, weight 30) is seeded.
+* Enabled from ARE ADMIN (Sensors → Enable/Disable): the timer runs every minute, the service ends `Succeeded`, the offset advances.
+* First dry-run against a real cPanel domain log (11,064 lines, about 17 hours): no report, which is correct — only 2 requests touched sensitive paths, both from a Cloudflare address already in the whitelist, below the threshold of 5.
+
+## Known limitation (added)
+
+* The sensor reads a single log file (`WEB_SCANNER_LOG_FILE`). On cPanel each domain has its own log under `/usr/local/apache/domlogs/`, so one instance covers one domain. Multi-log support is not implemented.
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* ip6tables;
+* systemd;
+* Fail2Ban;
+* ModSecurity;
+* Exim;
+* rsync;
+* apt-get/dnf/yum.
+
+---
+
 # v2.9.0
 
 **Date:** 2026-11-24

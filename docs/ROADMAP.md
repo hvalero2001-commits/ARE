@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.9.0
+v2.9.1
 ```
 
 Status:
@@ -597,13 +597,15 @@ Arising from a real scan captured on a test nginx server behind a Cloudflare Tun
 * Reads the combined log format of nginx or Apache; always discards loopback and private addresses.
 * First sensor shipped as an **optional systemd unit**: installed but not enabled automatically, since the log path depends on each server.
 
-## Known limitation
+## Known limitations
+
+The sensor reads a single log file; on cPanel each domain has its own log, so one instance covers one domain (multi-log support is not implemented).
 
 Behind a proxy or tunnel (for example Cloudflare Tunnel) the server sees every connection as `127.0.0.1`: the sensor can detect and accumulate reputation once the web server records the real IP (`real_ip_header`), but a host firewall ban cannot block the real client. See `IDEA-013` in `docs/TODO.md`.
 
 ## Validation
 
-Real captured log, production server run in isolation, isolated install with `are-installer verify` (11/11), and calibration with the real `are.sh found` flow (`WATCH` → `FILTER` → `TEMP_BAN`). Detail in `IDEA-013`.
+Real captured log, production server run in isolation, isolated install with `are-installer verify` (11/11), and calibration with the real `are.sh found` flow (`WATCH` → `FILTER` → `TEMP_BAN`). Detail in `IDEA-013`. Enabled in production in the `v2.9.1` documentation patch: timer and offset verified; no scanner traffic in that log yet, so the detection-to-decision path is still to be observed live. See `TASK-028`.
 
 ---
 
