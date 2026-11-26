@@ -1636,7 +1636,7 @@ v2.9.0 shipped the Web Scanner sensor validated in isolation. The first activati
 
 **Open**
 
-* Observe the first real `web-scanner` event end to end (`are events <IP>`).
+* ~~Observe the first real `web-scanner` event end to end~~ — done on 2026-11-24, see `TASK-034`.
 * Multi-log support for cPanel domlogs.
 * Enforcement behind a tunnel or proxy: `IDEA-013`.
 
@@ -1806,6 +1806,41 @@ Function run in isolation with stub managers (see `CHANGELOG`); `bash -n are-ins
 **Related files**
 
 * `are-installer`
+* `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`, `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
+* `VERSION`, `config/config.conf`, `templates/config/config.conf`, `manifest/product.sh`
+
+---
+
+## TASK-034
+
+**Title:** Web Scanner: first real detections in production (documentation)
+
+**Status:** ✔ Implemented
+
+**Version:** v2.9.7
+
+**Context**
+
+`TASK-028` left one item open since v2.9.1: the sensor was enabled in production but no scanner traffic had reached the log, so the path from detection to decision had never been observed with real traffic.
+
+**Evidence (2026-11-24)**
+
+* `events` holds two `FOUND` entries with jail `web-scanner`, recorded by the enabled timer, for two different public IPs.
+* `are.log` for one of them: `FOUND recibido: <IP> desde web-scanner`, followed by `Score FOUND aplicado: 7`. Seven is what the calibration gives: weight 30 × confidence 0.90 × 0.25 = 6.75, rounded. The surrounding lines with other scores belong to other jails reporting in parallel.
+* Afterwards the same IP was reported by Fail2Ban jails (`recidive` and others) and reached `RECON` 17, `EXPLOIT` 42, `ANOMALY` 9 (total 68, `HIGH`) and `BAN_LEVEL_3`.
+* The log excerpt does not show the policy decision taken specifically on the `web-scanner` report, so the decision cannot be attributed to the sensor alone: on this server Fail2Ban and ModSecurity report the same IPs.
+
+**Decision**
+
+The sensor stays enabled on this server: where it overlaps with Fail2Ban and ModSecurity, a client probing `.env`, `.git` or backups is hostile and accumulating reputation by both paths is intended. It stays an optional unit, mainly useful on servers without that stack (the case that originated it).
+
+**Fix**
+
+Documentation only: `docs/ROADMAP.md` / `.es.md`, `docs/CHANGELOG.md` / `.es.md`, this entry, and the closed items in `TASK-028` and `IDEA-013`. `docs/TODO.es.md` stays frozen at v2.8.3.
+
+**Related files**
+
+* `docs/TODO.md`
 * `docs/CHANGELOG.md`, `docs/CHANGELOG.es.md`, `docs/ROADMAP.md`, `docs/ROADMAP.es.md`
 * `VERSION`, `config/config.conf`, `templates/config/config.conf`, `manifest/product.sh`
 
@@ -3793,7 +3828,7 @@ It arose from a real test: ARE was going to be tried on a test server (AlmaLinux
 * Run on the production server (gawk, sqlite3 3.26) in an isolated directory: same result.
 * Isolated install and `are-installer verify`: 11/11 OK, no differences against v2.8.4.
 * Ten consecutive runs of the real `are.sh found` flow on a test IP: `WATCH` (run 1, 7 points), `FILTER` (run 3, 21), `TEMP_BAN` 1 hour (run 9, 63), escalating to `BAN_LEVEL_2` (6 hours) on run 10.
-* Pending: running it as an enabled timer against a real production log.
+* Validated as an enabled timer against real production traffic on 2026-11-24 (see `TASK-034`).
 
 **Not covered / open**
 
@@ -5450,7 +5485,7 @@ Ideas do not constitute implementation commitments.
 The currently documented stable version is:
 
 ```text
-v2.9.6
+v2.9.7
 ```
 
 Future work must be added to the Roadmap before becoming a formal line of development.

@@ -6,6 +6,36 @@ The project follows versioning based on stable releases.
 
 ---
 
+# v2.9.7
+
+**Date:** 2026-11-24
+
+## Summary
+
+Documentation-only patch: records the first real detections of the Web Scanner sensor in production. No code changes.
+
+## Changes
+
+* `docs/TODO.md`: new entry `TASK-034` with the evidence; the open item of `TASK-028` ("observe the first real `web-scanner` event") and the pending item of `IDEA-013` ("run it as an enabled timer against a real production log") are closed.
+* `docs/ROADMAP.md` / `.es.md`: the v2.9 validation note no longer says the detection-to-decision path is still to be observed.
+* `docs/TODO.es.md` stays frozen at v2.8.3.
+
+## Validation in production (2026-11-24)
+
+* Two `FOUND` events from the `web-scanner` jail recorded by the enabled timer, on two different public IPs.
+* For one of them the log shows the full first steps: `FOUND recibido: <IP> desde web-scanner`, then `Score FOUND aplicado: 7` — exactly what the jail calibration gives (weight 30 × confidence 0.90 × 0.25) — and the event in `events`. Afterwards the same IP was also reported by Fail2Ban jails (`recidive` and others), accumulated `RECON` 17, `EXPLOIT` 42 and `ANOMALY` 9 (total 68, `HIGH`) and escalated to `BAN_LEVEL_3`.
+* On this server the sensor runs next to Fail2Ban and ModSecurity, so it overlaps with them; both paths feed the same reputation. It remains an optional unit for servers without that stack.
+
+## Compatibility
+
+* Linux;
+* SQLite;
+* IPSet;
+* iptables;
+* systemd.
+
+---
+
 # v2.9.6
 
 **Date:** 2026-11-24

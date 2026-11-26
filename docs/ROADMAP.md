@@ -18,7 +18,7 @@ Every new feature must respect the project's architecture and official methodolo
 Latest stable release:
 
 ```text
-v2.9.6
+v2.9.7
 ```
 
 Status:
@@ -605,7 +605,7 @@ Scope: ARE bans through the host firewall, so it targets servers where the firew
 
 ## Validation
 
-Real captured log, production server run in isolation, isolated install with `are-installer verify` (11/11), and calibration with the real `are.sh found` flow (`WATCH` → `FILTER` → `TEMP_BAN`). Detail in `IDEA-013`. Enabled in production in the `v2.9.1` documentation patch: timer and offset verified; no scanner traffic in that log yet, so the detection-to-decision path is still to be observed live. See `TASK-028`.
+Real captured log, production server run in isolation, isolated install with `are-installer verify` (11/11), and calibration with the real `are.sh found` flow (`WATCH` → `FILTER` → `TEMP_BAN`). Detail in `IDEA-013`. Enabled in production in the `v2.9.1` documentation patch: timer and offset verified; no scanner traffic in that log at the time. The first real detections were observed on 2026-11-24 (see Patch v2.9.7). See `TASK-028`.
 
 ## Patch v2.9.2
 
@@ -626,6 +626,10 @@ Code patch: the Web Scanner sensor accepts several log files or globs in `WEB_SC
 ## Patch v2.9.6
 
 Code patch: the Installer's automatic dependency installation uses the package name `sqlite` (not `sqlite3`) with `dnf`/`yum`, so a clean install on AlmaLinux, Rocky, RHEL or Fedora can resolve it. See `TASK-033` in `docs/TODO.md`.
+
+## Patch v2.9.7
+
+Documentation-only patch. Records the first real detections of the Web Scanner sensor in production (2026-11-24): `FOUND` received from `web-scanner`, score applied as calibrated, event recorded and the IP then escalated together with Fail2Ban reports. Closes the open item of `TASK-028`. No code changes. See `TASK-034` in `docs/TODO.md`.
 
 ---
 

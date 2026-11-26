@@ -17,7 +17,7 @@ Toda nueva funcionalidad deberá respetar la arquitectura y la metodología ofic
 Versión estable liberada:
 
 ```text
-v2.9.6
+v2.9.7
 ```
 
 Estado:
@@ -488,7 +488,7 @@ Alcance: ARE banea mediante el firewall del host, por lo que apunta a servidores
 
 ## Validación
 
-Log real capturado, corrida en el servidor de producción en aislamiento, instalación aislada con `are-installer verify` (11/11) y calibración con el flujo real de `are.sh found` (`WATCH` → `FILTER` → `TEMP_BAN`). Detalle en `IDEA-013`. Habilitado en producción en el patch de documentación `v2.9.1`: timer y offset verificados; todavía no hubo tráfico de escáner en ese log, por lo que el camino de detección a decisión falta observarlo en vivo. Ver `TASK-028`.
+Log real capturado, corrida en el servidor de producción en aislamiento, instalación aislada con `are-installer verify` (11/11) y calibración con el flujo real de `are.sh found` (`WATCH` → `FILTER` → `TEMP_BAN`). Detalle en `IDEA-013`. Habilitado en producción en el patch de documentación `v2.9.1`: timer y offset verificados; todavía no hubo tráfico de escáner en ese log en ese momento. Las primeras detecciones reales se observaron el 2026-11-24 (ver Patch v2.9.7). Ver `TASK-028`.
 
 ## Patch v2.9.2
 
@@ -509,6 +509,10 @@ Patch de código: el sensor Web Scanner acepta varios archivos de log o globs en
 ## Patch v2.9.6
 
 Patch de código: la instalación automática de dependencias del Installer usa el nombre de paquete `sqlite` (no `sqlite3`) con `dnf`/`yum`, de modo que una instalación limpia en AlmaLinux, Rocky, RHEL o Fedora pueda resolverlo. Ver `TASK-033` en `docs/TODO.md`.
+
+## Patch v2.9.7
+
+Patch solo de documentación. Registra las primeras detecciones reales del sensor Web Scanner en producción (2026-11-24): `FOUND` recibido desde `web-scanner`, score aplicado según la calibración, evento registrado y la IP escalada luego junto con los reportes de Fail2Ban. Cierra el punto abierto de `TASK-028`. Sin cambios de código. Ver `TASK-034` en `docs/TODO.md`.
 
 ---
 
